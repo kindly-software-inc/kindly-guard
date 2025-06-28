@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  kindly-guard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kindly-guard:latest
+    container_name: kindly-guard-server
+    restart: unless-stopped
+    environment:
+      - RUST_LOG=kindly_guard=info
+      - KINDLY_GUARD_CONFIG=/app/config/kindly-guard.toml
+    volumes:
+      - ./kindly-guard.toml:/app/config/kindly-guard.toml:ro
+    ports:
+      - "8080:8080"  # Only if using HTTP mode
+    stdin_open: true
+    tty: true
+    command: ["kindly-guard", "--stdio"]
+    
+  # Example client service that uses KindlyGuard
+  example-mcp-client:
+    image: alpine:latest
+    depends_on:
+      - kindly-guard
+    volumes:
+      - ./test_threats.json:/data/test_threats.json:ro
+    command: >
+      sh -c "
+        apk add --no-cache jq &&
+        echo 'Testing KindlyGuard...' &&
+        echo '{\"jsonrpc\": \"2.0\", \"method\": \"tools/list\", \"id\": 1}' | 
+        nc kindly-guard 8080
+      "
+    profiles:
+      - test

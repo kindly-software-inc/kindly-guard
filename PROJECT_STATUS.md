@@ -50,25 +50,54 @@
 - Sensible defaults
 - Example config file provided
 
-## 🚧 In Progress
+### 6. **CLI Tool** (kindly-guard-cli) ✅
+- **File & Directory Scanning**
+  - Progress bar with real-time updates
+  - Recursive directory scanning
+  - File extension filtering
+  - Size limit enforcement
+  - Multiple output formats (table, JSON, brief)
+  
+- **Server Monitoring**
+  - Live status display
+  - Auto-refresh with configurable interval
+  - Beautiful terminal UI
+  
+- **Output Formatting**
+  - Colored severity indicators
+  - Detailed threat information
+  - Grouped remediation suggestions
+  - Threat statistics and breakdown
 
-### 6. **CLI Tool** (kindly-guard-cli)
-- Basic structure created
-- Scan and monitor commands defined
-- Implementation pending
+### 7. **Testing**
+- Unit tests for all scanners (15 passing)
+- Integration tests (4 passing)
+- Test file with various threat examples
+- 19 total tests passing
+
+### 8. **CI/CD & Deployment**
+- GitHub Actions workflow
+  - Multi-version testing (stable, beta, nightly)
+  - Security audit with cargo-audit
+  - Code coverage with tarpaulin
+  - Formatting and clippy checks
+- Docker support
+  - Multi-stage Alpine-based image
+  - Non-root user execution
+  - Health checks
+  - docker-compose configuration
 
 ## 📋 TODO
 
-### 7. **Private Core Integration**
+### 9. **Private Core Integration**
 - Move atomic event buffer to private crate
 - Add patented algorithms
 - Set up as git dependency
 
-### 8. **Testing & Documentation**
-- Add integration tests
-- Create user documentation
-- Add CI/CD pipeline
-- Security audit
+### 10. **Documentation**
+- API documentation
+- User guide
+- Security best practices guide
 
 ## Usage
 
