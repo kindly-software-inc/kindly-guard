@@ -7,7 +7,7 @@ pub mod scanner;
 pub mod server;
 pub mod shield;
 
-pub use config::Config;
+pub use config::{Config, ScannerConfig};
 pub use scanner::{SecurityScanner, Threat, ThreatType, Severity};
 pub use server::McpServer;
 pub use shield::Shield;
