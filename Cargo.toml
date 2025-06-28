@@ -1,0 +1,62 @@
+[workspace]
+members = [
+    "kindly-guard-server",
+    "kindly-guard-cli",
+    # Core will be a private dependency
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Samuel Duchaine <samuel.duchaine@example.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/samuel/kindly-guard"
+
+[workspace.dependencies]
+# Async runtime
+tokio = { version = "1.40", features = ["full"] }
+async-trait = "0.1"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Security
+unicode-security = "0.1"
+regex = "1.11"
+sha2 = "0.10"
+base64 = "0.22"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# UI
+crossterm = "0.28"
+ratatui = "0.29"
+
+# Testing
+criterion = { version = "0.5", features = ["html_reports"] }
+proptest = "1.5"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[profile.dev]
+opt-level = 0
+debug = true
+
+# Security-focused profile
+[profile.secure]
+inherits = "release"
+overflow-checks = true
+debug-assertions = true

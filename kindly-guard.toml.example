@@ -1,0 +1,44 @@
+# KindlyGuard Configuration Example
+# Copy this file to kindly-guard.toml and customize as needed
+
+[server]
+# Port for HTTP transport (not used in stdio mode)
+port = 8080
+
+# Enable stdio transport (default for MCP)
+stdio = true
+
+# Maximum concurrent connections
+max_connections = 100
+
+# Request timeout in seconds
+request_timeout_secs = 30
+
+[scanner]
+# Enable unicode threat detection
+unicode_detection = true
+
+# Enable injection detection
+injection_detection = true
+
+# Enable path traversal detection
+path_traversal_detection = true
+
+# Custom threat patterns file (optional)
+# custom_patterns = "/path/to/patterns.json"
+
+# Maximum scan depth for nested structures
+max_scan_depth = 10
+
+[shield]
+# Enable shield display (requires --shield flag)
+enabled = false
+
+# Update interval in milliseconds
+update_interval_ms = 1000
+
+# Show detailed statistics
+detailed_stats = false
+
+# Enable color output
+color = true
