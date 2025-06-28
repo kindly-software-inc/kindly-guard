@@ -11,8 +11,15 @@ pub mod scanner;
 pub mod server;
 pub mod shield;
 pub mod signing;
+pub mod traits;
+pub mod standard_impl;
+pub mod enhanced_impl;
+pub mod component_selector;
+pub mod logging;
 
 pub use config::{Config, ScannerConfig};
 pub use scanner::{SecurityScanner, Threat, ThreatType, Severity};
 pub use server::McpServer;
 pub use shield::Shield;
+pub use traits::{SecurityEventProcessor, EnhancedScanner, CorrelationEngine, RateLimiter};
+pub use component_selector::{ComponentSelector, ComponentManager};

@@ -2,7 +2,6 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 
 /// MCP Protocol version we support
 pub const PROTOCOL_VERSION: &str = "2024-11-05";
