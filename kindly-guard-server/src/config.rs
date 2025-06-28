@@ -55,6 +55,10 @@ pub struct ScannerConfig {
     /// Maximum scan depth for nested structures
     #[serde(default = "default_max_depth")]
     pub max_scan_depth: usize,
+    
+    /// Enable high-performance event buffer
+    #[serde(default = "default_false")]
+    pub enable_event_buffer: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -115,6 +119,7 @@ impl Default for Config {
                 path_traversal_detection: default_true(),
                 custom_patterns: None,
                 max_scan_depth: default_max_depth(),
+                enable_event_buffer: default_false(),
             },
             shield: ShieldConfig {
                 enabled: default_false(),

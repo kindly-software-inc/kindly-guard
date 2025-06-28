@@ -18,6 +18,8 @@ pub struct SecurityScanner {
     injection_scanner: InjectionScanner,
     patterns: ThreatPatterns,
     config: crate::config::ScannerConfig,
+    #[allow(dead_code)]
+    event_buffer: Option<kindly_guard_core::AtomicEventBuffer>,
 }
 
 /// Represents a detected security threat
@@ -95,11 +97,24 @@ impl SecurityScanner {
             ThreatPatterns::default()
         };
         
+        // Initialize high-performance event buffer if configured
+        let event_buffer = if config.enable_event_buffer {
+            Some(kindly_guard_core::AtomicEventBuffer::new(
+                10, // 10MB buffer
+                100, // 100 endpoints
+                10000.0, // 10k events/sec
+                5, // 5 failures before circuit opens
+            ))
+        } else {
+            None
+        };
+        
         Ok(Self {
             unicode_scanner: UnicodeScanner::new(),
             injection_scanner: InjectionScanner::new(&patterns)?,
             patterns,
             config,
+            event_buffer,
         })
     }
     

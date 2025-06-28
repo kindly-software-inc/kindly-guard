@@ -2,7 +2,7 @@
 members = [
     "kindly-guard-server",
     "kindly-guard-cli",
-    # Core will be a private dependency
+    "kindly-guard-core",
 ]
 resolver = "2"
 

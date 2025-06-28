@@ -116,6 +116,7 @@ async fn scan_command(
         path_traversal_detection: true,
         custom_patterns: None,
         max_scan_depth: 10,
+        enable_event_buffer: false,
     };
     
     let scanner = SecurityScanner::new(config)

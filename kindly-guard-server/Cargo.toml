@@ -47,8 +47,8 @@ parking_lot = "0.12"
 uuid = { version = "1.11", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
-# Private core dependency - will be added later
-# kindly-guard-core = { git = "https://github.com/yourusername/kindly-guard-core-private", branch = "main" }
+# Private core dependency
+kindly-guard-core = { path = "../kindly-guard-core" }
 
 [dev-dependencies]
 criterion.workspace = true
