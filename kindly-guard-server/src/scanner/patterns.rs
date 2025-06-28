@@ -45,6 +45,11 @@ impl ThreatPatterns {
     pub fn sql_injection_patterns(&self) -> &[String] {
         &self.sql_injection
     }
+    
+    /// Get all patterns as a serializable structure
+    pub fn get_all_patterns(&self) -> &ThreatPatterns {
+        self
+    }
 }
 
 impl Default for ThreatPatterns {

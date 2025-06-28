@@ -10,6 +10,7 @@ use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 mod config;
+mod protocol;
 mod scanner;
 mod server;
 mod shield;

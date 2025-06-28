@@ -3,6 +3,7 @@
 //! Exposes the scanner functionality for use by the CLI and other tools
 
 pub mod config;
+pub mod protocol;
 pub mod scanner;
 pub mod server;
 pub mod shield;

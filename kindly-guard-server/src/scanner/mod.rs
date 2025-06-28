@@ -16,7 +16,7 @@ pub use patterns::ThreatPatterns;
 pub struct SecurityScanner {
     unicode_scanner: UnicodeScanner,
     injection_scanner: InjectionScanner,
-    patterns: ThreatPatterns,
+    pub patterns: ThreatPatterns,
     config: crate::config::ScannerConfig,
     #[allow(dead_code)]
     event_buffer: Option<kindly_guard_core::AtomicEventBuffer>,
