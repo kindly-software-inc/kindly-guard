@@ -131,6 +131,17 @@ impl Default for Config {
     }
 }
 
+impl Default for ShieldConfig {
+    fn default() -> Self {
+        Self {
+            enabled: default_false(),
+            update_interval_ms: default_update_interval(),
+            detailed_stats: default_false(),
+            color: default_true(),
+        }
+    }
+}
+
 // Default value functions
 fn default_port() -> u16 { 8080 }
 fn default_true() -> bool { true }

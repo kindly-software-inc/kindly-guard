@@ -10,7 +10,10 @@ use crate::scanner::Threat;
 use crate::config::ShieldConfig;
 
 pub mod display;
+pub mod cli;
+
 pub use display::ShieldDisplay;
+pub use cli::{CliShield, DisplayFormat, ShieldStatus};
 
 /// Security shield that tracks protection status
 pub struct Shield {
@@ -36,9 +39,20 @@ pub struct ShieldInfo {
     pub recent_threat_rate: f64,
 }
 
+/// Shield statistics
+pub struct ShieldStats {
+    pub threats_blocked: u64,
+    pub active: bool,
+}
+
 impl Shield {
     /// Create a new shield
-    pub fn new(config: ShieldConfig) -> Self {
+    pub fn new() -> Self {
+        Self::with_config(ShieldConfig::default())
+    }
+    
+    /// Create a new shield with specific config
+    pub fn with_config(config: ShieldConfig) -> Self {
         Self {
             active: AtomicBool::new(false),
             start_time: Instant::now(),
@@ -139,5 +153,34 @@ impl Shield {
         
         let display = ShieldDisplay::new(self.clone(), self.config.clone());
         display.run().await
+    }
+    
+    /// Get the start time of the shield
+    pub fn start_time(&self) -> Instant {
+        self.start_time
+    }
+    
+    /// Get shield statistics
+    pub fn stats(&self) -> ShieldStats {
+        ShieldStats {
+            threats_blocked: self.threats_blocked.load(Ordering::Relaxed),
+            active: self.is_active(),
+        }
+    }
+    
+    /// Get the last threat type if any
+    pub fn last_threat_type(&self) -> Option<String> {
+        let recent = self.recent_threats.lock().unwrap();
+        recent.back().map(|t| format!("{}", t.threat.threat_type))
+    }
+    
+    /// Get scanner statistics (placeholder for now)
+    pub fn scanner_stats(&self) -> crate::scanner::ScannerStats {
+        // This will be connected to the actual scanner later
+        crate::scanner::ScannerStats {
+            unicode_threats_detected: 0,
+            injection_threats_detected: 0,
+            total_scans: 0,
+        }
     }
 }

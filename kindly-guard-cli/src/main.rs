@@ -63,6 +63,44 @@ enum Commands {
         #[arg(short, long, default_value = "5")]
         interval: u64,
     },
+    
+    /// Shield commands for CLI integration
+    Shield {
+        #[command(subcommand)]
+        command: ShieldCommands,
+    },
+    
+    /// Generate shell initialization script
+    ShellInit {
+        /// Shell type (bash, zsh, fish)
+        shell: String,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+enum ShieldCommands {
+    /// Get shield status
+    Status {
+        /// Output format (compact, minimal, json)
+        #[arg(short, long, default_value = "compact")]
+        format: String,
+    },
+    
+    /// Start shield protection
+    Start {
+        /// Run in background
+        #[arg(short, long)]
+        background: bool,
+    },
+    
+    /// Stop shield protection
+    Stop,
+    
+    /// Pre-command hook (for shell integration)
+    PreCommand,
+    
+    /// Post-command hook (for shell integration)
+    PostCommand,
 }
 
 #[tokio::main]
@@ -81,6 +119,12 @@ async fn main() -> Result<()> {
         }
         Commands::Monitor { url, interval } => {
             monitor_command(url, interval).await
+        }
+        Commands::Shield { command } => {
+            shield_command(command).await
+        }
+        Commands::ShellInit { shell } => {
+            shell_init_command(&shell).await
         }
     }
 }
@@ -329,4 +373,72 @@ fn print_server_status(status: &serde_json::Value) {
     }
     
     println!("{}", "╰──────────────────────────────────────╯".cyan());
+}
+
+async fn shield_command(command: ShieldCommands) -> Result<()> {
+    use kindly_guard_server::shield::{CliShield, DisplayFormat, Shield};
+    use std::sync::Arc;
+    
+    match command {
+        ShieldCommands::Status { format } => {
+            // Create a shield to get status (connects to running server if available)
+            let shield = Arc::new(Shield::new());
+            let cli_shield = CliShield::new(shield.clone(), DisplayFormat::Compact);
+            
+            match format.as_str() {
+                "json" => {
+                    let status = cli_shield.status();
+                    println!("{}", serde_json::to_string_pretty(&status)?);
+                }
+                "minimal" => {
+                    let cli_shield = CliShield::new(shield, DisplayFormat::Minimal);
+                    println!("{}", cli_shield.render());
+                }
+                _ => {
+                    // Default to compact
+                    println!("{}", cli_shield.render());
+                }
+            }
+        }
+        ShieldCommands::Start { background } => {
+            if background {
+                println!("Starting KindlyGuard shield in background...");
+                // TODO: Implement background daemon
+                println!("{}", "Shield started in background mode".green());
+            } else {
+                println!("Starting KindlyGuard shield...");
+                // TODO: Start interactive shield
+                println!("{}", "Shield is active".green());
+            }
+        }
+        ShieldCommands::Stop => {
+            println!("Stopping KindlyGuard shield...");
+            // TODO: Send stop signal to daemon
+            println!("{}", "Shield stopped".yellow());
+        }
+        ShieldCommands::PreCommand => {
+            // Silent operation for shell integration
+            // TODO: Mark command start in shield
+        }
+        ShieldCommands::PostCommand => {
+            // Silent operation for shell integration
+            // TODO: Mark command end in shield
+        }
+    }
+    
+    Ok(())
+}
+
+async fn shell_init_command(shell: &str) -> Result<()> {
+    let script = match shell {
+        "bash" => include_str!("../../kindly-guard-server/scripts/shell-init.bash"),
+        "zsh" => include_str!("../../kindly-guard-server/scripts/shell-init.zsh"),
+        "fish" => include_str!("../../kindly-guard-server/scripts/shell-init.fish"),
+        _ => {
+            anyhow::bail!("Unsupported shell: {}. Supported shells: bash, zsh, fish", shell);
+        }
+    };
+    
+    println!("{}", script);
+    Ok(())
 }

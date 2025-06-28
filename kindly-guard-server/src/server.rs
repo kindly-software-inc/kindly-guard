@@ -85,7 +85,7 @@ impl McpServer {
     /// Create a new MCP server
     pub fn new(config: Config) -> Result<Self> {
         let scanner = Arc::new(SecurityScanner::new(config.scanner.clone())?);
-        let shield = Arc::new(Shield::new(config.shield.clone()));
+        let shield = Arc::new(Shield::with_config(config.shield.clone()));
         
         Ok(Self {
             scanner,
