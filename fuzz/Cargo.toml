@@ -1,0 +1,49 @@
+[package]
+name = "kindly-guard-fuzz"
+version = "0.0.1"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+arbitrary = { version = "1.3", features = ["derive"] }
+
+[dependencies.kindly-guard-server]
+path = "../kindly-guard-server"
+
+[dependencies.kindly-guard-core]
+path = "../kindly-guard-core"
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+panic = "abort"
+
+[[bin]]
+name = "fuzz_unicode_scanner"
+path = "fuzz_targets/fuzz_unicode_scanner.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_injection_detector"
+path = "fuzz_targets/fuzz_injection_detector.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_mcp_protocol"
+path = "fuzz_targets/fuzz_mcp_protocol.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "fuzz_event_buffer"
+path = "fuzz_targets/fuzz_event_buffer.rs"
+test = false
+doc = false

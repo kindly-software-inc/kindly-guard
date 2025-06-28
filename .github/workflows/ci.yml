@@ -81,3 +81,51 @@ jobs:
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         fail_ci_if_error: false
+
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install security tools
+      run: |
+        cargo install cargo-geiger
+        cargo install cargo-deny
+    
+    - name: Check for unsafe code
+      run: |
+        echo "=== Checking for unsafe code usage ==="
+        cargo geiger --all-features --output-format GitHubActions
+    
+    - name: Check dependencies
+      run: |
+        echo "=== Checking dependencies with cargo-deny ==="
+        cargo deny check
+    
+    - name: Run property tests
+      run: |
+        echo "=== Running property-based tests ==="
+        cd kindly-guard-server
+        cargo test --test property_tests -- --nocapture
+    
+  fuzz-smoke-test:
+    name: Fuzz Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - name: Install Rust nightly
+      uses: dtolnay/rust-toolchain@nightly
+    
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz
+    
+    - name: Run short fuzz tests
+      run: |
+        echo "=== Running 60-second fuzz smoke tests ==="
+        ./scripts/fuzz.sh run fuzz_unicode_scanner -t 60 || true
+        ./scripts/fuzz.sh run fuzz_injection_detector -t 60 || true
+        ./scripts/fuzz.sh run fuzz_mcp_protocol -t 60 || true
+        ./scripts/fuzz.sh run fuzz_event_buffer -t 60 || true

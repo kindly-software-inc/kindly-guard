@@ -1,0 +1,57 @@
+# cargo-deny configuration for KindlyGuard
+
+[bans]
+# Lint level for when multiple versions of the same crate are detected
+multiple-versions = "warn"
+# Lint level for when a crate marked as 'unmaintained' is detected
+unmaintained = "warn"
+# List of explicitly disallowed crates
+deny = [
+    # Heavy web frameworks we don't need
+    { name = "actix-web" },
+    { name = "rocket" },
+    { name = "warp" },
+    # Heavy ORMs
+    { name = "diesel" },
+    { name = "sqlx" },
+    # Other heavy dependencies
+    { name = "reqwest" },
+    { name = "hyper" },
+]
+
+[licenses]
+# List of explicitly allowed licenses
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-DFS-2016",
+    "CC0-1.0",
+]
+# Confidence threshold for license detection
+confidence-threshold = 0.9
+
+[sources]
+# Lint level for what to happen when a crate from a git repository is detected
+unknown-git = "warn"
+# Lint level for what to happen when a crate from a registry that is not crates.io is detected
+unknown-registry = "warn"
+# List of allowed registries
+allow-registry = ["https://github.com/rust-lang/crates.io-index"]
+
+[advisories]
+# The path where the advisory database is cloned/fetched into
+db-path = "~/.cargo/advisory-db"
+# The url(s) of the advisory databases to use
+db-urls = ["https://github.com/rustsec/advisory-db"]
+# The lint level for security vulnerabilities
+vulnerability = "deny"
+# The lint level for unmaintained crates
+unmaintained = "warn"
+# The lint level for crates with security notices
+notice = "warn"
+# A list of advisory IDs to ignore
+ignore = []

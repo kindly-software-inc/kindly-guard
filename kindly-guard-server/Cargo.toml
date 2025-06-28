@@ -54,3 +54,4 @@ kindly-guard-core = { path = "../kindly-guard-core" }
 criterion.workspace = true
 proptest.workspace = true
 tempfile = "3.14"
+arbitrary = { version = "1.3", features = ["derive"] }
