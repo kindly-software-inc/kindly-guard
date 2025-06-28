@@ -16,6 +16,9 @@ pub struct JsonRpcRequest {
     pub params: Option<Value>,
     #[serde(flatten)]
     pub id: RequestId,
+    /// Extension: Authorization header for MCP
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub authorization: Option<String>,
 }
 
 /// JSON-RPC 2.0 Response

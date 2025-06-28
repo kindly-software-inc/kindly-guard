@@ -42,3 +42,122 @@ detailed_stats = false
 
 # Enable color output
 color = true
+
+[auth]
+# Enable authentication (set to true for production)
+enabled = false
+
+# Token validation endpoint (optional)
+# validation_endpoint = "https://auth.example.com/validate"
+
+# Trusted token issuers
+# trusted_issuers = ["https://auth.example.com"]
+
+# Token cache TTL in seconds
+cache_ttl_seconds = 300
+
+# Enable resource indicators validation (RFC 8707)
+validate_resource_indicators = true
+
+# Required scopes for tools
+[auth.required_scopes.tools]
+# scan_text = ["mcp:tools:scan", "security:scan"]
+# scan_file = ["mcp:tools:scan", "security:scan", "file:read"]
+
+# Required scopes for resources
+[auth.required_scopes.resources]
+# "threat-patterns://default" = ["mcp:resources:read"]
+# "security-report://latest" = ["mcp:resources:read", "security:status"]
+
+# Default required scopes
+[auth.required_scopes]
+default = ["mcp:read"]
+
+[signing]
+# Enable message signing
+enabled = false
+
+# Algorithm to use: "hmac_sha256" or "ed25519"
+algorithm = "hmac_sha256"
+
+# HMAC secret key (base64 encoded, at least 32 bytes)
+# hmac_secret = "base64-encoded-secret-key"
+
+# Ed25519 private key (base64 encoded, exactly 32 bytes)
+# ed25519_private_key = "base64-encoded-private-key"
+
+# Require signatures on incoming messages
+require_signatures = false
+
+# Grace period for transitioning to required signatures (seconds)
+grace_period_seconds = 86400  # 24 hours
+
+# Include timestamp in signatures
+include_timestamp = true
+
+# Maximum allowed clock skew (seconds)
+max_clock_skew_seconds = 300  # 5 minutes
+
+[rate_limit]
+# Enable rate limiting
+enabled = false
+
+# Default requests per minute
+default_rpm = 60
+
+# Burst capacity (immediate tokens)
+burst_capacity = 10
+
+# Clean up interval for expired buckets (seconds)
+cleanup_interval_secs = 300
+
+# Enable adaptive rate limiting
+adaptive = false
+
+# Penalty multiplier for security threats
+threat_penalty_multiplier = 0.5
+
+# Per-method rate limits
+[rate_limit.method_limits."tools/list"]
+rpm = 60
+burst = 10
+
+[rate_limit.method_limits."tools/call"]
+rpm = 30
+burst = 5
+
+[rate_limit.method_limits."security/threats"]
+rpm = 10
+burst = 2
+
+# Per-client rate limits
+# [rate_limit.client_limits."premium-client"]
+# rpm = 120
+# burst = 20
+# priority = "premium"
+
+[event_processor]
+# Enable advanced security event processing (patented technology)
+# WARNING: This uses significant resources when enabled
+enabled = false
+
+# Buffer size in MB (10-100 recommended)
+buffer_size_mb = 20
+
+# Maximum endpoints to track
+max_endpoints = 1000
+
+# Events per second limit
+rate_limit = 10000.0
+
+# Circuit breaker failure threshold
+failure_threshold = 5
+
+# Event retention duration in seconds
+retention_duration = 3600  # 1 hour
+
+# Enable attack pattern detection
+pattern_detection = true
+
+# Enable real-time event correlation
+correlation_enabled = true

@@ -93,15 +93,29 @@ impl ShieldDisplay {
         let info = self.shield.get_info();
         let threat_stats = self.shield.get_threat_stats();
         
-        // Title block
-        let title = Paragraph::new("🛡️  KindlyGuard Security Shield")
-            .style(Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
+        // Title block - Purple if event processor enabled
+        let enhanced_mode = self.shield.is_event_processor_enabled();
+        let title_color = if enhanced_mode { Color::Magenta } else { Color::Cyan };
+        let title_text = if enhanced_mode {
+            "🛡️  KindlyGuard Security Shield ⚡ Enhanced Protection Active"
+        } else {
+            "🛡️  KindlyGuard Security Shield"
+        };
+        
+        let title = Paragraph::new(title_text)
+            .style(Style::default().fg(title_color).add_modifier(Modifier::BOLD))
             .alignment(Alignment::Center)
-            .block(Block::default().borders(Borders::ALL));
+            .block(Block::default().borders(Borders::ALL).border_style(Style::default().fg(title_color)));
         frame.render_widget(title, chunks[0]);
         
-        // Status block
-        let status_color = if info.active { Color::Green } else { Color::Red };
+        // Status block - Purple when enhanced and active
+        let status_color = if enhanced_mode && info.active {
+            Color::Magenta
+        } else if info.active {
+            Color::Green
+        } else {
+            Color::Red
+        };
         let status_text = if info.active { "● Protected" } else { "○ Inactive" };
         
         let uptime = format_duration(info.uptime);
@@ -114,8 +128,12 @@ impl ShieldDisplay {
             Line::from(format!("Total Threats Blocked: {}", info.threats_blocked)),
         ];
         
+        let border_color = if enhanced_mode { Color::Magenta } else { Color::Reset };
         let status_widget = Paragraph::new(status)
-            .block(Block::default().title("Status").borders(Borders::ALL));
+            .block(Block::default()
+                .title("Status")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border_color)));
         frame.render_widget(status_widget, chunks[1]);
         
         // Threat statistics
@@ -149,19 +167,31 @@ impl ShieldDisplay {
         threat_items.push(Line::from(format!("└─ Total:              {}", info.threats_blocked)));
         
         let threats_widget = Paragraph::new(threat_items)
-            .block(Block::default().title("Threat Statistics").borders(Borders::ALL));
+            .block(Block::default()
+                .title("Threat Statistics")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border_color)));
         frame.render_widget(threats_widget, chunks[2]);
         
         // Performance metrics
-        let perf_items = vec![
+        let mut perf_items = vec![
             Line::from("Performance:"),
             Line::from(""),
             Line::from(format!("├─ Threat Rate: {:.1} /min", info.recent_threat_rate)),
-            Line::from(format!("└─ Shield Active: {}", if info.active { "Yes" } else { "No" })),
         ];
         
+        if enhanced_mode {
+            perf_items.push(Line::from("├─ Pattern Recognition: Active").style(Style::default().fg(Color::Magenta)));
+            perf_items.push(Line::from("├─ Advanced Analytics: Enabled").style(Style::default().fg(Color::Magenta)));
+        }
+        
+        perf_items.push(Line::from(format!("└─ Shield Active: {}", if info.active { "Yes" } else { "No" })));
+        
         let perf_widget = Paragraph::new(perf_items)
-            .block(Block::default().title("Performance").borders(Borders::ALL));
+            .block(Block::default()
+                .title("Performance")
+                .borders(Borders::ALL)
+                .border_style(Style::default().fg(border_color)));
         frame.render_widget(perf_widget, chunks[3]);
         
         // Recent threats
@@ -186,7 +216,10 @@ impl ShieldDisplay {
                 .collect();
                 
             let threats_list = List::new(threat_items)
-                .block(Block::default().title("Recent Threats").borders(Borders::ALL));
+                .block(Block::default()
+                    .title("Recent Threats")
+                    .borders(Borders::ALL)
+                    .border_style(Style::default().fg(border_color)));
             frame.render_widget(threats_list, chunks[4]);
         }
     }

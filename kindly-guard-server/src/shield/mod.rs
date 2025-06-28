@@ -1,13 +1,14 @@
 //! Shield display module for security status visualization
 
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 use std::collections::VecDeque;
 use anyhow::Result;
 
 use crate::scanner::Threat;
 use crate::config::ShieldConfig;
+use crate::event_processor::SecurityEventProcessor;
 
 pub mod display;
 pub mod cli;
@@ -22,6 +23,10 @@ pub struct Shield {
     threats_blocked: AtomicU64,
     recent_threats: Arc<Mutex<VecDeque<TimestampedThreat>>>,
     config: ShieldConfig,
+    /// Whether advanced protection (event processor) is enabled
+    event_processor_enabled: AtomicBool,
+    /// Weak reference to event processor for correlation data
+    event_processor: Mutex<Option<Weak<SecurityEventProcessor>>>,
 }
 
 /// Threat with timestamp
@@ -59,6 +64,8 @@ impl Shield {
             threats_blocked: AtomicU64::new(0),
             recent_threats: Arc::new(Mutex::new(VecDeque::with_capacity(1000))),
             config,
+            event_processor_enabled: AtomicBool::new(false),
+            event_processor: Mutex::new(None),
         }
     }
     
@@ -70,6 +77,22 @@ impl Shield {
     /// Check if shield is active
     pub fn is_active(&self) -> bool {
         self.active.load(Ordering::Relaxed)
+    }
+    
+    /// Set whether event processor (advanced protection) is enabled
+    pub fn set_event_processor_enabled(&self, enabled: bool) {
+        self.event_processor_enabled.store(enabled, Ordering::Relaxed);
+    }
+    
+    /// Check if event processor (advanced protection) is enabled
+    pub fn is_event_processor_enabled(&self) -> bool {
+        self.event_processor_enabled.load(Ordering::Relaxed)
+    }
+    
+    /// Set event processor reference for correlation data
+    pub fn set_event_processor(&self, processor: &Arc<SecurityEventProcessor>) {
+        let mut ep = self.event_processor.lock().unwrap();
+        *ep = Some(Arc::downgrade(processor));
     }
     
     /// Record detected threats
@@ -112,6 +135,18 @@ impl Shield {
                 .count() as f64;
             recent_count / 5.0 // per minute
         };
+        
+        // Check for attack patterns if processor is available
+        if self.is_event_processor_enabled() {
+            if let Some(weak_proc) = self.event_processor.lock().unwrap().as_ref() {
+                if let Some(processor) = weak_proc.upgrade() {
+                    // Check if any client is under monitoring (attack detected)
+                    if processor.is_monitored("any") {
+                        tracing::trace!("Attack pattern correlation active");
+                    }
+                }
+            }
+        }
         
         ShieldInfo {
             active: self.is_active(),

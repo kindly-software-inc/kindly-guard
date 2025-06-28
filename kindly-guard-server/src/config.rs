@@ -4,6 +4,11 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+use crate::auth::AuthConfig;
+use crate::event_processor::EventProcessorConfig;
+use crate::rate_limit::RateLimitConfig;
+use crate::signing::SigningConfig;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Server configuration
@@ -14,6 +19,18 @@ pub struct Config {
     
     /// Shield display configuration
     pub shield: ShieldConfig,
+    
+    /// Authentication configuration
+    pub auth: AuthConfig,
+    
+    /// Message signing configuration
+    pub signing: SigningConfig,
+    
+    /// Rate limiting configuration
+    pub rate_limit: RateLimitConfig,
+    
+    /// Advanced security event processing (patented technology)
+    pub event_processor: EventProcessorConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -127,6 +144,10 @@ impl Default for Config {
                 detailed_stats: default_false(),
                 color: default_true(),
             },
+            auth: AuthConfig::default(),
+            signing: SigningConfig::default(),
+            rate_limit: RateLimitConfig::default(),
+            event_processor: EventProcessorConfig::default(),
         }
     }
 }

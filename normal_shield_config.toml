@@ -1,0 +1,28 @@
+[server]
+port = 8080
+stdio = true
+
+[scanner]
+unicode_detection = true
+injection_detection = true
+enable_event_buffer = false  # Normal mode
+
+[shield]
+enabled = true
+update_interval_ms = 500
+detailed_stats = true
+color = true
+
+[auth]
+enabled = true
+
+[signing]
+enabled = true
+algorithm = "hmac_sha256"
+hmac_secret = "ZGVtby1zZWNyZXQta2V5LWZvci1wdXJwbGUtc2hpZWxkLWRlbW8="
+
+[rate_limit]
+enabled = true
+
+[event_processor]
+enabled = false  # Normal green/red shield

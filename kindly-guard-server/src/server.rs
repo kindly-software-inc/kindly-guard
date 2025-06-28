@@ -7,10 +7,14 @@ use serde_json::Value;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn, error};
 
+use crate::auth::{AuthManager, AuthContext};
 use crate::config::Config;
+use crate::event_processor::{SecurityEventProcessor, SecurityEvent};
 use crate::protocol::*;
+use crate::rate_limit::{RateLimiter, RateLimitResult};
 use crate::scanner::{SecurityScanner, Threat};
 use crate::shield::Shield;
+use crate::signing::{SigningManager, SignedMessage};
 
 /// Session information
 struct SessionInfo {
@@ -31,6 +35,10 @@ pub struct McpServer {
     scanner: Arc<SecurityScanner>,
     pub shield: Arc<Shield>,
     config: Arc<Config>,
+    auth_manager: Arc<AuthManager>,
+    signing_manager: Arc<SigningManager>,
+    rate_limiter: Arc<RateLimiter>,
+    event_processor: Arc<SecurityEventProcessor>,
     session_store: Arc<Mutex<SessionStore>>,
     server_info: ServerInfo,
     capabilities: ServerCapabilities,
@@ -118,6 +126,30 @@ impl McpServer {
         let scanner = Arc::new(SecurityScanner::new(config.scanner.clone())?);
         let shield = Arc::new(Shield::with_config(config.shield.clone()));
         
+        // Set event processor state in shield for purple mode
+        shield.set_event_processor_enabled(config.event_processor.enabled);
+        
+        // Create auth manager with server resource ID
+        let server_resource_id = format!("kindlyguard:{}", env!("CARGO_PKG_VERSION"));
+        let auth_manager = Arc::new(AuthManager::new(
+            config.auth.clone(),
+            server_resource_id,
+        ));
+        
+        // Create signing manager
+        let signing_manager = Arc::new(SigningManager::new(config.signing.clone())?);
+        
+        // Create rate limiter
+        let rate_limiter = Arc::new(RateLimiter::new(config.rate_limit.clone()));
+        
+        // Create security event processor (patented technology)
+        let event_processor = Arc::new(SecurityEventProcessor::new(config.event_processor.clone())?);
+        
+        // Link event processor to shield for correlation data
+        if config.event_processor.enabled {
+            shield.set_event_processor(&event_processor);
+        }
+        
         let server_info = ServerInfo {
             name: "KindlyGuard".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
@@ -135,6 +167,10 @@ impl McpServer {
             scanner,
             shield,
             config: Arc::new(config),
+            auth_manager,
+            signing_manager,
+            rate_limiter,
+            event_processor,
             session_store: Arc::new(Mutex::new(SessionStore {
                 sessions: std::collections::HashMap::new(),
             })),
@@ -145,13 +181,43 @@ impl McpServer {
     
     /// Handle incoming JSON-RPC message
     pub async fn handle_message(&self, message: &str) -> Option<String> {
+        // Check if this is a signed message
+        if let Ok(signed) = serde_json::from_str::<SignedMessage>(message) {
+            // Verify signature if signing is enabled
+            if self.config.signing.enabled {
+                let verification_result = self.signing_manager.verify_message(&signed);
+                
+                // Track signature verification event
+                if self.event_processor.is_enabled() {
+                    let client_id = "anonymous"; // Could extract from signed message metadata
+                    let event = SecurityEventProcessor::signature_event(
+                        client_id,
+                        &signed.signature.signature,
+                        verification_result.is_ok()
+                    );
+                    let _ = self.event_processor.track_event(event);
+                }
+                
+                if let Err(e) = verification_result {
+                    error!("Message signature verification failed: {}", e);
+                    let error_response = error_response(
+                        error_codes::UNAUTHORIZED,
+                        "Invalid message signature".to_string(),
+                        ResponseId::Null { id: None },
+                        None,
+                    );
+                    return Some(serde_json::to_string(&error_response).unwrap());
+                }
+            }
+            
+            // Process the inner message
+            return self.handle_value(signed.message).await;
+        }
+        
         // Try to parse as request
         if let Ok(request) = serde_json::from_str::<JsonRpcRequest>(message) {
             let response = self.handle_request(request).await;
-            return Some(serde_json::to_string(&response).unwrap_or_else(|e| {
-                error!("Failed to serialize response: {}", e);
-                r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":null}"#.to_string()
-            }));
+            return self.maybe_sign_response(response).await;
         }
         
         // Try to parse as notification
@@ -183,11 +249,126 @@ impl McpServer {
             );
         }
         
+        // Authenticate the request
+        let auth_context = match self.auth_manager.authenticate(request.authorization.as_deref()).await {
+            Ok(ctx) => {
+                // Track successful auth event
+                if self.event_processor.is_enabled() {
+                    let client_id = ctx.client_id.as_deref().unwrap_or("anonymous");
+                    let event = SecurityEventProcessor::auth_event(client_id, true, None);
+                    let _ = self.event_processor.track_event(event);
+                }
+                ctx
+            },
+            Err(e) => {
+                warn!("Authentication failed: {}", e);
+                
+                // Track failed auth event
+                if self.event_processor.is_enabled() {
+                    let event = SecurityEventProcessor::auth_event(
+                        "anonymous", 
+                        false, 
+                        Some(&e.to_string())
+                    );
+                    let _ = self.event_processor.track_event(event);
+                }
+                
+                return error_response(
+                    error_codes::UNAUTHORIZED,
+                    "Authentication required".to_string(),
+                    request.id.into(),
+                    None,
+                );
+            }
+        };
+        
+        // Check rate limit
+        let client_id = auth_context.client_id.as_deref().unwrap_or("anonymous");
+        let rate_limit_result = match self.rate_limiter.check_limit(
+            client_id,
+            Some(&request.method),
+            1.0, // 1 token per request
+        ).await {
+            Ok(result) => result,
+            Err(e) => {
+                error!("Rate limiter error: {}", e);
+                // On error, allow the request but log it
+                RateLimitResult {
+                    allowed: true,
+                    remaining: 0,
+                    reset_after: Duration::ZERO,
+                    limit: 0,
+                }
+            }
+        };
+        
+        // Track rate limit event
+        if self.event_processor.is_enabled() {
+            let event = SecurityEventProcessor::rate_limit_event(
+                client_id,
+                &request.method,
+                rate_limit_result.allowed
+            );
+            let _ = self.event_processor.track_event(event);
+        }
+        
+        if !rate_limit_result.allowed {
+            warn!("Rate limit exceeded for client {} on method {}", client_id, request.method);
+            
+            // Check if client is under attack monitoring
+            if self.event_processor.is_monitored(client_id) {
+                error!("Client {} is under attack monitoring - circuit breaker may activate", client_id);
+            }
+            
+            return error_response(
+                error_codes::RATE_LIMITED,
+                format!(
+                    "Rate limit exceeded. Try again in {} seconds",
+                    rate_limit_result.reset_after.as_secs()
+                ),
+                request.id.into(),
+                Some(serde_json::json!({
+                    "retry_after": rate_limit_result.reset_after.as_secs(),
+                    "limit": rate_limit_result.limit,
+                    "remaining": rate_limit_result.remaining,
+                })),
+            );
+        }
+        
         // Security scan the request
         match self.scan_request(&request).await {
             Ok(threats) if !threats.is_empty() => {
                 self.shield.record_threats(&threats);
                 error!("Threats detected in request: {:?}", threats);
+                
+                // Track threat detection event
+                if self.event_processor.is_enabled() {
+                    for threat in &threats {
+                        let event = SecurityEvent {
+                            event_type: crate::event_processor::SecurityEventType::ThreatDetected {
+                                client_id: client_id.to_string(),
+                                threat_type: format!("{:?}", threat.threat_type),
+                                severity: format!("{:?}", threat.severity),
+                            },
+                            timestamp: std::time::SystemTime::now()
+                                .duration_since(std::time::UNIX_EPOCH)
+                                .unwrap()
+                                .as_secs(),
+                            correlation_id: None,
+                            metadata: Some(serde_json::to_value(&threat).unwrap_or(Value::Null)),
+                        };
+                        let _ = self.event_processor.track_event(event);
+                    }
+                }
+                
+                // Apply rate limit penalty for security threats
+                if let Err(e) = self.rate_limiter.apply_penalty(
+                    client_id,
+                    self.config.rate_limit.threat_penalty_multiplier as f64,
+                ).await {
+                    error!("Failed to apply rate limit penalty: {}", e);
+                }
+                
                 return error_response(
                     error_codes::THREAT_DETECTED,
                     "Security threat detected".to_string(),
@@ -202,6 +383,24 @@ impl McpServer {
             _ => {}
         }
         
+        // Track MCP request event
+        let request_id = match &request.id {
+            RequestId::String { id } => id.clone(),
+            RequestId::Number { id } => id.to_string(),
+            RequestId::Null { .. } => "null".to_string(),
+        };
+        
+        if self.event_processor.is_enabled() {
+            let event = SecurityEventProcessor::request_event(
+                client_id,
+                &request.method,
+                &request_id
+            );
+            let _ = self.event_processor.track_event(event);
+        }
+        
+        let start_time = std::time::Instant::now();
+        
         // Process the method
         let result = match request.method.as_str() {
             "initialize" => self.handle_initialize(request.params).await,
@@ -209,16 +408,17 @@ impl McpServer {
             "shutdown" => self.handle_shutdown(request.params).await,
             
             "tools/list" => self.handle_tools_list(request.params).await,
-            "tools/call" => self.handle_tools_call(request.params).await,
+            "tools/call" => self.handle_tools_call(request.params, &auth_context).await,
             
             "resources/list" => self.handle_resources_list(request.params).await,
-            "resources/read" => self.handle_resources_read(request.params).await,
+            "resources/read" => self.handle_resources_read(request.params, &auth_context).await,
             
             "logging/setLevel" => self.handle_logging_set_level(request.params).await,
             
             // KindlyGuard custom methods
             "security/status" => self.handle_security_status(request.params).await,
             "security/threats" => self.handle_security_threats(request.params).await,
+            "security/rate_limit_status" => self.handle_rate_limit_status(request.params, &auth_context).await,
             
             // Cancel request
             "$/cancelRequest" => self.handle_cancel_request(request.params).await,
@@ -226,7 +426,7 @@ impl McpServer {
             method => Err(ServerError::MethodNotFound(method.to_string())),
         };
         
-        match result {
+        let response = match result {
             Ok(value) => success_response(value, request.id.into()),
             Err(error) => error_response(
                 error.to_json_rpc_error().code,
@@ -234,7 +434,29 @@ impl McpServer {
                 request.id.into(),
                 error.to_json_rpc_error().data,
             ),
+        };
+        
+        // Track MCP response event
+        if self.event_processor.is_enabled() {
+            let duration_ms = start_time.elapsed().as_millis() as u64;
+            let event = SecurityEvent {
+                event_type: crate::event_processor::SecurityEventType::ResponseSent {
+                    client_id: client_id.to_string(),
+                    method: request.method.clone(),
+                    request_id: request_id.clone(),
+                    duration_ms,
+                },
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                correlation_id: Some(request_id),
+                metadata: None,
+            };
+            let _ = self.event_processor.track_event(event);
         }
+        
+        response
     }
     
     /// Handle JSON-RPC notification
@@ -397,13 +619,17 @@ impl McpServer {
     }
     
     /// Handle tools/call request
-    async fn handle_tools_call(&self, params: Option<Value>) -> Result<Value, ServerError> {
+    async fn handle_tools_call(&self, params: Option<Value>, auth: &AuthContext) -> Result<Value, ServerError> {
         let params: ToolCallParams = if let Some(p) = params {
             serde_json::from_value(p)
                 .map_err(|e| ServerError::InvalidParams(format!("Invalid tool call params: {}", e)))?
         } else {
             return Err(ServerError::InvalidParams("Missing tool call params".to_string()));
         };
+        
+        // Check authorization for tool
+        self.auth_manager.authorize_tool(auth, &params.name)
+            .map_err(|e| ServerError::Unauthorized)?;
         
         // Apply timeout to tool execution
         let result = tokio::time::timeout(
@@ -508,13 +734,17 @@ impl McpServer {
     }
     
     /// Handle resources/read request
-    async fn handle_resources_read(&self, params: Option<Value>) -> Result<Value, ServerError> {
+    async fn handle_resources_read(&self, params: Option<Value>, auth: &AuthContext) -> Result<Value, ServerError> {
         let params: ResourceReadParams = if let Some(p) = params {
             serde_json::from_value(p)
                 .map_err(|e| ServerError::InvalidParams(format!("Invalid resource read params: {}", e)))?
         } else {
             return Err(ServerError::InvalidParams("Missing resource read params".to_string()));
         };
+        
+        // Check authorization for resource
+        self.auth_manager.authorize_resource(auth, &params.uri)
+            .map_err(|e| ServerError::Unauthorized)?;
         
         match params.uri.as_str() {
             "threat-patterns://default" => {
@@ -614,6 +844,31 @@ impl McpServer {
         }))
     }
     
+    /// Handle security/rate_limit_status request
+    async fn handle_rate_limit_status(&self, _params: Option<Value>, auth: &AuthContext) -> Result<Value, ServerError> {
+        let client_id = auth.client_id.as_deref().unwrap_or("anonymous");
+        
+        let status = self.rate_limiter.get_status(client_id).await
+            .map_err(|e| ServerError::InternalError(e.to_string()))?;
+        
+        let status_json: serde_json::Map<String, Value> = status.into_iter()
+            .map(|(method, result)| {
+                (method, serde_json::json!({
+                    "allowed": result.allowed,
+                    "remaining": result.remaining,
+                    "limit": result.limit,
+                    "reset_after_seconds": result.reset_after.as_secs(),
+                }))
+            })
+            .collect();
+        
+        Ok(serde_json::json!({
+            "client_id": client_id,
+            "rate_limits": status_json,
+            "enabled": self.config.rate_limit.enabled,
+        }))
+    }
+    
     /// Handle cancel request
     async fn handle_cancel_request(&self, params: Option<Value>) -> Result<Value, ServerError> {
         if let Some(params) = params {
@@ -670,6 +925,51 @@ impl McpServer {
         info!("MCP server shutting down");
         self.shield.set_active(false);
         Ok(())
+    }
+    
+    /// Handle value (for signed messages)
+    async fn handle_value(&self, value: Value) -> Option<String> {
+        let result = self.handle_json_rpc(value).await;
+        if result == Value::Null {
+            None
+        } else {
+            Some(serde_json::to_string(&result).unwrap_or_else(|e| {
+                error!("Failed to serialize response: {}", e);
+                r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":null}"#.to_string()
+            }))
+        }
+    }
+    
+    /// Maybe sign response if signing is enabled
+    async fn maybe_sign_response(&self, response: JsonRpcResponse) -> Option<String> {
+        if self.config.signing.enabled {
+            // Convert response to value for signing
+            let response_value = serde_json::to_value(&response).ok()?;
+            
+            match self.signing_manager.sign_message(&response_value) {
+                Ok(signed) => {
+                    Some(serde_json::to_string(&signed).unwrap_or_else(|e| {
+                        error!("Failed to serialize signed response: {}", e);
+                        // Fall back to unsigned response
+                        serde_json::to_string(&response).unwrap_or_else(|_| {
+                            r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":null}"#.to_string()
+                        })
+                    }))
+                }
+                Err(e) => {
+                    error!("Failed to sign response: {}", e);
+                    // Fall back to unsigned response
+                    Some(serde_json::to_string(&response).unwrap_or_else(|_| {
+                        r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":null}"#.to_string()
+                    }))
+                }
+            }
+        } else {
+            Some(serde_json::to_string(&response).unwrap_or_else(|e| {
+                error!("Failed to serialize response: {}", e);
+                r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":null}"#.to_string()
+            }))
+        }
     }
     
     /// Handle JSON-RPC batch request

@@ -9,11 +9,15 @@ use clap::Parser;
 use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+mod auth;
 mod config;
+mod event_processor;
 mod protocol;
+mod rate_limit;
 mod scanner;
 mod server;
 mod shield;
+mod signing;
 
 use config::Config;
 use server::McpServer;
