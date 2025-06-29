@@ -28,6 +28,7 @@ mod component_selector;
 mod logging;
 mod permissions;
 mod versioning;
+mod telemetry;
 
 use config::Config;
 use server::McpServer;
@@ -73,6 +74,10 @@ async fn main() -> Result<()> {
         Config::load()?
     };
     
+    // Store telemetry configuration before moving config
+    let telemetry_enabled = config.telemetry.export_endpoint.is_some();
+    let telemetry_interval = config.telemetry.export_interval_seconds;
+    
     // Create the MCP server
     let server = Arc::new(McpServer::new(config)?);
     
@@ -91,6 +96,24 @@ async fn main() -> Result<()> {
     // Run the server
     if args.stdio {
         info!("Running in stdio mode");
+        
+        // Start periodic telemetry flush if configured
+        let telemetry_flush_handle = if telemetry_enabled {
+            let server_clone = server.clone();
+            Some(tokio::spawn(async move {
+                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(telemetry_interval));
+                loop {
+                    interval.tick().await;
+                    let telemetry = server_clone.component_manager.telemetry_provider();
+                    if let Err(e) = telemetry.flush().await {
+                        error!("Failed to flush telemetry: {}", e);
+                    }
+                }
+            }))
+        } else {
+            None
+        };
+        
         match server.run_stdio().await {
             Ok(_) => {
                 info!("KindlyGuard server shutting down gracefully");
@@ -99,6 +122,11 @@ async fn main() -> Result<()> {
                 error!("Server error: {}", e);
                 return Err(e.into());
             }
+        }
+        
+        // Stop telemetry flush task
+        if let Some(handle) = telemetry_flush_handle {
+            handle.abort();
         }
     } else {
         error!("Only stdio mode is currently supported");

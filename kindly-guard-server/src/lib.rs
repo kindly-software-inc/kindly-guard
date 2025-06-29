@@ -21,6 +21,7 @@ pub mod component_selector;
 pub mod logging;
 pub mod permissions;
 pub mod versioning;
+pub mod telemetry;
 
 pub use config::{Config, ScannerConfig};
 pub use error::{KindlyError, KindlyResult, ResultExt};

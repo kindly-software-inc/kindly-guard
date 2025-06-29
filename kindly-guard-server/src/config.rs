@@ -9,6 +9,7 @@ use crate::auth::AuthConfig;
 use crate::event_processor::EventProcessorConfig;
 use crate::rate_limit::RateLimitConfig;
 use crate::signing::SigningConfig;
+use crate::telemetry::TelemetryConfig;
 
 // Stub EventProcessorConfig when enhanced feature is not enabled
 #[cfg(not(feature = "enhanced"))]
@@ -46,6 +47,9 @@ pub struct Config {
     
     /// Advanced security event processing (patented technology)
     pub event_processor: EventProcessorConfig,
+    
+    /// Telemetry configuration
+    pub telemetry: TelemetryConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -171,6 +175,7 @@ impl Default for Config {
             signing: SigningConfig::default(),
             rate_limit: RateLimitConfig::default(),
             event_processor: EventProcessorConfig::default(),
+            telemetry: TelemetryConfig::default(),
         }
     }
 }

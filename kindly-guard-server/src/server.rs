@@ -14,6 +14,7 @@ use crate::protocol::*;
 use crate::scanner::{SecurityScanner, Threat};
 use crate::shield::Shield;
 use crate::signing::{SigningManager, SignedMessage};
+use crate::telemetry::{TelemetryProvider, TelemetryMetric, MetricValue};
 use crate::traits::{SecurityEventProcessor, RateLimiter, SecurityEvent, RateLimitKey};
 use crate::versioning::{ApiRegistry, add_version_metadata};
 
@@ -43,7 +44,7 @@ pub struct McpServer {
     session_store: Arc<Mutex<SessionStore>>,
     server_info: ServerInfo,
     capabilities: ServerCapabilities,
-    component_manager: Arc<ComponentManager>,
+    pub component_manager: Arc<ComponentManager>,
 }
 
 /// Server error types
@@ -268,8 +269,14 @@ impl McpServer {
     
     /// Handle JSON-RPC request
     async fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {
+        // Start telemetry span for request handling
+        let telemetry = self.component_manager.telemetry_provider();
+        let request_span = telemetry.start_span(&format!("mcp.request.{}", request.method));
+        
         // Validate JSON-RPC version
         if request.jsonrpc != "2.0" {
+            telemetry.set_status(&request_span, true, Some("Invalid JSON-RPC version"));
+            telemetry.end_span(request_span);
             return error_response(
                 error_codes::INVALID_REQUEST,
                 "Invalid JSON-RPC version".to_string(),
@@ -284,6 +291,16 @@ impl McpServer {
                 // Track successful auth event
                 let client_id = ctx.client_id.as_deref().unwrap_or("anonymous");
                 self.track_security_event("auth.success", client_id, serde_json::json!({})).await;
+                
+                // Record auth metric
+                telemetry.record_metric(TelemetryMetric {
+                    name: "auth.attempts".to_string(),
+                    value: MetricValue::Counter(1),
+                    labels: vec![
+                        ("status".to_string(), "success".to_string()),
+                        ("client_id".to_string(), client_id.to_string()),
+                    ],
+                });
                 ctx
             },
             Err(e) => {
@@ -294,6 +311,18 @@ impl McpServer {
                     "reason": e.to_string()
                 })).await;
                 
+                // Record auth metric
+                telemetry.record_metric(TelemetryMetric {
+                    name: "auth.attempts".to_string(),
+                    value: MetricValue::Counter(1),
+                    labels: vec![
+                        ("status".to_string(), "failure".to_string()),
+                        ("reason".to_string(), e.to_string()),
+                    ],
+                });
+                
+                telemetry.set_status(&request_span, true, Some("Authentication failed"));
+                telemetry.end_span(request_span);
                 return error_response(
                     error_codes::UNAUTHORIZED,
                     "Authentication required".to_string(),
@@ -335,11 +364,23 @@ impl McpServer {
         if !rate_limit_decision.allowed {
             warn!("Rate limit exceeded for client {} on method {}", client_id, request.method);
             
+            // Record rate limit metric
+            telemetry.record_metric(TelemetryMetric {
+                name: "rate_limit.exceeded".to_string(),
+                value: MetricValue::Counter(1),
+                labels: vec![
+                    ("client_id".to_string(), client_id.to_string()),
+                    ("method".to_string(), request.method.clone()),
+                ],
+            });
+            
             // Check if client is under attack monitoring
             if self.event_processor.is_monitored(client_id) {
                 error!("Client {} is under attack monitoring - circuit breaker may activate", client_id);
             }
             
+            telemetry.set_status(&request_span, true, Some("Rate limit exceeded"));
+            telemetry.end_span(request_span);
             return error_response(
                 error_codes::RATE_LIMITED,
                 format!(
@@ -371,6 +412,17 @@ impl McpServer {
                             "threat": threat,
                         })
                     ).await;
+                    
+                    // Record threat metric
+                    telemetry.record_metric(TelemetryMetric {
+                        name: "threats.detected".to_string(),
+                        value: MetricValue::Counter(1),
+                        labels: vec![
+                            ("threat_type".to_string(), format!("{:?}", threat.threat_type)),
+                            ("severity".to_string(), format!("{:?}", threat.severity)),
+                            ("client_id".to_string(), client_id.to_string()),
+                        ],
+                    });
                 }
                 
                 // Apply rate limit penalty for security threats
@@ -381,6 +433,8 @@ impl McpServer {
                     error!("Failed to apply rate limit penalty: {}", e);
                 }
                 
+                telemetry.set_status(&request_span, true, Some("Threat detected"));
+                telemetry.end_span(request_span);
                 return error_response(
                     error_codes::THREAT_DETECTED,
                     "Security threat detected".to_string(),
@@ -454,12 +508,15 @@ impl McpServer {
         let success = result.is_ok();
         let mut response = match result {
             Ok(value) => success_response(value, request.id.into()),
-            Err(error) => error_response(
-                error.to_json_rpc_error().code,
-                error.to_json_rpc_error().message,
-                request.id.into(),
-                error.to_json_rpc_error().data,
-            ),
+            Err(error) => {
+                telemetry.set_status(&request_span, true, Some(&error.to_string()));
+                error_response(
+                    error.to_json_rpc_error().code,
+                    error.to_json_rpc_error().message,
+                    request.id.into(),
+                    error.to_json_rpc_error().data,
+                )
+            }
         };
         
         // Add version metadata to successful responses
@@ -481,6 +538,28 @@ impl McpServer {
                 "success": success,
             })
         ).await;
+        
+        // Record telemetry metrics
+        telemetry.record_metric(TelemetryMetric {
+            name: "mcp.request.duration".to_string(),
+            value: MetricValue::Histogram(duration_ms as f64),
+            labels: vec![
+                ("method".to_string(), request.method.clone()),
+                ("success".to_string(), success.to_string()),
+            ],
+        });
+        
+        telemetry.record_metric(TelemetryMetric {
+            name: "mcp.request.count".to_string(),
+            value: MetricValue::Counter(1),
+            labels: vec![
+                ("method".to_string(), request.method.clone()),
+                ("status".to_string(), if success { "success" } else { "error" }.to_string()),
+            ],
+        });
+        
+        // End span
+        telemetry.end_span(request_span);
         
         response
     }
@@ -1054,6 +1133,16 @@ impl McpServer {
         
         info!("MCP server shutting down");
         self.shield.set_active(false);
+        
+        // Flush and shutdown telemetry
+        let telemetry = self.component_manager.telemetry_provider();
+        if let Err(e) = telemetry.flush().await {
+            error!("Failed to flush telemetry: {}", e);
+        }
+        if let Err(e) = telemetry.shutdown().await {
+            error!("Failed to shutdown telemetry: {}", e);
+        }
+        
         Ok(())
     }
     
