@@ -1,0 +1,289 @@
+name: Comprehensive Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    # Run nightly at 2 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Unit and Integration Tests
+  test-matrix:
+    name: Test Suite (${{ matrix.rust }})
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rust: [stable, beta, nightly]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+        components: rustfmt, clippy, llvm-tools-preview
+    
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Install test tools
+      run: |
+        cargo install cargo-nextest --locked
+        cargo install cargo-llvm-cov --locked
+    
+    - name: Check formatting
+      run: cargo fmt -- --check
+      if: matrix.rust == 'stable'
+    
+    - name: Run clippy
+      run: cargo clippy --all-features -- -D warnings
+      if: matrix.rust == 'stable'
+    
+    - name: Build
+      run: cargo build --all-features --verbose
+    
+    - name: Run unit tests
+      run: cargo nextest run --all-features --profile ci --workspace
+    
+    - name: Run doc tests
+      run: cargo test --doc --all-features
+
+  # MCP Protocol Compliance Tests
+  mcp-compliance:
+    name: MCP Protocol Compliance
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: taiki-e/install-action@nextest
+    
+    - name: Run MCP protocol tests
+      run: |
+        cd kindly-guard-server
+        cargo nextest run --test mcp_protocol_tests --profile ci
+        cargo nextest run --test mcp_compliance_tests --profile ci
+        cargo nextest run --test mcp_error_tests --profile ci
+
+  # E2E and Integration Tests
+  e2e-tests:
+    name: End-to-End Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: taiki-e/install-action@nextest
+    
+    - name: Run E2E tests
+      run: |
+        cd kindly-guard-server
+        cargo nextest run --test e2e_tests --profile ci-e2e
+
+  # Security Tests
+  security-tests:
+    name: Security Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: taiki-e/install-action@nextest
+    
+    - name: Run security tests
+      run: |
+        cd kindly-guard-server
+        cargo nextest run --test security_tests --profile ci
+        cargo nextest run --test property_tests --profile ci
+
+  # Mock Tests
+  mock-tests:
+    name: Mock Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: taiki-e/install-action@nextest
+    
+    - name: Run mock tests
+      run: |
+        cd kindly-guard-server
+        cargo nextest run --test mock_tests --profile ci
+        cargo nextest run --test mock_auth_tests --profile ci
+
+  # Fuzzing
+  fuzz-tests:
+    name: Fuzz Tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@nightly
+    
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz --locked
+    
+    - name: Run fuzz tests
+      run: |
+        cd fuzz
+        # Run each fuzzer for 5 minutes
+        cargo fuzz run fuzz_unicode_scanner -- -max_total_time=300 || true
+        cargo fuzz run fuzz_injection_detector -- -max_total_time=300 || true
+        cargo fuzz run fuzz_json_scanner -- -max_total_time=300 || true
+        cargo fuzz run fuzz_mcp_protocol -- -max_total_time=300 || true
+        cargo fuzz run fuzz_auth_token -- -max_total_time=300 || true
+        cargo fuzz run fuzz_permission_check -- -max_total_time=300 || true
+    
+    - name: Upload fuzz artifacts
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: fuzz-artifacts
+        path: fuzz/artifacts/
+
+  # Performance Regression Tests
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-bench-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Install benchmark tools
+      run: cargo install critcmp --locked
+    
+    - name: Run benchmarks
+      run: |
+        cd kindly-guard-server
+        cargo bench --bench regression_benchmarks -- --save-baseline pr-${{ github.event.pull_request.number || 'main' }}
+    
+    - name: Compare benchmarks
+      if: github.event_name == 'pull_request'
+      run: |
+        cd kindly-guard-server
+        # Checkout base branch
+        git fetch origin ${{ github.base_ref }}
+        git checkout origin/${{ github.base_ref }}
+        cargo bench --bench regression_benchmarks -- --save-baseline base
+        
+        # Checkout PR branch
+        git checkout -
+        
+        # Compare
+        critcmp base pr-${{ github.event.pull_request.number }} > benchmark-comparison.txt
+        cat benchmark-comparison.txt
+    
+    - name: Upload benchmark results
+      uses: actions/upload-artifact@v4
+      with:
+        name: benchmark-results
+        path: |
+          target/criterion/
+          benchmark-comparison.txt
+
+  # Coverage Report
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+    
+    - name: Install coverage tools
+      run: |
+        cargo install cargo-llvm-cov --locked
+        cargo install cargo-nextest --locked
+    
+    - name: Generate coverage
+      run: |
+        cargo llvm-cov nextest --all-features --workspace \
+          --exclude kindly-guard-core \
+          --lcov --output-path lcov.info \
+          --profile ci
+    
+    - name: Upload to Codecov
+      uses: codecov/codecov-action@v4
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: lcov.info
+        fail_ci_if_error: true
+        verbose: true
+
+  # Security Audit
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: rustsec/audit-check@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Install security tools
+      run: |
+        cargo install cargo-geiger --locked
+        cargo install cargo-deny --locked
+    
+    - name: Check unsafe code
+      run: cargo geiger --all-features --output-format GitHubActions
+    
+    - name: Check dependencies
+      run: cargo deny check
+
+  # Documentation Tests
+  doc-tests:
+    name: Documentation Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Check documentation
+      run: cargo doc --all-features --no-deps
+    
+    - name: Run doc tests
+      run: cargo test --doc --all-features
+
+  # All Tests Summary
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [test-matrix, mcp-compliance, e2e-tests, security-tests, mock-tests, coverage, security-audit, doc-tests]
+    if: always()
+    steps:
+    - name: Check test results
+      run: |
+        if [ "${{ needs.test-matrix.result }}" != "success" ] ||
+           [ "${{ needs.mcp-compliance.result }}" != "success" ] ||
+           [ "${{ needs.e2e-tests.result }}" != "success" ] ||
+           [ "${{ needs.security-tests.result }}" != "success" ] ||
+           [ "${{ needs.mock-tests.result }}" != "success" ] ||
+           [ "${{ needs.coverage.result }}" != "success" ] ||
+           [ "${{ needs.security-audit.result }}" != "success" ] ||
+           [ "${{ needs.doc-tests.result }}" != "success" ]; then
+          echo "One or more test jobs failed"
+          exit 1
+        fi
+        echo "All tests passed!"

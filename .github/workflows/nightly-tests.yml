@@ -1,0 +1,263 @@
+name: Nightly Tests
+
+on:
+  schedule:
+    # Run at 3 AM UTC every night
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      fuzz_duration:
+        description: 'Fuzzing duration in seconds per target'
+        required: false
+        default: '3600'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
+jobs:
+  # Extended Fuzzing
+  extended-fuzzing:
+    name: Extended Fuzzing
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - fuzz_unicode_scanner
+          - fuzz_injection_detector
+          - fuzz_json_scanner
+          - fuzz_mcp_protocol
+          - fuzz_auth_token
+          - fuzz_permission_check
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@nightly
+    
+    - name: Install cargo-fuzz
+      run: cargo install cargo-fuzz --locked
+    
+    - name: Run extended fuzzing
+      run: |
+        cd fuzz
+        FUZZ_DURATION=${{ github.event.inputs.fuzz_duration || '3600' }}
+        echo "Running ${{ matrix.target }} for $FUZZ_DURATION seconds"
+        cargo fuzz run ${{ matrix.target }} -- -max_total_time=$FUZZ_DURATION || true
+    
+    - name: Minimize corpus
+      run: |
+        cd fuzz
+        cargo fuzz cmin ${{ matrix.target }} || true
+    
+    - name: Upload corpus
+      uses: actions/upload-artifact@v4
+      with:
+        name: corpus-${{ matrix.target }}
+        path: fuzz/corpus/${{ matrix.target }}
+        retention-days: 30
+    
+    - name: Upload crashes
+      uses: actions/upload-artifact@v4
+      if: failure()
+      with:
+        name: crashes-${{ matrix.target }}
+        path: fuzz/artifacts/${{ matrix.target }}
+
+  # Memory Leak Detection
+  memory-tests:
+    name: Memory Leak Detection
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install valgrind
+      run: sudo apt-get update && sudo apt-get install -y valgrind
+    
+    - name: Build for valgrind
+      run: cargo build --release
+    
+    - name: Run valgrind tests
+      run: |
+        # Run key scenarios under valgrind
+        valgrind --leak-check=full --show-leak-kinds=all --error-exitcode=1 \
+          target/release/kindly-guard --version
+        
+        # Test with sample operations
+        echo "SELECT * FROM users" | valgrind --leak-check=full \
+          --show-leak-kinds=all --error-exitcode=1 \
+          target/release/kindly-guard scan - || true
+
+  # Performance Baseline
+  performance-baseline:
+    name: Performance Baseline
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Run comprehensive benchmarks
+      run: |
+        cd kindly-guard-server
+        cargo bench --all-features -- --save-baseline nightly-$(date +%Y%m%d)
+    
+    - name: Generate performance report
+      run: |
+        cd kindly-guard-server
+        cargo bench --all-features -- --baseline nightly-$(date +%Y%m%d) --output-format bencher | tee performance-report.txt
+    
+    - name: Upload performance data
+      uses: actions/upload-artifact@v4
+      with:
+        name: performance-baseline-$(date +%Y%m%d)
+        path: |
+          target/criterion/
+          performance-report.txt
+        retention-days: 90
+
+  # Stress Testing
+  stress-tests:
+    name: Stress Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Build release binary
+      run: cargo build --release
+    
+    - name: Run stress tests
+      run: |
+        # Create stress test script
+        cat > stress-test.sh << 'EOF'
+        #!/bin/bash
+        set -euo pipefail
+        
+        echo "Starting stress tests..."
+        
+        # Test 1: High concurrent connections
+        echo "Test 1: Concurrent connections..."
+        for i in {1..100}; do
+          (echo '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":'$i'}' | 
+           timeout 10 target/release/kindly-guard --stdio > /dev/null 2>&1) &
+        done
+        wait
+        
+        # Test 2: Large payload handling
+        echo "Test 2: Large payloads..."
+        LARGE_TEXT=$(python3 -c "print('A' * 1000000)")
+        echo '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"scan_text","arguments":{"text":"'$LARGE_TEXT'"}},"id":1}' |
+          timeout 30 target/release/kindly-guard --stdio > /dev/null
+        
+        # Test 3: Rapid request succession
+        echo "Test 3: Rapid requests..."
+        for i in {1..1000}; do
+          echo '{"jsonrpc":"2.0","method":"tools/list","params":{},"id":'$i'}'
+        done | timeout 60 target/release/kindly-guard --stdio > /dev/null
+        
+        echo "Stress tests completed!"
+        EOF
+        
+        chmod +x stress-test.sh
+        ./stress-test.sh
+
+  # Compatibility Testing
+  compatibility-tests:
+    name: Compatibility Tests
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        rust: [1.75.0, stable, beta]
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@master
+      with:
+        toolchain: ${{ matrix.rust }}
+    
+    - name: Build and test
+      run: |
+        cargo build --all-features
+        cargo test --all-features
+
+  # Security Scanning
+  security-scanning:
+    name: Advanced Security Scanning
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install security tools
+      run: |
+        cargo install cargo-audit --locked
+        cargo install cargo-outdated --locked
+        cargo install cargo-udeps --locked
+    
+    - name: Run security scans
+      run: |
+        echo "=== Vulnerability audit ==="
+        cargo audit
+        
+        echo "=== Outdated dependencies ==="
+        cargo outdated --root-deps-only
+        
+        echo "=== Unused dependencies ==="
+        cargo +nightly udeps --all-features || true
+    
+    - name: SAST Scanning
+      run: |
+        # Use semgrep for additional security scanning
+        docker run --rm -v "${PWD}:/src" returntocorp/semgrep:latest \
+          --config=auto --json --output=semgrep-results.json /src || true
+    
+    - name: Upload security results
+      uses: actions/upload-artifact@v4
+      with:
+        name: security-scan-results
+        path: semgrep-results.json
+
+  # Report Generation
+  nightly-report:
+    name: Generate Nightly Report
+    runs-on: ubuntu-latest
+    needs: [extended-fuzzing, memory-tests, performance-baseline, stress-tests, security-scanning]
+    if: always()
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Generate report
+      run: |
+        cat > nightly-report.md << EOF
+        # KindlyGuard Nightly Test Report
+        
+        **Date**: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+        **Commit**: ${{ github.sha }}
+        
+        ## Test Results
+        
+        | Test Suite | Status |
+        |------------|--------|
+        | Extended Fuzzing | ${{ needs.extended-fuzzing.result }} |
+        | Memory Tests | ${{ needs.memory-tests.result }} |
+        | Performance Baseline | ${{ needs.performance-baseline.result }} |
+        | Stress Tests | ${{ needs.stress-tests.result }} |
+        | Security Scanning | ${{ needs.security-scanning.result }} |
+        
+        ## Summary
+        
+        Overall result: ${{ 
+          needs.extended-fuzzing.result == 'success' && 
+          needs.memory-tests.result == 'success' && 
+          needs.performance-baseline.result == 'success' && 
+          needs.stress-tests.result == 'success' && 
+          needs.security-scanning.result == 'success' 
+          && 'PASSED' || 'FAILED' 
+        }}
+        
+        EOF
+    
+    - name: Upload report
+      uses: actions/upload-artifact@v4
+      with:
+        name: nightly-report
+        path: nightly-report.md

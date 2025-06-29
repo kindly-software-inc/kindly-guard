@@ -1,0 +1,386 @@
+//! Mock tests for authentication and authorization components
+//! Tests edge cases and error conditions using mockall
+
+use kindly_guard_server::{
+    auth::{AuthManager, AuthConfig, TokenType},
+    signing::{SigningManager, SigningConfig, MessageSignature},
+    permissions::*,
+    traits::*,
+};
+use mockall::{*, predicate::*};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
+use anyhow::{Result, anyhow};
+
+/// Mock external OAuth provider for testing
+#[automock]
+trait OAuthProvider: Send + Sync {
+    async fn validate_token(&self, token: &str) -> Result<TokenInfo>;
+    async fn refresh_token(&self, refresh_token: &str) -> Result<TokenInfo>;
+    async fn revoke_token(&self, token: &str) -> Result<()>;
+}
+
+#[derive(Debug, Clone)]
+struct TokenInfo {
+    access_token: String,
+    token_type: String,
+    expires_in: u64,
+    scope: Vec<String>,
+}
+
+/// Test OAuth token validation with various provider responses
+#[tokio::test]
+async fn test_oauth_provider_failures() {
+    let mut mock_provider = MockOAuthProvider::new();
+    
+    // Set up different failure scenarios
+    mock_provider
+        .expect_validate_token()
+        .with(eq("expired-token"))
+        .returning(|_| Err(anyhow!("Token expired")));
+    
+    mock_provider
+        .expect_validate_token()
+        .with(eq("revoked-token"))
+        .returning(|_| Err(anyhow!("Token has been revoked")));
+    
+    mock_provider
+        .expect_validate_token()
+        .with(eq("malformed-token"))
+        .returning(|_| Err(anyhow!("Invalid token format")));
+    
+    mock_provider
+        .expect_validate_token()
+        .with(eq("valid-token"))
+        .returning(|_| Ok(TokenInfo {
+            access_token: "valid-token".to_string(),
+            token_type: "Bearer".to_string(),
+            expires_in: 3600,
+            scope: vec!["read".to_string(), "write".to_string()],
+        }));
+    
+    // Test various token scenarios
+    let test_cases = vec![
+        ("expired-token", "Token expired"),
+        ("revoked-token", "Token has been revoked"),
+        ("malformed-token", "Invalid token format"),
+    ];
+    
+    for (token, expected_error) in test_cases {
+        let result = mock_provider.validate_token(token).await;
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains(expected_error));
+    }
+    
+    // Test valid token
+    let result = mock_provider.validate_token("valid-token").await.unwrap();
+    assert_eq!(result.access_token, "valid-token");
+    assert_eq!(result.scope, vec!["read", "write"]);
+}
+
+/// Test permission manager with complex authorization rules
+#[tokio::test]
+async fn test_permission_manager_with_dynamic_rules() {
+    let mut mock_permissions = MockToolPermissionManager::new();
+    
+    // Create a sequence for time-based permissions
+    let time_sequence = mockall::Sequence::new();
+    
+    // First hour: normal permissions
+    mock_permissions
+        .expect_check_permission()
+        .times(5)
+        .in_sequence(&mut time_sequence.clone())
+        .withf(|client_id, tool_name, _| {
+            client_id == "user1" && tool_name == "scan_text"
+        })
+        .returning(|_, _, _| Ok(Permission::Allow));
+    
+    // After rate limit: deny
+    mock_permissions
+        .expect_check_permission()
+        .times(1)
+        .in_sequence(&mut time_sequence.clone())
+        .withf(|client_id, tool_name, _| {
+            client_id == "user1" && tool_name == "scan_text"
+        })
+        .returning(|_, _, _| Ok(Permission::Deny("Rate limit exceeded".to_string())));
+    
+    // Test progressive rate limiting
+    for i in 0..6 {
+        let context = PermissionContext {
+            auth_token: Some("token".to_string()),
+            scopes: vec!["scan".to_string()],
+            threat_level: ThreatLevel::Low,
+            request_metadata: Default::default(),
+        };
+        
+        let result = mock_permissions.check_permission("user1", "scan_text", &context).await.unwrap();
+        
+        if i < 5 {
+            assert_eq!(result, Permission::Allow);
+        } else {
+            assert!(matches!(result, Permission::Deny(msg) if msg.contains("Rate limit")));
+        }
+    }
+}
+
+/// Test signing manager with key rotation scenarios
+#[tokio::test]
+async fn test_signing_key_rotation() {
+    // Mock key storage
+    #[automock]
+    trait KeyStorage: Send + Sync {
+        async fn get_current_key(&self) -> Result<SigningKey>;
+        async fn get_key_by_id(&self, key_id: &str) -> Result<SigningKey>;
+        async fn rotate_keys(&self) -> Result<()>;
+    }
+    
+    #[derive(Clone)]
+    struct SigningKey {
+        id: String,
+        private_key: Vec<u8>,
+        public_key: Vec<u8>,
+        created_at: Instant,
+    }
+    
+    let mut mock_storage = MockKeyStorage::new();
+    
+    // Set up key rotation scenario
+    let old_key = SigningKey {
+        id: "key-v1".to_string(),
+        private_key: vec![1, 2, 3],
+        public_key: vec![4, 5, 6],
+        created_at: Instant::now() - Duration::from_secs(86400), // 1 day old
+    };
+    
+    let new_key = SigningKey {
+        id: "key-v2".to_string(),
+        private_key: vec![7, 8, 9],
+        public_key: vec![10, 11, 12],
+        created_at: Instant::now(),
+    };
+    
+    // Before rotation
+    mock_storage
+        .expect_get_current_key()
+        .times(1)
+        .returning(move || Ok(old_key.clone()));
+    
+    // Rotation
+    mock_storage
+        .expect_rotate_keys()
+        .times(1)
+        .returning(|| Ok(()));
+    
+    // After rotation
+    mock_storage
+        .expect_get_current_key()
+        .times(1)
+        .returning(move || Ok(new_key.clone()));
+    
+    // Support both old and new keys for verification
+    mock_storage
+        .expect_get_key_by_id()
+        .with(eq("key-v1"))
+        .returning(move |_| Ok(old_key.clone()));
+    
+    mock_storage
+        .expect_get_key_by_id()
+        .with(eq("key-v2"))
+        .returning(move |_| Ok(new_key.clone()));
+    
+    // Test key rotation flow
+    let current_key = mock_storage.get_current_key().await.unwrap();
+    assert_eq!(current_key.id, "key-v1");
+    
+    // Rotate keys
+    mock_storage.rotate_keys().await.unwrap();
+    
+    // Get new current key
+    let current_key = mock_storage.get_current_key().await.unwrap();
+    assert_eq!(current_key.id, "key-v2");
+    
+    // Verify we can still retrieve old key for verification
+    let old_key = mock_storage.get_key_by_id("key-v1").await.unwrap();
+    assert_eq!(old_key.id, "key-v1");
+}
+
+/// Test auth manager with token refresh and caching
+#[tokio::test]
+async fn test_auth_token_caching() {
+    // Mock token cache
+    #[automock]
+    trait TokenCache: Send + Sync {
+        async fn get(&self, key: &str) -> Option<CachedToken>;
+        async fn set(&self, key: &str, token: CachedToken, ttl: Duration);
+        async fn invalidate(&self, key: &str);
+        async fn clear_expired(&self);
+    }
+    
+    #[derive(Clone)]
+    struct CachedToken {
+        token: String,
+        expires_at: Instant,
+        scopes: Vec<String>,
+    }
+    
+    let mut mock_cache = MockTokenCache::new();
+    
+    // Set up cache hit/miss scenarios
+    let cached_token = CachedToken {
+        token: "cached-token".to_string(),
+        expires_at: Instant::now() + Duration::from_secs(3600),
+        scopes: vec!["read".to_string()],
+    };
+    
+    // First call - cache miss
+    mock_cache
+        .expect_get()
+        .with(eq("user1"))
+        .times(1)
+        .returning(|_| None);
+    
+    // Cache set after miss
+    mock_cache
+        .expect_set()
+        .with(eq("user1"), always(), eq(Duration::from_secs(3600)))
+        .times(1)
+        .returning(|_, _, _| ());
+    
+    // Second call - cache hit
+    mock_cache
+        .expect_get()
+        .with(eq("user1"))
+        .times(1)
+        .returning(move |_| Some(cached_token.clone()));
+    
+    // Test cache behavior
+    let result = mock_cache.get("user1").await;
+    assert!(result.is_none());
+    
+    // Simulate token fetch and cache
+    let new_token = CachedToken {
+        token: "new-token".to_string(),
+        expires_at: Instant::now() + Duration::from_secs(3600),
+        scopes: vec!["read".to_string()],
+    };
+    mock_cache.set("user1", new_token, Duration::from_secs(3600)).await;
+    
+    // Now should hit cache
+    let result = mock_cache.get("user1").await;
+    assert!(result.is_some());
+    assert_eq!(result.unwrap().token, "cached-token");
+}
+
+/// Test concurrent auth requests with mocked rate limiting
+#[tokio::test]
+async fn test_concurrent_auth_with_rate_limiting() {
+    let mut mock_limiter = MockRateLimiter::new();
+    
+    // Set up rate limiting for auth endpoints
+    let auth_sequence = mockall::Sequence::new();
+    
+    // Allow first 10 requests
+    for _ in 0..10 {
+        mock_limiter
+            .expect_check_rate_limit()
+            .times(1)
+            .in_sequence(&mut auth_sequence.clone())
+            .withf(|key| key.client_id == "auth-client")
+            .returning(|_| Ok(RateLimitDecision {
+                allowed: true,
+                tokens_remaining: 10.0,
+                tokens_used: 1.0,
+                retry_after: None,
+            }));
+    }
+    
+    // Then start rate limiting
+    mock_limiter
+        .expect_check_rate_limit()
+        .withf(|key| key.client_id == "auth-client")
+        .returning(|_| Ok(RateLimitDecision {
+            allowed: false,
+            tokens_remaining: 0.0,
+            tokens_used: 0.0,
+            retry_after: Some(60),
+        }));
+    
+    // Simulate concurrent auth requests
+    let mut handles = vec![];
+    let limiter = Arc::new(mock_limiter);
+    
+    for i in 0..15 {
+        let limiter = limiter.clone();
+        let handle = tokio::spawn(async move {
+            let key = RateLimitKey {
+                client_id: "auth-client".to_string(),
+                method: Some("auth".to_string()),
+            };
+            let decision = limiter.check_rate_limit(&key).await.unwrap();
+            (i, decision.allowed)
+        });
+        handles.push(handle);
+    }
+    
+    // Collect results
+    let mut allowed_count = 0;
+    let mut denied_count = 0;
+    
+    for handle in handles {
+        let (index, allowed) = handle.await.unwrap();
+        if allowed {
+            allowed_count += 1;
+        } else {
+            denied_count += 1;
+        }
+    }
+    
+    assert_eq!(allowed_count, 10);
+    assert_eq!(denied_count, 5);
+}
+
+/// Test permission inheritance with mocked hierarchies
+#[tokio::test]
+async fn test_permission_inheritance() {
+    let mut mock_permissions = MockToolPermissionManager::new();
+    
+    // Set up permission hierarchy: admin > moderator > user
+    mock_permissions
+        .expect_get_allowed_tools()
+        .with(eq("admin"))
+        .returning(|_| Ok(vec![
+            "scan_text".to_string(),
+            "update_config".to_string(),
+            "manage_users".to_string(),
+        ]));
+    
+    mock_permissions
+        .expect_get_allowed_tools()
+        .with(eq("moderator"))
+        .returning(|_| Ok(vec![
+            "scan_text".to_string(),
+            "update_config".to_string(),
+        ]));
+    
+    mock_permissions
+        .expect_get_allowed_tools()
+        .with(eq("user"))
+        .returning(|_| Ok(vec![
+            "scan_text".to_string(),
+        ]));
+    
+    // Test permission queries
+    let admin_tools = mock_permissions.get_allowed_tools("admin").await.unwrap();
+    assert_eq!(admin_tools.len(), 3);
+    assert!(admin_tools.contains(&"manage_users".to_string()));
+    
+    let mod_tools = mock_permissions.get_allowed_tools("moderator").await.unwrap();
+    assert_eq!(mod_tools.len(), 2);
+    assert!(!mod_tools.contains(&"manage_users".to_string()));
+    
+    let user_tools = mock_permissions.get_allowed_tools("user").await.unwrap();
+    assert_eq!(user_tools.len(), 1);
+    assert!(user_tools.contains(&"scan_text".to_string()));
+}

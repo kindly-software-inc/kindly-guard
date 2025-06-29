@@ -9,7 +9,14 @@ use crate::traits::{
     CorrelationEngine, RateLimiter
 };
 use crate::standard_impl::StandardComponentFactory;
+#[cfg(feature = "enhanced")]
 use crate::enhanced_impl::EnhancedComponentFactory;
+use crate::permissions::{
+    ToolPermissionManager, PermissionRules, ThreatLevel,
+    StandardPermissionManager, default_tool_definitions, ClientPermissions,
+};
+#[cfg(feature = "enhanced")]
+use crate::permissions::EnhancedPermissionManager;
 
 /// Selects appropriate component implementations based on configuration
 pub struct ComponentSelector {
@@ -20,11 +27,21 @@ impl ComponentSelector {
     /// Create a new component selector
     pub fn new(config: &Config) -> Self {
         // Choose factory based on event processor configuration
-        let factory: Box<dyn SecurityComponentFactory> = if config.event_processor.enabled {
+        #[cfg(feature = "enhanced")]
+        let factory: Box<dyn SecurityComponentFactory> = if config.is_event_processor_enabled() {
             tracing::info!("Performance mode: ENABLED");
             tracing::debug!("Advanced analytics active");
             Box::new(EnhancedComponentFactory)
         } else {
+            tracing::info!("Performance mode: STANDARD");
+            Box::new(StandardComponentFactory)
+        };
+        
+        #[cfg(not(feature = "enhanced"))]
+        let factory: Box<dyn SecurityComponentFactory> = {
+            if config.is_event_processor_enabled() {
+                tracing::warn!("Enhanced mode requested but not available - using standard mode");
+            }
             tracing::info!("Performance mode: STANDARD");
             Box::new(StandardComponentFactory)
         };
@@ -54,7 +71,7 @@ impl ComponentSelector {
     
     /// Check if enhanced mode is active
     pub fn is_enhanced_mode(&self, config: &Config) -> bool {
-        config.event_processor.enabled
+        config.is_event_processor_enabled()
     }
 }
 
@@ -64,6 +81,7 @@ pub struct ComponentManager {
     scanner: Arc<dyn EnhancedScanner>,
     correlation_engine: Arc<dyn CorrelationEngine>,
     rate_limiter: Arc<dyn RateLimiter>,
+    permission_manager: Arc<dyn ToolPermissionManager>,
     enhanced_mode: bool,
 }
 
@@ -72,11 +90,35 @@ impl ComponentManager {
     pub fn new(config: &Config) -> Result<Self> {
         let selector = ComponentSelector::new(config);
         
+        // Create permission rules
+        let permission_rules = PermissionRules {
+            default_permissions: ClientPermissions {
+                max_threat_level: ThreatLevel::Medium,
+                ..Default::default()
+            },
+            tools: default_tool_definitions(),
+            category_rules: Default::default(),
+            global_deny_list: Default::default(),
+        };
+        
+        // Create permission manager based on mode
+        #[cfg(feature = "enhanced")]
+        let permission_manager: Arc<dyn ToolPermissionManager> = if config.is_event_processor_enabled() {
+            Arc::new(EnhancedPermissionManager::new(permission_rules))
+        } else {
+            Arc::new(StandardPermissionManager::new(permission_rules))
+        };
+        
+        #[cfg(not(feature = "enhanced"))]
+        let permission_manager: Arc<dyn ToolPermissionManager> = 
+            Arc::new(StandardPermissionManager::new(permission_rules));
+        
         Ok(Self {
             event_processor: selector.create_event_processor(config)?,
             scanner: selector.create_scanner(config)?,
             correlation_engine: selector.create_correlation_engine(config)?,
             rate_limiter: selector.create_rate_limiter(config)?,
+            permission_manager,
             enhanced_mode: selector.is_enhanced_mode(config),
         })
     }
@@ -99,6 +141,11 @@ impl ComponentManager {
     /// Get rate limiter
     pub fn rate_limiter(&self) -> &Arc<dyn RateLimiter> {
         &self.rate_limiter
+    }
+    
+    /// Get permission manager
+    pub fn permission_manager(&self) -> &Arc<dyn ToolPermissionManager> {
+        &self.permission_manager
     }
     
     /// Check if running in enhanced mode

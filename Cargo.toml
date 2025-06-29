@@ -3,15 +3,21 @@ members = [
     "kindly-guard-server",
     "kindly-guard-cli",
     "kindly-guard-core",
+    "kindly-guard-client",
 ]
 resolver = "2"
 
 [workspace.package]
 version = "0.1.0"
 edition = "2021"
-authors = ["Samuel Duchaine <samuel.duchaine@example.com>"]
+authors = ["KindlyGuard Contributors"]
 license = "MIT OR Apache-2.0"
-repository = "https://github.com/samuel/kindly-guard"
+repository = "https://github.com/kindlyguard/kindly-guard"
+homepage = "https://kindlyguard.dev"
+documentation = "https://docs.kindlyguard.dev"
+readme = "README.md"
+keywords = ["security", "mcp", "model-context-protocol", "ai-security", "threat-detection"]
+categories = ["command-line-utilities", "security", "authentication"]
 
 [workspace.dependencies]
 # Async runtime

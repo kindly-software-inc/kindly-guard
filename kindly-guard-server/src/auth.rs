@@ -8,6 +8,8 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 use sha2::{Sha256, Digest};
+use hmac::{Hmac, Mac};
+use base64::{Engine as _, engine::general_purpose};
 
 /// OAuth 2.0 token types
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,6 +60,12 @@ pub struct AuthConfig {
     
     /// Enable resource indicators validation
     pub validate_resource_indicators: bool,
+    
+    /// JWT signing secret (base64 encoded) for HMAC-SHA256 verification
+    pub jwt_secret: Option<String>,
+    
+    /// Require JWT signature verification
+    pub require_signature_verification: bool,
 }
 
 /// Required scopes for different operations
@@ -82,6 +90,8 @@ impl Default for AuthConfig {
             required_scopes: ScopeRequirements::default(),
             cache_ttl_seconds: 300, // 5 minutes
             validate_resource_indicators: true,
+            jwt_secret: None,
+            require_signature_verification: false,
         }
     }
 }
@@ -198,16 +208,56 @@ impl AuthManager {
         // In production, this would call the validation endpoint
         
         // Parse JWT or opaque token
-        // This is a simplified implementation
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
             anyhow::bail!("Invalid token format");
         }
         
-        // Decode header and payload (simplified, no signature verification)
-        use base64::{Engine as _, engine::general_purpose};
-        let payload = general_purpose::URL_SAFE_NO_PAD.decode(parts[1])?;
-        let claims: TokenClaims = serde_json::from_slice(&payload)?;
+        // Decode header to check algorithm
+        let header_bytes = general_purpose::URL_SAFE_NO_PAD.decode(parts[0])?;
+        let header: JwtHeader = serde_json::from_slice(&header_bytes)?;
+        
+        // Decode payload
+        let payload_bytes = general_purpose::URL_SAFE_NO_PAD.decode(parts[1])?;
+        let claims: TokenClaims = serde_json::from_slice(&payload_bytes)?;
+        
+        // Verify signature if required
+        if self.config.require_signature_verification {
+            // Check algorithm
+            match header.alg.as_deref() {
+                Some("HS256") => {
+                    // HMAC-SHA256 verification
+                    if let Some(secret) = &self.config.jwt_secret {
+                        // Decode the secret
+                        let secret_bytes = general_purpose::STANDARD.decode(secret)?;
+                        
+                        // Create HMAC instance
+                        type HmacSha256 = Hmac<Sha256>;
+                        let mut mac = HmacSha256::new_from_slice(&secret_bytes)?;
+                        
+                        // Update with header.payload
+                        mac.update(format!("{}.{}", parts[0], parts[1]).as_bytes());
+                        
+                        // Decode provided signature
+                        let signature_bytes = general_purpose::URL_SAFE_NO_PAD.decode(parts[2])?;
+                        
+                        // Verify signature
+                        mac.verify_slice(&signature_bytes)?;
+                    } else {
+                        anyhow::bail!("JWT secret not configured for signature verification");
+                    }
+                },
+                Some("none") => {
+                    anyhow::bail!("Unsigned tokens not allowed when signature verification is required");
+                },
+                Some(alg) => {
+                    anyhow::bail!("Unsupported algorithm: {}. Only HS256 is supported", alg);
+                },
+                None => {
+                    anyhow::bail!("Missing algorithm in JWT header");
+                }
+            }
+        }
         
         // Check expiration
         if let Some(exp) = claims.exp {
@@ -357,6 +407,15 @@ impl AuthManager {
 }
 
 /// JWT token claims (simplified)
+#[derive(Debug, Deserialize)]
+struct JwtHeader {
+    #[serde(default)]
+    alg: Option<String>,
+    
+    #[serde(default)]
+    typ: Option<String>,
+}
+
 #[derive(Debug, Deserialize)]
 struct TokenClaims {
     #[serde(default)]

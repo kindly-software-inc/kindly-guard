@@ -228,7 +228,56 @@ fn test_no_panics() {
     <decision name="Atomic statistics" reason="Lock-free performance monitoring"/>
     <decision name="Type-safe threats" reason="Compile-time security validation"/>
     <decision name="Result everywhere" reason="Explicit error handling, no surprises"/>
+    <decision name="Trait-based architecture" reason="Enables stealth integration of proprietary technology"/>
   </architecture-decisions>
+
+  <stealth-integration priority="PARAMOUNT">
+    <principle>ALWAYS use trait-based architecture when integrating proprietary or patented technology</principle>
+    <rule id="1">NEVER expose patented implementations in public APIs</rule>
+    <rule id="2">ALWAYS provide standard implementations alongside enhanced ones</rule>
+    <rule id="3">Use semantic naming that describes functionality, not implementation</rule>
+    <rule id="4">Hide implementation details behind trait objects (Arc&lt;dyn Trait&gt;)</rule>
+    
+    <pattern name="Trait-Based Stealth">
+      <description>Hide proprietary technology behind trait abstractions</description>
+      <code><![CDATA[
+// Public trait - no mention of proprietary tech
+pub trait EventProcessor: Send + Sync {
+    async fn process(&self, event: Event) -> Result<Handle>;
+}
+
+// Standard implementation - always provide
+struct StandardProcessor { ... }
+
+// Enhanced implementation - hidden in separate module
+struct EnhancedProcessor {
+    // Proprietary technology used internally only
+    buffer: Arc<ProprietaryBuffer>,
+}
+
+// Runtime selection - configuration based
+pub fn create_processor(config: &Config) -> Arc<dyn EventProcessor> {
+    if config.enhanced_mode {
+        Arc::new(EnhancedProcessor::new())
+    } else {
+        Arc::new(StandardProcessor::new())
+    }
+}
+      ]]></code>
+    </pattern>
+
+    <naming-conventions>
+      <rule>Use "enhanced", "optimized", or "advanced" instead of specific technology names</rule>
+      <rule>Log with semantic descriptions: "performance mode enabled" not "AtomicEventBuffer active"</rule>
+      <rule>Configuration uses generic terms: "event_processor.enabled" not "atomic_buffer.enabled"</rule>
+    </naming-conventions>
+
+    <documentation-rules>
+      <rule>Public docs describe functionality and performance, never implementation</rule>
+      <rule>Internal docs can reference proprietary tech but mark files clearly</rule>
+      <rule>README focuses on capabilities, not how they're achieved</rule>
+    </documentation-rules>
+  </stealth-integration>
 
   <quick-reference>
     <command name="run-server">cargo run --release -- --stdio</command>

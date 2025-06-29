@@ -16,6 +16,7 @@ pub struct UnicodeScanner {
     total_scans: AtomicU64,
     /// Optional performance enhancement (not exposed in logs)
     #[allow(dead_code)]
+    #[cfg(feature = "enhanced")]
     enhancement: Option<std::sync::Arc<kindly_guard_core::AtomicEventBuffer>>,
 }
 
@@ -25,12 +26,14 @@ impl UnicodeScanner {
         Self {
             threats_detected: AtomicU64::new(0),
             total_scans: AtomicU64::new(0),
+            #[cfg(feature = "enhanced")]
             enhancement: None,
         }
     }
     
     /// Set performance enhancement (internal use only)
     #[allow(dead_code)]
+    #[cfg(feature = "enhanced")]
     pub(crate) fn with_enhancement(&mut self, buffer: std::sync::Arc<kindly_guard_core::AtomicEventBuffer>) {
         self.enhancement = Some(buffer);
     }
@@ -41,6 +44,7 @@ impl UnicodeScanner {
         let mut threats = Vec::new();
         
         // Use accelerated pattern matching when available
+        #[cfg(feature = "enhanced")]
         if let Some(buffer) = &self.enhancement {
             // Track unicode patterns for homograph detection
             let pattern_data = format!("unicode:len{}", text.len());

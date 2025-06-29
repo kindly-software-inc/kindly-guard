@@ -4,7 +4,13 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "KindlyGuard MCP Security Server - Protecting your AI interactions"
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+readme = "README.md"
+keywords = ["security", "mcp", "ai-security", "threat-detection", "unicode"]
+categories = ["command-line-utilities", "network-programming"]
+description = "Security-focused MCP server protecting AI model interactions from threats"
 
 [lib]
 name = "kindly_guard_server"
@@ -50,19 +56,27 @@ parking_lot = "0.12"
 uuid = { version = "1.11", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
 
-# Private core dependency
-kindly-guard-core = { path = "../kindly-guard-core" }
+# Private core dependency (optional for enhanced features)
+kindly-guard-core = { path = "../kindly-guard-core", optional = true }
+
+[features]
+default = []
+enhanced = ["kindly-guard-core"]
 
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true
 tempfile = "3.14"
 arbitrary = { version = "1.3", features = ["derive"] }
+tokio-test = "0.4"
+mockall = "0.13"
+pretty_assertions = "1.4"
+serial_test = "3.2"
 
 [[bench]]
-name = "performance_comparison"
+name = "simple_benchmark"
 harness = false
 
 [[bench]]
-name = "mode_comparison"
+name = "regression_benchmarks"
 harness = false

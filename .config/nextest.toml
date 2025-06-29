@@ -1,0 +1,76 @@
+# Configuration for cargo-nextest
+# https://nexte.st/docs/configuration
+
+[store]
+# Directory to store test artifacts
+dir = "target/nextest"
+
+[profile.default]
+# Terminate tests after 60 seconds
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+# How many tests to run simultaneously
+test-threads = "num-cpus"
+
+# How many times to retry failing tests
+retries = 0
+
+# Capture test output
+failure-output = "immediate"
+success-output = "never"
+status-level = "pass"
+
+# Handle test failures
+fail-fast = false
+
+[profile.ci]
+# CI-specific settings
+slow-timeout = { period = "120s", terminate-after = 2 }
+retries = 2
+status-level = "all"
+failure-output = "immediate"
+success-output = "final"
+
+# Archive settings for CI
+[profile.ci.junit]
+path = "test-results.xml"
+
+# Heavy test profile for tests that need more resources
+[profile.heavy]
+test-threads = 1
+slow-timeout = { period = "300s" }
+
+# Security test profile with stricter settings
+[profile.security]
+test-threads = 1
+slow-timeout = { period = "180s", terminate-after = 1 }
+retries = 0
+fail-fast = true
+
+# Test groups for running subsets
+[[profile.default.overrides]]
+filter = "test(property_)"
+test-threads = 4  # Property tests can be CPU intensive
+
+[[profile.default.overrides]]
+filter = "test(fuzzing_)"
+test-threads = 1  # Fuzzing tests should run serially
+
+[[profile.default.overrides]]
+filter = "test(e2e_)"
+test-threads = 1  # E2E tests should run serially
+
+# E2E tests may take longer
+[profile.ci-e2e]
+test-threads = 1
+slow-timeout = { period = "120s", terminate-after = 2 }
+failure-output = "immediate-final"
+fail-fast = false
+
+# PR tests - fast feedback
+[profile.pr]
+test-threads = "num-cpus"
+slow-timeout = { period = "30s", terminate-after = 1 }
+failure-output = "immediate"
+fail-fast = true
+retries = { backoff = "fixed", count = 1, delay = "1s" }

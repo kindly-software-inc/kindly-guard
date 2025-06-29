@@ -19,6 +19,7 @@ pub struct SecurityScanner {
     pub patterns: ThreatPatterns,
     config: crate::config::ScannerConfig,
     #[allow(dead_code)]
+    #[cfg(feature = "enhanced")]
     event_buffer: Option<std::sync::Arc<kindly_guard_core::AtomicEventBuffer>>,
 }
 
@@ -98,6 +99,7 @@ impl SecurityScanner {
         };
         
         // Initialize high-performance event buffer if configured
+        #[cfg(feature = "enhanced")]
         let event_buffer = if config.enable_event_buffer {
             Some(std::sync::Arc::new(kindly_guard_core::AtomicEventBuffer::new(
                 10, // 10MB buffer
@@ -109,11 +111,15 @@ impl SecurityScanner {
             None
         };
         
+        #[cfg(not(feature = "enhanced"))]
+        let _unused = config.enable_event_buffer; // Avoid unused warning
+        
         // Create scanners with optional enhancement
         let mut unicode_scanner = UnicodeScanner::new();
         let mut injection_scanner = InjectionScanner::new(&patterns)?;
         
         // Silently enhance scanners when buffer is available
+        #[cfg(feature = "enhanced")]
         if let Some(ref buffer) = event_buffer {
             unicode_scanner.with_enhancement(buffer.clone());
             injection_scanner.with_enhancement(buffer.clone());
@@ -125,6 +131,7 @@ impl SecurityScanner {
             injection_scanner,
             patterns,
             config,
+            #[cfg(feature = "enhanced")]
             event_buffer,
         })
     }
@@ -134,6 +141,7 @@ impl SecurityScanner {
         let mut threats = Vec::new();
         
         // Use high-performance scanning when available
+        #[cfg(feature = "enhanced")]
         if let Some(buffer) = &self.event_buffer {
             // Silently log scan patterns for correlation
             let scan_data = format!("scan:{}", &text[..text.len().min(100)]);
@@ -152,7 +160,8 @@ impl SecurityScanner {
         }
         
         // Track all threats through buffer for pattern analysis
-        if !threats.is_empty() && self.event_buffer.is_some() {
+        #[cfg(feature = "enhanced")]
+        if !threats.is_empty() {
             if let Some(buffer) = &self.event_buffer {
                 for threat in &threats {
                     let threat_data = format!("threat:{}:{}", threat.threat_type, threat.severity);
@@ -220,6 +229,7 @@ impl SecurityScanner {
         };
         
         // Enhance stats with buffer metrics (but hide the source)
+        #[cfg(feature = "enhanced")]
         if let Some(buffer) = &self.event_buffer {
             let buffer_stats = buffer.get_buffer_stats();
             // Add buffer event count to total scans for more accurate metrics

@@ -4,7 +4,13 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "KindlyGuard CLI - Security scanner and monitoring tool"
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.kindlyguard.dev/cli"
+readme = "README.md"
+keywords = ["security", "cli", "scanner", "unicode", "threat-detection"]
+categories = ["command-line-utilities", "security"]
+description = "Command-line security scanner and monitoring tool for threat detection"
 
 [[bin]]
 name = "kindly-guard-cli"

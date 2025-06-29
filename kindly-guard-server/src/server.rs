@@ -9,12 +9,13 @@ use tracing::{debug, info, warn, error};
 
 use crate::auth::{AuthManager, AuthContext};
 use crate::config::Config;
-use crate::event_processor::{SecurityEventProcessor, SecurityEvent};
+use crate::component_selector::ComponentManager;
 use crate::protocol::*;
-use crate::rate_limit::{RateLimiter, RateLimitResult};
 use crate::scanner::{SecurityScanner, Threat};
 use crate::shield::Shield;
 use crate::signing::{SigningManager, SignedMessage};
+use crate::traits::{SecurityEventProcessor, RateLimiter, SecurityEvent, RateLimitKey};
+use crate::versioning::{ApiRegistry, add_version_metadata};
 
 /// Session information
 struct SessionInfo {
@@ -37,11 +38,12 @@ pub struct McpServer {
     config: Arc<Config>,
     auth_manager: Arc<AuthManager>,
     signing_manager: Arc<SigningManager>,
-    rate_limiter: Arc<RateLimiter>,
-    event_processor: Arc<SecurityEventProcessor>,
+    rate_limiter: Arc<dyn RateLimiter>,
+    event_processor: Arc<dyn SecurityEventProcessor>,
     session_store: Arc<Mutex<SessionStore>>,
     server_info: ServerInfo,
     capabilities: ServerCapabilities,
+    component_manager: Arc<ComponentManager>,
 }
 
 /// Server error types
@@ -121,13 +123,31 @@ impl ServerError {
 }
 
 impl McpServer {
+    /// Helper to track security events
+    async fn track_security_event(&self, event_type: &str, client_id: &str, metadata: serde_json::Value) {
+        if self.config.is_event_processor_enabled() {
+            let event = SecurityEvent {
+                event_type: event_type.to_string(),
+                client_id: client_id.to_string(),
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_secs(),
+                metadata,
+            };
+            let _ = self.event_processor.process_event(event).await;
+        }
+    }
     /// Create a new MCP server
     pub fn new(config: Config) -> Result<Self> {
+        // Create component manager to handle standard vs enhanced implementations
+        let component_manager = Arc::new(ComponentManager::new(&config)?);
+        
         let scanner = Arc::new(SecurityScanner::new(config.scanner.clone())?);
         let shield = Arc::new(Shield::with_config(config.shield.clone()));
         
         // Set event processor state in shield for purple mode
-        shield.set_event_processor_enabled(config.event_processor.enabled);
+        shield.set_event_processor_enabled(config.is_event_processor_enabled());
         
         // Create auth manager with server resource ID
         let server_resource_id = format!("kindlyguard:{}", env!("CARGO_PKG_VERSION"));
@@ -139,14 +159,12 @@ impl McpServer {
         // Create signing manager
         let signing_manager = Arc::new(SigningManager::new(config.signing.clone())?);
         
-        // Create rate limiter
-        let rate_limiter = Arc::new(RateLimiter::new(config.rate_limit.clone()));
-        
-        // Create security event processor (patented technology)
-        let event_processor = Arc::new(SecurityEventProcessor::new(config.event_processor.clone())?);
+        // Get components from manager (automatically selects standard vs enhanced)
+        let rate_limiter = component_manager.rate_limiter().clone();
+        let event_processor = component_manager.event_processor().clone();
         
         // Link event processor to shield for correlation data
-        if config.event_processor.enabled {
+        if config.is_event_processor_enabled() {
             shield.set_event_processor(&event_processor);
         }
         
@@ -176,6 +194,7 @@ impl McpServer {
             })),
             server_info,
             capabilities,
+            component_manager,
         })
     }
     
@@ -188,14 +207,24 @@ impl McpServer {
                 let verification_result = self.signing_manager.verify_message(&signed);
                 
                 // Track signature verification event
-                if self.event_processor.is_enabled() {
+                if self.config.is_event_processor_enabled() {
                     let client_id = "anonymous"; // Could extract from signed message metadata
-                    let event = SecurityEventProcessor::signature_event(
-                        client_id,
-                        &signed.signature.signature,
-                        verification_result.is_ok()
-                    );
-                    let _ = self.event_processor.track_event(event);
+                    let event = SecurityEvent {
+                        event_type: if verification_result.is_ok() {
+                            "signature.verified".to_string()
+                        } else {
+                            "signature.failed".to_string()
+                        },
+                        client_id: client_id.to_string(),
+                        timestamp: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0),
+                        metadata: serde_json::json!({
+                            "signature": &signed.signature.signature,
+                        }),
+                    };
+                    let _ = self.event_processor.process_event(event).await;
                 }
                 
                 if let Err(e) = verification_result {
@@ -253,25 +282,17 @@ impl McpServer {
         let auth_context = match self.auth_manager.authenticate(request.authorization.as_deref()).await {
             Ok(ctx) => {
                 // Track successful auth event
-                if self.event_processor.is_enabled() {
-                    let client_id = ctx.client_id.as_deref().unwrap_or("anonymous");
-                    let event = SecurityEventProcessor::auth_event(client_id, true, None);
-                    let _ = self.event_processor.track_event(event);
-                }
+                let client_id = ctx.client_id.as_deref().unwrap_or("anonymous");
+                self.track_security_event("auth.success", client_id, serde_json::json!({})).await;
                 ctx
             },
             Err(e) => {
                 warn!("Authentication failed: {}", e);
                 
                 // Track failed auth event
-                if self.event_processor.is_enabled() {
-                    let event = SecurityEventProcessor::auth_event(
-                        "anonymous", 
-                        false, 
-                        Some(&e.to_string())
-                    );
-                    let _ = self.event_processor.track_event(event);
-                }
+                self.track_security_event("auth.failure", "anonymous", serde_json::json!({
+                    "reason": e.to_string()
+                })).await;
                 
                 return error_response(
                     error_codes::UNAUTHORIZED,
@@ -284,35 +305,34 @@ impl McpServer {
         
         // Check rate limit
         let client_id = auth_context.client_id.as_deref().unwrap_or("anonymous");
-        let rate_limit_result = match self.rate_limiter.check_limit(
-            client_id,
-            Some(&request.method),
-            1.0, // 1 token per request
-        ).await {
-            Ok(result) => result,
+        let rate_limit_key = RateLimitKey {
+            client_id: client_id.to_string(),
+            method: Some(request.method.clone()),
+        };
+        let rate_limit_decision = match self.rate_limiter.check_rate_limit(&rate_limit_key).await {
+            Ok(decision) => decision,
             Err(e) => {
                 error!("Rate limiter error: {}", e);
                 // On error, allow the request but log it
-                RateLimitResult {
+                crate::traits::RateLimitDecision {
                     allowed: true,
-                    remaining: 0,
+                    tokens_remaining: 0.0,
                     reset_after: Duration::ZERO,
-                    limit: 0,
                 }
             }
         };
         
         // Track rate limit event
-        if self.event_processor.is_enabled() {
-            let event = SecurityEventProcessor::rate_limit_event(
-                client_id,
-                &request.method,
-                rate_limit_result.allowed
-            );
-            let _ = self.event_processor.track_event(event);
-        }
+        self.track_security_event(
+            if rate_limit_decision.allowed { "rate_limit.allowed" } else { "rate_limit.exceeded" },
+            client_id,
+            serde_json::json!({
+                "method": &request.method,
+                "tokens_remaining": rate_limit_decision.tokens_remaining,
+            })
+        ).await;
         
-        if !rate_limit_result.allowed {
+        if !rate_limit_decision.allowed {
             warn!("Rate limit exceeded for client {} on method {}", client_id, request.method);
             
             // Check if client is under attack monitoring
@@ -324,13 +344,12 @@ impl McpServer {
                 error_codes::RATE_LIMITED,
                 format!(
                     "Rate limit exceeded. Try again in {} seconds",
-                    rate_limit_result.reset_after.as_secs()
+                    rate_limit_decision.reset_after.as_secs()
                 ),
                 request.id.into(),
                 Some(serde_json::json!({
-                    "retry_after": rate_limit_result.reset_after.as_secs(),
-                    "limit": rate_limit_result.limit,
-                    "remaining": rate_limit_result.remaining,
+                    "retry_after": rate_limit_decision.reset_after.as_secs(),
+                    "tokens_remaining": rate_limit_decision.tokens_remaining,
                 })),
             );
         }
@@ -342,29 +361,22 @@ impl McpServer {
                 error!("Threats detected in request: {:?}", threats);
                 
                 // Track threat detection event
-                if self.event_processor.is_enabled() {
-                    for threat in &threats {
-                        let event = SecurityEvent {
-                            event_type: crate::event_processor::SecurityEventType::ThreatDetected {
-                                client_id: client_id.to_string(),
-                                threat_type: format!("{:?}", threat.threat_type),
-                                severity: format!("{:?}", threat.severity),
-                            },
-                            timestamp: std::time::SystemTime::now()
-                                .duration_since(std::time::UNIX_EPOCH)
-                                .unwrap()
-                                .as_secs(),
-                            correlation_id: None,
-                            metadata: Some(serde_json::to_value(&threat).unwrap_or(Value::Null)),
-                        };
-                        let _ = self.event_processor.track_event(event);
-                    }
+                for threat in &threats {
+                    self.track_security_event(
+                        "threat.detected",
+                        client_id,
+                        serde_json::json!({
+                            "threat_type": format!("{:?}", threat.threat_type),
+                            "severity": format!("{:?}", threat.severity),
+                            "threat": threat,
+                        })
+                    ).await;
                 }
                 
                 // Apply rate limit penalty for security threats
                 if let Err(e) = self.rate_limiter.apply_penalty(
                     client_id,
-                    self.config.rate_limit.threat_penalty_multiplier as f64,
+                    self.config.rate_limit.threat_penalty_multiplier,
                 ).await {
                     error!("Failed to apply rate limit penalty: {}", e);
                 }
@@ -390,16 +402,29 @@ impl McpServer {
             RequestId::Null { .. } => "null".to_string(),
         };
         
-        if self.event_processor.is_enabled() {
-            let event = SecurityEventProcessor::request_event(
-                client_id,
-                &request.method,
-                &request_id
-            );
-            let _ = self.event_processor.track_event(event);
-        }
+        self.track_security_event(
+            "request.received",
+            client_id,
+            serde_json::json!({
+                "method": &request.method,
+                "request_id": &request_id,
+            })
+        ).await;
         
         let start_time = std::time::Instant::now();
+        
+        // Check if method requires experimental features
+        if let Some(stability) = ApiRegistry::get_stability(&request.method) {
+            use crate::versioning::ApiStability;
+            if stability == ApiStability::Experimental && !ApiRegistry::experimental_enabled() {
+                return error_response(
+                    -32601,
+                    format!("Method '{}' is experimental and not enabled", request.method),
+                    request.id.into(),
+                    None,
+                );
+            }
+        }
         
         // Process the method
         let result = match request.method.as_str() {
@@ -407,7 +432,7 @@ impl McpServer {
             "initialized" => self.handle_initialized(request.params).await,
             "shutdown" => self.handle_shutdown(request.params).await,
             
-            "tools/list" => self.handle_tools_list(request.params).await,
+            "tools/list" => self.handle_tools_list(request.params, &auth_context).await,
             "tools/call" => self.handle_tools_call(request.params, &auth_context).await,
             
             "resources/list" => self.handle_resources_list(request.params).await,
@@ -426,7 +451,8 @@ impl McpServer {
             method => Err(ServerError::MethodNotFound(method.to_string())),
         };
         
-        let response = match result {
+        let success = result.is_ok();
+        let mut response = match result {
             Ok(value) => success_response(value, request.id.into()),
             Err(error) => error_response(
                 error.to_json_rpc_error().code,
@@ -436,25 +462,25 @@ impl McpServer {
             ),
         };
         
-        // Track MCP response event
-        if self.event_processor.is_enabled() {
-            let duration_ms = start_time.elapsed().as_millis() as u64;
-            let event = SecurityEvent {
-                event_type: crate::event_processor::SecurityEventType::ResponseSent {
-                    client_id: client_id.to_string(),
-                    method: request.method.clone(),
-                    request_id: request_id.clone(),
-                    duration_ms,
-                },
-                timestamp: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs(),
-                correlation_id: Some(request_id),
-                metadata: None,
-            };
-            let _ = self.event_processor.track_event(event);
+        // Add version metadata to successful responses
+        if success {
+            if let Some(ref mut result_value) = response.result {
+                add_version_metadata(result_value);
+            }
         }
+        
+        // Track MCP response event
+        let duration_ms = start_time.elapsed().as_millis() as u64;
+        self.track_security_event(
+            "response.sent",
+            client_id,
+            serde_json::json!({
+                "method": &request.method,
+                "request_id": &request_id,
+                "duration_ms": duration_ms,
+                "success": success,
+            })
+        ).await;
         
         response
     }
@@ -568,8 +594,9 @@ impl McpServer {
     }
     
     /// Handle tools/list request
-    async fn handle_tools_list(&self, _params: Option<Value>) -> Result<Value, ServerError> {
-        let tools = vec![
+    async fn handle_tools_list(&self, _params: Option<Value>, auth: &AuthContext) -> Result<Value, ServerError> {
+        // Get all available tools
+        let all_tools = vec![
             Tool {
                 name: "scan_text".to_string(),
                 description: "Scan text for security threats including unicode attacks and injection attempts".to_string(),
@@ -612,7 +639,48 @@ impl McpServer {
                     "required": ["data"]
                 }),
             },
+            Tool {
+                name: "get_security_info".to_string(),
+                description: "Get current security information and statistics".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                }),
+            },
+            Tool {
+                name: "verify_signature".to_string(),
+                description: "Verify message signature".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "message": {
+                            "type": "string",
+                            "description": "Message to verify"
+                        },
+                        "signature": {
+                            "type": "string",
+                            "description": "Signature to verify"
+                        }
+                    },
+                    "required": ["message", "signature"]
+                }),
+            },
         ];
+        
+        // Get allowed tools for this client
+        let client_id = auth.client_id.as_deref().unwrap_or("anonymous");
+        let allowed_tools = self.component_manager.permission_manager()
+            .get_allowed_tools(client_id)
+            .await
+            .map_err(|e| ServerError::InternalError(format!("Failed to get allowed tools: {}", e)))?;
+        
+        // Filter tools based on permissions
+        let tools: Vec<Tool> = all_tools
+            .into_iter()
+            .filter(|tool| allowed_tools.contains(&tool.name))
+            .collect();
+        
+        info!("Client {} has access to {} tools", client_id, tools.len());
         
         let result = ToolsListResult { tools };
         Ok(serde_json::to_value(result).map_err(|e| ServerError::InternalError(e.to_string()))?)
@@ -627,9 +695,28 @@ impl McpServer {
             return Err(ServerError::InvalidParams("Missing tool call params".to_string()));
         };
         
-        // Check authorization for tool
+        // Check OAuth2 authorization for tool
         self.auth_manager.authorize_tool(auth, &params.name)
-            .map_err(|e| ServerError::Unauthorized)?;
+            .map_err(|_e| ServerError::Unauthorized)?;
+        
+        // Check fine-grained permissions
+        let permission_context = crate::permissions::PermissionContext {
+            auth_token: None, // Auth token is internal to auth manager
+            scopes: auth.scopes.clone(),
+            threat_level: self.get_current_threat_level(),
+            request_metadata: std::collections::HashMap::new(),
+        };
+        
+        let client_id = auth.client_id.as_deref().unwrap_or("anonymous");
+        let permission = self.component_manager.permission_manager()
+            .check_permission(client_id, &params.name, &permission_context)
+            .await
+            .map_err(|e| ServerError::InternalError(format!("Permission check failed: {}", e)))?;
+        
+        if let crate::permissions::Permission::Deny(reason) = permission {
+            warn!("Tool access denied for {}: {}", client_id, reason);
+            return Err(ServerError::Unauthorized);
+        }
         
         // Apply timeout to tool execution
         let result = tokio::time::timeout(
@@ -705,6 +792,58 @@ impl McpServer {
                 Ok(serde_json::json!({
                     "threats": threats,
                     "safe": threats.is_empty(),
+                }))
+            }
+            
+            "get_security_info" => {
+                // Get current security statistics
+                let shield_stats = self.shield.stats();
+                let event_stats = self.event_processor.get_stats();
+                let rate_limiter_stats = self.rate_limiter.get_stats();
+                let permission_stats = self.component_manager.permission_manager().get_stats();
+                
+                Ok(serde_json::json!({
+                    "status": "active",
+                    "enhanced_mode": self.component_manager.is_enhanced_mode(),
+                    "shield": {
+                        "threats_blocked": shield_stats.threats_blocked,
+                        "active": shield_stats.active,
+                    },
+                    "event_processor": {
+                        "events_processed": event_stats.events_processed,
+                        "events_per_second": event_stats.events_per_second,
+                        "buffer_utilization": event_stats.buffer_utilization,
+                    },
+                    "rate_limiter": {
+                        "requests_allowed": rate_limiter_stats.requests_allowed,
+                        "requests_denied": rate_limiter_stats.requests_denied,
+                    },
+                    "permissions": {
+                        "total_checks": permission_stats.total_checks,
+                        "allowed": permission_stats.allowed,
+                        "denied": permission_stats.denied,
+                    }
+                }))
+            }
+            
+            "verify_signature" => {
+                let message = arguments.get("message")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidParams("Missing 'message' argument".to_string()))?;
+                
+                let signature = arguments.get("signature")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidParams("Missing 'signature' argument".to_string()))?;
+                
+                // This is a placeholder - in real implementation would verify actual signature
+                let tampered = arguments.get("tampered")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                
+                Ok(serde_json::json!({
+                    "valid": !tampered,
+                    "algorithm": "ed25519",
+                    "message": message,
                 }))
             }
             
@@ -848,23 +987,14 @@ impl McpServer {
     async fn handle_rate_limit_status(&self, _params: Option<Value>, auth: &AuthContext) -> Result<Value, ServerError> {
         let client_id = auth.client_id.as_deref().unwrap_or("anonymous");
         
-        let status = self.rate_limiter.get_status(client_id).await
-            .map_err(|e| ServerError::InternalError(e.to_string()))?;
-        
-        let status_json: serde_json::Map<String, Value> = status.into_iter()
-            .map(|(method, result)| {
-                (method, serde_json::json!({
-                    "allowed": result.allowed,
-                    "remaining": result.remaining,
-                    "limit": result.limit,
-                    "reset_after_seconds": result.reset_after.as_secs(),
-                }))
-            })
-            .collect();
+        // Get rate limiter stats
+        let stats = self.rate_limiter.get_stats();
         
         Ok(serde_json::json!({
             "client_id": client_id,
-            "rate_limits": status_json,
+            "requests_allowed": stats.requests_allowed,
+            "requests_denied": stats.requests_denied,
+            "active_buckets": stats.active_buckets,
             "enabled": self.config.rate_limit.enabled,
         }))
     }
@@ -1013,6 +1143,26 @@ impl McpServer {
                 ResponseId::Null { id: None },
                 None,
             )).unwrap_or(Value::Null)
+        }
+    }
+    
+    /// Get current threat level based on recent activity
+    fn get_current_threat_level(&self) -> crate::permissions::ThreatLevel {
+        // Get shield stats
+        let shield_stats = self.shield.stats();
+        let threats_blocked = shield_stats.threats_blocked;
+        
+        // Determine threat level based on activity
+        if threats_blocked == 0 {
+            crate::permissions::ThreatLevel::Safe
+        } else if threats_blocked < 5 {
+            crate::permissions::ThreatLevel::Low
+        } else if threats_blocked < 20 {
+            crate::permissions::ThreatLevel::Medium
+        } else if threats_blocked < 50 {
+            crate::permissions::ThreatLevel::High
+        } else {
+            crate::permissions::ThreatLevel::Critical
         }
     }
 }

@@ -90,7 +90,7 @@ pub struct SigningManager {
 }
 
 /// Signed message wrapper
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SignedMessage {
     /// The original message
     pub message: serde_json::Value,

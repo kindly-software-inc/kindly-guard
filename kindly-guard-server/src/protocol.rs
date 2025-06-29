@@ -305,6 +305,7 @@ mod tests {
                 "protocolVersion": "2024-11-05"
             })),
             id: RequestId::Number { id: 1 },
+            authorization: None,
         };
         
         let json = serde_json::to_string(&request).unwrap();

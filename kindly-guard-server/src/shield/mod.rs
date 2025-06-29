@@ -8,7 +8,7 @@ use anyhow::Result;
 
 use crate::scanner::Threat;
 use crate::config::ShieldConfig;
-use crate::event_processor::SecurityEventProcessor;
+use crate::traits::SecurityEventProcessor;
 
 pub mod display;
 pub mod cli;
@@ -26,7 +26,7 @@ pub struct Shield {
     /// Whether advanced protection (event processor) is enabled
     event_processor_enabled: AtomicBool,
     /// Weak reference to event processor for correlation data
-    event_processor: Mutex<Option<Weak<SecurityEventProcessor>>>,
+    event_processor: Mutex<Option<Weak<dyn SecurityEventProcessor>>>,
 }
 
 /// Threat with timestamp
@@ -90,7 +90,7 @@ impl Shield {
     }
     
     /// Set event processor reference for correlation data
-    pub fn set_event_processor(&self, processor: &Arc<SecurityEventProcessor>) {
+    pub fn set_event_processor(&self, processor: &Arc<dyn SecurityEventProcessor>) {
         let mut ep = self.event_processor.lock().unwrap();
         *ep = Some(Arc::downgrade(processor));
     }

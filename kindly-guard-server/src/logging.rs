@@ -1,15 +1,12 @@
 //! Enhanced logging with semantic fields for stealth operation
 //! This module provides structured logging that hides implementation details
 
-use tracing::{Level, Metadata, Subscriber};
 use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
     util::SubscriberInitExt,
-    Layer,
 };
-use std::io;
 
 /// Initialize the logging system with stealth configuration
 pub fn init_logging(detailed: bool) -> Result<(), Box<dyn std::error::Error>> {
@@ -26,8 +23,7 @@ pub fn init_logging(detailed: bool) -> Result<(), Box<dyn std::error::Error>> {
         .with_target(false)
         .with_thread_ids(false)
         .with_thread_names(false)
-        .with_span_events(if detailed { FmtSpan::FULL } else { FmtSpan::NONE })
-        .with_filter(StealthFilter);
+        .with_span_events(if detailed { FmtSpan::FULL } else { FmtSpan::NONE });
     
     tracing_subscriber::registry()
         .with(env_filter)
@@ -37,27 +33,6 @@ pub fn init_logging(detailed: bool) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Custom filter that sanitizes log messages
-struct StealthFilter;
-
-impl<S> Layer<S> for StealthFilter 
-where 
-    S: Subscriber,
-{
-    fn enabled(&self, metadata: &Metadata<'_>, _ctx: tracing_subscriber::layer::Context<'_, S>) -> bool {
-        // Filter out any logs that might reveal implementation details
-        let target = metadata.target();
-        
-        // Block logs from internal implementation
-        if target.contains("atomic_event_buffer") || 
-           target.contains("kindly_guard_core") ||
-           target.contains("enhanced_impl") {
-            return false;
-        }
-        
-        true
-    }
-}
 
 /// Log security events with semantic fields
 #[macro_export]

@@ -130,7 +130,10 @@ impl EnhancedScanner for StandardScanner {
         let mut threats = Vec::new();
         
         // Check for obvious injection patterns
-        if data_str.contains("'; DROP TABLE") || data_str.contains("1=1") {
+        if data_str.contains("'; DROP TABLE") 
+            || data_str.contains("1=1") 
+            || data_str.contains("'1'='1'")
+            || data_str.contains("' OR '") {
             threats.push(Threat {
                 threat_type: crate::scanner::ThreatType::SqlInjection,
                 severity: crate::scanner::Severity::High,

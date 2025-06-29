@@ -1,0 +1,38 @@
+[Unit]
+Description=KindlyGuard Security MCP Server (User)
+Documentation=https://github.com/SamuelHorvath/kindly-guard
+After=graphical-session.target
+
+[Service]
+Type=simple
+
+# Working directory - use user's config directory
+WorkingDirectory=%h/.config/kindly-guard
+
+# Environment variables
+Environment="RUST_LOG=kindly_guard=info"
+Environment="KINDLY_GUARD_CONFIG=%h/.config/kindly-guard/config.yaml"
+
+# Start command
+ExecStart=%h/.local/bin/kindly-guard --stdio
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+
+# User service doesn't need as many security restrictions
+NoNewPrivileges=true
+PrivateTmp=true
+
+# Resource limits
+LimitNOFILE=8192
+MemoryLimit=256M
+CPUQuota=100%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kindly-guard-user
+
+[Install]
+WantedBy=default.target

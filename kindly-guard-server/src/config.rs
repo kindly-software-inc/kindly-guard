@@ -5,9 +5,24 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 use crate::auth::AuthConfig;
+#[cfg(feature = "enhanced")]
 use crate::event_processor::EventProcessorConfig;
 use crate::rate_limit::RateLimitConfig;
 use crate::signing::SigningConfig;
+
+// Stub EventProcessorConfig when enhanced feature is not enabled
+#[cfg(not(feature = "enhanced"))]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EventProcessorConfig {
+    pub enabled: bool,
+}
+
+#[cfg(not(feature = "enhanced"))]
+impl Default for EventProcessorConfig {
+    fn default() -> Self {
+        Self { enabled: false }
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
@@ -98,6 +113,14 @@ pub struct ShieldConfig {
 }
 
 impl Config {
+    /// Check if event processor is enabled
+    pub fn is_event_processor_enabled(&self) -> bool {
+        #[cfg(feature = "enhanced")]
+        return self.event_processor.enabled;
+        #[cfg(not(feature = "enhanced"))]
+        return false;
+    }
+    
     /// Load configuration from environment and files
     pub fn load() -> Result<Self> {
         // First, try to load from config file

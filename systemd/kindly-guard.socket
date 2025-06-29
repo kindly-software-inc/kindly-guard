@@ -1,0 +1,23 @@
+[Unit]
+Description=KindlyGuard Security MCP Server Socket
+Documentation=https://github.com/SamuelHorvath/kindly-guard
+
+[Socket]
+# Listen on a UNIX socket for local MCP connections
+ListenStream=/var/run/kindly-guard/kindly-guard.sock
+SocketMode=0660
+SocketUser=kindlyguard
+SocketGroup=kindlyguard
+
+# Socket options
+Accept=false
+Backlog=128
+KeepAlive=true
+NoDelay=true
+
+# Directory creation
+RuntimeDirectory=kindly-guard
+RuntimeDirectoryMode=0755
+
+[Install]
+WantedBy=sockets.target

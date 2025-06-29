@@ -136,11 +136,14 @@ impl SecurityEventProcessor {
     
     /// Track a security event
     pub fn track_event(&self, event: SecurityEvent) -> Result<()> {
-        if !self.config.enabled || self.buffer.is_none() {
+        if !self.config.enabled {
             return Ok(()); // Silently skip if disabled
         }
         
-        let buffer = self.buffer.as_ref().unwrap();
+        let buffer = match &self.buffer {
+            Some(b) => b,
+            None => return Ok(()), // No buffer available
+        };
         
         // Determine endpoint based on event type
         let endpoint = match &event.event_type {

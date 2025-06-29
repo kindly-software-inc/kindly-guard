@@ -20,6 +20,7 @@ pub struct InjectionScanner {
     sql_patterns: Vec<Regex>,
     /// Optional performance enhancement (not exposed in logs)
     #[allow(dead_code)]
+    #[cfg(feature = "enhanced")]
     enhancement: Option<std::sync::Arc<kindly_guard_core::AtomicEventBuffer>>,
 }
 
@@ -33,12 +34,14 @@ impl InjectionScanner {
             command_patterns: compile_patterns(&patterns.command_injection_patterns())?,
             path_patterns: compile_patterns(&patterns.path_traversal_patterns())?,
             sql_patterns: compile_patterns(&patterns.sql_injection_patterns())?,
+            #[cfg(feature = "enhanced")]
             enhancement: None,
         })
     }
     
     /// Set performance enhancement (internal use only)
     #[allow(dead_code)]
+    #[cfg(feature = "enhanced")]
     pub(crate) fn with_enhancement(&mut self, buffer: std::sync::Arc<kindly_guard_core::AtomicEventBuffer>) {
         self.enhancement = Some(buffer);
     }
@@ -49,6 +52,7 @@ impl InjectionScanner {
         let mut threats = Vec::new();
         
         // Use accelerated regex matching when available
+        #[cfg(feature = "enhanced")]
         if let Some(buffer) = &self.enhancement {
             // Track injection sequences for multi-stage attack detection
             let seq_data = format!("injection:seq{}", text.len());

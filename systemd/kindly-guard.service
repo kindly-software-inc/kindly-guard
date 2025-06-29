@@ -1,0 +1,50 @@
+[Unit]
+Description=KindlyGuard Security MCP Server
+Documentation=https://github.com/SamuelHorvath/kindly-guard
+After=network.target
+
+[Service]
+Type=simple
+# User and group to run the service
+User=kindlyguard
+Group=kindlyguard
+
+# Working directory
+WorkingDirectory=/opt/kindly-guard
+
+# Environment variables
+Environment="RUST_LOG=kindly_guard=info"
+Environment="KINDLY_GUARD_CONFIG=/etc/kindly-guard/config.yaml"
+
+# Start command - stdio mode for MCP
+ExecStart=/usr/local/bin/kindly-guard --stdio
+
+# Restart policy
+Restart=on-failure
+RestartSec=5s
+
+# Security hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/log/kindly-guard /var/lib/kindly-guard
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+# Resource limits
+LimitNOFILE=65536
+MemoryLimit=512M
+CPUQuota=200%
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kindly-guard
+
+[Install]
+WantedBy=multi-user.target

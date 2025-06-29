@@ -2,29 +2,70 @@
 /target/
 **/*.rs.bk
 *.pdb
+Cargo.lock
 
 # Backup files
 *.swp
 *.swo
 *~
+*.bak
 
 # IDE files
 .idea/
 .vscode/
 *.iml
+.project
+.settings/
 
 # OS files
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Config files (keep example)
-kindly-guard.toml
+# Config files with secrets
+kindly-guard.yaml
+config.local.yaml
+*.secret
+*.key
+*.pem
+!example.config.yaml
 
 # Log files
 *.log
+logs/
 
 # Test output
 test-output/
+test-results/
+coverage/
+*.profraw
+*.profdata
 
-# Private dependency (when added)
+# Benchmark results
+/target/criterion/
+
+# Documentation build
+/target/doc/
+/target/rdoc/
+
+# Temporary files
+*.tmp
+.tmp/
+tmp/
+
+# Python cache (for examples)
+__pycache__/
+*.pyc
+*.pyo
+
+# Node modules (for examples)
+node_modules/
+package-lock.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Private dependency (patented technology)
 kindly-guard-core/

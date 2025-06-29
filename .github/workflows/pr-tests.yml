@@ -1,0 +1,145 @@
+name: PR Tests
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # Quick validation
+  quick-check:
+    name: Quick Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    - name: Format check
+      run: cargo fmt -- --check
+    
+    - name: Clippy check
+      run: cargo clippy --all-features -- -D warnings
+
+  # Fast tests only
+  fast-tests:
+    name: Fast Tests
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: taiki-e/install-action@nextest
+    
+    - name: Cache cargo
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-pr-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Build check
+      run: cargo build --all-features
+    
+    - name: Run fast tests
+      run: cargo nextest run --all-features --profile pr
+
+  # Security check
+  security-check:
+    name: Security Check
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: rustsec/audit-check@v2
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  # Basic coverage
+  basic-coverage:
+    name: Basic Coverage
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+      with:
+        components: llvm-tools-preview
+    
+    - name: Install tools
+      run: |
+        cargo install cargo-llvm-cov --locked
+        cargo install cargo-nextest --locked
+    
+    - name: Generate coverage
+      run: |
+        cargo llvm-cov nextest --all-features --workspace \
+          --exclude kindly-guard-core \
+          --text --summary-only \
+          --fail-under-lines 70
+    
+    - name: Comment coverage
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      with:
+        script: |
+          const coverage = '${{ steps.coverage.outputs.coverage }}';
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: `## Coverage Report\n\n${coverage}`
+          });
+
+  # Performance check
+  perf-check:
+    name: Performance Check
+    runs-on: ubuntu-latest
+    if: contains(github.event.pull_request.labels.*.name, 'performance')
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - uses: dtolnay/rust-toolchain@stable
+    
+    - name: Checkout base
+      run: |
+        git checkout ${{ github.event.pull_request.base.sha }}
+        cargo build --release
+        cp target/release/kindly-guard kindly-guard-base
+    
+    - name: Checkout PR
+      run: |
+        git checkout ${{ github.event.pull_request.head.sha }}
+        cargo build --release
+    
+    - name: Compare performance
+      run: |
+        # Simple performance comparison
+        echo "Base version:"
+        time echo "SELECT * FROM users" | ./kindly-guard-base scan -
+        
+        echo "PR version:"
+        time echo "SELECT * FROM users" | target/release/kindly-guard scan -
+
+  # PR Summary
+  pr-summary:
+    name: PR Test Summary
+    runs-on: ubuntu-latest
+    needs: [quick-check, fast-tests, security-check, basic-coverage]
+    if: always()
+    steps:
+    - name: Check results
+      run: |
+        if [ "${{ needs.quick-check.result }}" != "success" ] ||
+           [ "${{ needs.fast-tests.result }}" != "success" ] ||
+           [ "${{ needs.security-check.result }}" != "success" ] ||
+           [ "${{ needs.basic-coverage.result }}" != "success" ]; then
+          echo "PR tests failed"
+          exit 1
+        fi
+        echo "All PR tests passed!"
