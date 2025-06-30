@@ -20,6 +20,9 @@ use crate::permissions::EnhancedPermissionManager;
 use crate::telemetry::{TelemetryProvider, TelemetryProviderFactory, standard::StandardTelemetryFactory};
 #[cfg(feature = "enhanced")]
 use crate::telemetry::enhanced::EnhancedTelemetryFactory;
+use crate::storage::{StorageProvider, StorageProviderFactory, DefaultStorageFactory};
+use crate::plugins::{PluginManagerTrait, PluginManagerFactory, DefaultPluginManagerFactory};
+use crate::audit::{AuditLogger, AuditLoggerFactory, DefaultAuditLoggerFactory};
 
 /// Selects appropriate component implementations based on configuration
 pub struct ComponentSelector {
@@ -53,8 +56,8 @@ impl ComponentSelector {
     }
     
     /// Create event processor
-    pub fn create_event_processor(&self, config: &Config) -> Result<Arc<dyn SecurityEventProcessor>> {
-        self.factory.create_event_processor(config)
+    pub fn create_event_processor(&self, config: &Config, storage: Arc<dyn StorageProvider>) -> Result<Arc<dyn SecurityEventProcessor>> {
+        self.factory.create_event_processor(config, storage)
     }
     
     /// Create scanner
@@ -63,13 +66,13 @@ impl ComponentSelector {
     }
     
     /// Create correlation engine
-    pub fn create_correlation_engine(&self, config: &Config) -> Result<Arc<dyn CorrelationEngine>> {
-        self.factory.create_correlation_engine(config)
+    pub fn create_correlation_engine(&self, config: &Config, storage: Arc<dyn StorageProvider>) -> Result<Arc<dyn CorrelationEngine>> {
+        self.factory.create_correlation_engine(config, storage)
     }
     
     /// Create rate limiter
-    pub fn create_rate_limiter(&self, config: &Config) -> Result<Arc<dyn RateLimiter>> {
-        self.factory.create_rate_limiter(config)
+    pub fn create_rate_limiter(&self, config: &Config, storage: Arc<dyn StorageProvider>) -> Result<Arc<dyn RateLimiter>> {
+        self.factory.create_rate_limiter(config, storage)
     }
     
     /// Check if enhanced mode is active
@@ -86,6 +89,9 @@ pub struct ComponentManager {
     rate_limiter: Arc<dyn RateLimiter>,
     permission_manager: Arc<dyn ToolPermissionManager>,
     telemetry_provider: Arc<dyn TelemetryProvider>,
+    storage_provider: Arc<dyn StorageProvider>,
+    plugin_manager: Arc<dyn PluginManagerTrait>,
+    audit_logger: Arc<dyn AuditLogger>,
     enhanced_mode: bool,
 }
 
@@ -117,8 +123,12 @@ impl ComponentManager {
         let permission_manager: Arc<dyn ToolPermissionManager> = 
             Arc::new(StandardPermissionManager::new(permission_rules));
         
-        // Create event processor first
-        let event_processor = selector.create_event_processor(config)?;
+        // Create storage provider first
+        let storage_factory = DefaultStorageFactory;
+        let storage_provider = storage_factory.create(&config.storage)?;
+        
+        // Create event processor with storage
+        let event_processor = selector.create_event_processor(config, storage_provider.clone())?;
         
         // Create telemetry provider
         #[cfg(feature = "enhanced")]
@@ -133,13 +143,24 @@ impl ComponentManager {
         
         let telemetry_provider = telemetry_factory.create(&config.telemetry)?;
         
+        // Create plugin manager
+        let plugin_factory = DefaultPluginManagerFactory;
+        let plugin_manager = plugin_factory.create(&config.plugins)?;
+        
+        // Create audit logger
+        let audit_factory = DefaultAuditLoggerFactory;
+        let audit_logger = audit_factory.create(&config.audit)?;
+        
         Ok(Self {
             event_processor,
             scanner: selector.create_scanner(config)?,
-            correlation_engine: selector.create_correlation_engine(config)?,
-            rate_limiter: selector.create_rate_limiter(config)?,
+            correlation_engine: selector.create_correlation_engine(config, storage_provider.clone())?,
+            rate_limiter: selector.create_rate_limiter(config, storage_provider.clone())?,
             permission_manager,
             telemetry_provider,
+            storage_provider,
+            plugin_manager,
+            audit_logger,
             enhanced_mode: selector.is_enhanced_mode(config),
         })
     }
@@ -172,6 +193,21 @@ impl ComponentManager {
     /// Get telemetry provider
     pub fn telemetry_provider(&self) -> &Arc<dyn TelemetryProvider> {
         &self.telemetry_provider
+    }
+    
+    /// Get storage provider
+    pub fn storage_provider(&self) -> &Arc<dyn StorageProvider> {
+        &self.storage_provider
+    }
+    
+    /// Get plugin manager
+    pub fn plugin_manager(&self) -> &Arc<dyn PluginManagerTrait> {
+        &self.plugin_manager
+    }
+    
+    /// Get audit logger
+    pub fn audit_logger(&self) -> &Arc<dyn AuditLogger> {
+        &self.audit_logger
     }
     
     /// Check if running in enhanced mode

@@ -6,31 +6,87 @@ use tracing_subscriber::{
     fmt::{self, format::FmtSpan},
     layer::SubscriberExt,
     util::SubscriberInitExt,
+    Layer,
 };
+use tracing::{Level, Span};
+use serde::Serialize;
+use std::io::Write;
+
+/// Logging configuration
+#[derive(Debug, Clone)]
+pub struct LogConfig {
+    pub format: LogFormat,
+    pub level: String,
+    pub detailed: bool,
+    pub json_output: bool,
+    pub include_timestamp: bool,
+    pub include_target: bool,
+}
+
+impl Default for LogConfig {
+    fn default() -> Self {
+        Self {
+            format: LogFormat::Compact,
+            level: "info".to_string(),
+            detailed: false,
+            json_output: false,
+            include_timestamp: true,
+            include_target: false,
+        }
+    }
+}
+
+/// Log output format
+#[derive(Debug, Clone, Copy)]
+pub enum LogFormat {
+    Compact,
+    Pretty,
+    Json,
+}
 
 /// Initialize the logging system with stealth configuration
-pub fn init_logging(detailed: bool) -> Result<(), Box<dyn std::error::Error>> {
+pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>> {
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| {
-            if detailed {
-                EnvFilter::new("kindly_guard=debug,info")
-            } else {
-                EnvFilter::new("kindly_guard=info,warn")
-            }
+            EnvFilter::new(&format!("kindly_guard={},warn", config.level))
         });
     
-    let fmt_layer = fmt::layer()
-        .with_target(false)
-        .with_thread_ids(false)
-        .with_thread_names(false)
-        .with_span_events(if detailed { FmtSpan::FULL } else { FmtSpan::NONE });
-    
-    tracing_subscriber::registry()
-        .with(env_filter)
-        .with(fmt_layer)
-        .init();
+    if config.json_output || matches!(config.format, LogFormat::Json) {
+        // JSON structured logging
+        let fmt_layer = fmt::layer()
+            .with_target(config.include_target)
+            .with_thread_ids(false)
+            .with_thread_names(false)
+            .with_span_events(if config.detailed { FmtSpan::FULL } else { FmtSpan::NONE });
+        
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(fmt_layer)
+            .init();
+    } else {
+        // Human-readable logging
+        let fmt_layer = fmt::layer()
+            .with_target(config.include_target)
+            .with_thread_ids(false)
+            .with_thread_names(false)
+            .with_ansi(!cfg!(windows)) // Disable ANSI on Windows
+            .with_span_events(if config.detailed { FmtSpan::FULL } else { FmtSpan::NONE });
+        
+        tracing_subscriber::registry()
+            .with(env_filter)
+            .with(fmt_layer)
+            .init();
+    }
     
     Ok(())
+}
+
+/// Initialize with default configuration for backwards compatibility
+pub fn init_logging_simple(detailed: bool) -> Result<(), Box<dyn std::error::Error>> {
+    init_logging(LogConfig {
+        detailed,
+        ..Default::default()
+    })
 }
 
 
@@ -216,5 +272,74 @@ pub fn sanitize_for_log(input: &str) -> String {
         format!("{}...", &sanitized[..200])
     } else {
         sanitized
+    }
+}
+
+/// Create a request span with tracking information
+#[macro_export]
+macro_rules! request_span {
+    ($method:expr, $request_id:expr, $client_id:expr) => {
+        tracing::info_span!(
+            "request",
+            request.id = $request_id,
+            request.method = $method,
+            client.id = $client_id,
+            request.start_time = %chrono::Utc::now(),
+        )
+    };
+}
+
+/// Log request completion with metrics
+#[macro_export]
+macro_rules! log_request_complete {
+    ($span:expr, $success:expr, $duration_ms:expr) => {
+        tracing::info!(
+            parent: &$span,
+            event_type = "request.complete",
+            request.success = $success,
+            request.duration_ms = $duration_ms,
+            category = "performance"
+        );
+    };
+}
+
+/// Structured error logging
+#[derive(Debug, Serialize)]
+pub struct ErrorLog {
+    pub error_type: String,
+    pub error_code: i32,
+    pub message: String,
+    pub severity: String,
+    pub retryable: bool,
+    pub context: Option<serde_json::Value>,
+}
+
+impl ErrorLog {
+    pub fn from_kindly_error(error: &crate::error::KindlyError) -> Self {
+        Self {
+            error_type: format!("{:?}", error),
+            error_code: error.to_protocol_code(),
+            message: error.to_string(),
+            severity: format!("{:?}", error.severity()),
+            retryable: error.is_retryable(),
+            context: None,
+        }
+    }
+    
+    pub fn log(&self) {
+        match self.severity.as_str() {
+            "Critical" => tracing::error!(
+                error = serde_json::to_string(self).unwrap_or_default(),
+                category = "error"
+            ),
+            "High" => tracing::warn!(
+                error = serde_json::to_string(self).unwrap_or_default(),
+                category = "error"
+            ),
+            _ => tracing::info!(
+                error = serde_json::to_string(self).unwrap_or_default(),
+                category = "error"
+            ),
+        }
     }
 }

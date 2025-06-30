@@ -14,7 +14,7 @@ fn create_test_server() -> Arc<McpServer> {
     let mut config = Config::default();
     config.server.stdio = true;
     config.shield.enabled = false;
-    config.auth.require_auth = false;
+    config.auth.enabled = false;
     Arc::new(McpServer::new(config).expect("Failed to create server"))
 }
 

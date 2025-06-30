@@ -140,10 +140,10 @@ fn test_regex_dos_protection() {
     
     // Test patterns that could cause catastrophic backtracking
     let evil_patterns = vec![
-        "a" * 100 + "X",  // Long string with no match
-        "(a+)+" * 10,     // Nested quantifiers
-        "(a*)*b",         // Catastrophic pattern
-        "(x+x+)+y",       // Another catastrophic pattern
+        format!("{}X", "a".repeat(100)),     // Long string with no match
+        "(a+)+".repeat(10),                  // Nested quantifiers
+        "(a*)*b".to_string(),                // Catastrophic pattern
+        "(x+x+)+y".to_string(),              // Another catastrophic pattern
     ];
     
     for pattern in evil_patterns {

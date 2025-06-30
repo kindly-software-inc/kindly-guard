@@ -5,6 +5,7 @@ use std::sync::{Arc, Mutex, Weak};
 use std::time::{Duration, Instant};
 use std::collections::VecDeque;
 use anyhow::Result;
+use tracing::error;
 
 use crate::scanner::Threat;
 use crate::config::ShieldConfig;
@@ -12,9 +13,11 @@ use crate::traits::SecurityEventProcessor;
 
 pub mod display;
 pub mod cli;
+pub mod universal_display;
 
 pub use display::ShieldDisplay;
 pub use cli::{CliShield, DisplayFormat, ShieldStatus};
+pub use universal_display::{UniversalDisplay, UniversalDisplayConfig, UniversalShieldStatus};
 
 /// Security shield that tracks protection status
 pub struct Shield {
@@ -158,26 +161,36 @@ impl Shield {
     
     /// Get recent threats
     pub fn get_recent_threats(&self, limit: usize) -> Vec<Threat> {
-        let recent = self.recent_threats.lock().unwrap();
-        recent.iter()
-            .rev()
-            .take(limit)
-            .map(|t| t.threat.clone())
-            .collect()
+        match self.recent_threats.lock() {
+            Ok(recent) => recent.iter()
+                .rev()
+                .take(limit)
+                .map(|t| t.threat.clone())
+                .collect(),
+            Err(e) => {
+                error!("Failed to acquire recent threats lock: {}", e);
+                vec![]
+            }
+        }
     }
     
     /// Get threat statistics by type
     pub fn get_threat_stats(&self) -> std::collections::HashMap<crate::scanner::ThreatType, u64> {
         use std::collections::HashMap;
         
-        let recent = self.recent_threats.lock().unwrap();
-        let mut stats = HashMap::new();
-        
-        for item in recent.iter() {
-            *stats.entry(item.threat.threat_type).or_insert(0) += 1;
+        match self.recent_threats.lock() {
+            Ok(recent) => {
+                let mut stats = HashMap::new();
+                for item in recent.iter() {
+                    *stats.entry(item.threat.threat_type.clone()).or_insert(0) += 1;
+                }
+                stats
+            }
+            Err(e) => {
+                error!("Failed to acquire recent threats lock: {}", e);
+                HashMap::new()
+            }
         }
-        
-        stats
     }
     
     /// Start the shield display if configured
@@ -216,6 +229,19 @@ impl Shield {
             unicode_threats_detected: 0,
             injection_threats_detected: 0,
             total_scans: 0,
+        }
+    }
+    
+    /// Set enabled state
+    pub fn set_enabled(&self, enabled: bool) {
+        // ShieldConfig is not mutable at runtime
+        // This would need to be handled differently
+        if enabled {
+            tracing::info!("Shield display enabled");
+            self.set_active(true);
+        } else {
+            tracing::info!("Shield display disabled"); 
+            self.set_active(false);
         }
     }
 }

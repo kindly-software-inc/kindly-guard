@@ -1,261 +1,224 @@
-//! Integration tests for KindlyGuard server
-//! Tests both standard and enhanced modes
+//! Integration tests for storage and plugin systems
 
 use kindly_guard_server::{
-    Config, McpServer, 
+    Config, SecurityScanner, ThreatType, ScannerConfig,
     component_selector::ComponentManager,
-    traits::{SecurityEvent, RateLimitKey},
 };
 use std::sync::Arc;
-use serde_json::json;
 
-/// Create a test configuration
-fn create_test_config(enhanced: bool) -> Config {
+#[tokio::test]
+async fn test_storage_integration() {
+    // Create config
     let mut config = Config::default();
-    config.event_processor.enabled = enhanced;
-    config.server.stdio = true;
-    config.shield.enabled = false; // Disable for tests
-    config
-}
-
-#[tokio::test]
-async fn test_server_creation_standard_mode() {
-    let config = create_test_config(false);
-    let server = McpServer::new(config).expect("Failed to create server");
+    config.storage.enabled = true;
     
-    // Verify shield is not in enhanced mode
-    assert!(!server.shield.is_event_processor_enabled());
-}
-
-#[tokio::test]
-async fn test_server_creation_enhanced_mode() {
-    let config = create_test_config(true);
-    let server = McpServer::new(config).expect("Failed to create server");
+    // Create component manager
+    let component_manager = Arc::new(ComponentManager::new(&config).unwrap());
     
-    // Verify shield is in enhanced mode (purple)
-    assert!(server.shield.is_event_processor_enabled());
-}
-
-#[tokio::test]
-async fn test_component_manager_standard() {
-    let config = create_test_config(false);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
+    // Get storage provider
+    let storage = component_manager.storage_provider();
     
-    // Verify we can get all components
-    let _event_processor = manager.event_processor();
-    let _scanner = manager.scanner();
-    let _correlation_engine = manager.correlation_engine();
-    let _rate_limiter = manager.rate_limiter();
-    
-    assert!(!manager.is_enhanced_mode());
-}
-
-#[tokio::test]
-async fn test_component_manager_enhanced() {
-    let config = create_test_config(true);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    
-    assert!(manager.is_enhanced_mode());
-    assert_eq!(manager.performance_description(), "optimized performance mode");
-}
-
-#[tokio::test]
-async fn test_event_processing_standard() {
-    let config = create_test_config(false);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    let processor = manager.event_processor();
-    
-    let event = SecurityEvent {
-        event_type: "test.event".to_string(),
+    // Store an event
+    let event = kindly_guard_server::traits::SecurityEvent {
+        event_type: "test_threat".to_string(),
         client_id: "test_client".to_string(),
-        timestamp: 0,
-        metadata: json!({}),
+        timestamp: 1234567890,
+        metadata: serde_json::json!({
+            "severity": "high",
+            "description": "Test threat"
+        }),
     };
     
-    let handle = processor.process_event(event).await.expect("Failed to process event");
-    assert!(handle.processed);
-}
-
-#[tokio::test]
-async fn test_event_processing_enhanced() {
-    let config = create_test_config(true);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    let processor = manager.event_processor();
+    // Store event
+    let event_id = storage.store_event(&event).await.unwrap();
+    assert!(!event_id.0.is_empty());
     
-    let event = SecurityEvent {
-        event_type: "test.event".to_string(),
-        client_id: "test_client".to_string(),
-        timestamp: 0,
-        metadata: json!({}),
+    // Query events
+    use kindly_guard_server::storage::EventFilter;
+    let filter = EventFilter {
+        client_id: Some("test_client".to_string()),
+        ..Default::default()
     };
     
-    let handle = processor.process_event(event).await.expect("Failed to process event");
-    assert!(handle.processed);
+    let events = storage.query_events(filter).await.unwrap();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0].client_id, "test_client");
 }
 
-#[tokio::test]
-async fn test_rate_limiting_standard() {
-    let config = create_test_config(false);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    let rate_limiter = manager.rate_limiter();
-    
-    let key = RateLimitKey {
-        client_id: "test_client".to_string(),
-        method: Some("test_method".to_string()),
+#[test]
+fn test_scanner_without_plugins() {
+    // Create scanner without plugins
+    let config = ScannerConfig {
+        unicode_detection: true,
+        injection_detection: true,
+        path_traversal_detection: true,
+        custom_patterns: None,
+        max_scan_depth: 10,
+        enable_event_buffer: false,
     };
+    let scanner = SecurityScanner::new(config).unwrap();
     
-    // First request should be allowed
-    let decision = rate_limiter.check_rate_limit(&key).await.expect("Failed to check rate limit");
-    assert!(decision.allowed);
-    assert!(decision.tokens_remaining > 0.0);
-}
-
-#[tokio::test]
-async fn test_rate_limiting_enhanced() {
-    let config = create_test_config(true);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    let rate_limiter = manager.rate_limiter();
-    
-    let key = RateLimitKey {
-        client_id: "test_client".to_string(),
-        method: Some("test_method".to_string()),
-    };
-    
-    // First request should be allowed
-    let decision = rate_limiter.check_rate_limit(&key).await.expect("Failed to check rate limit");
-    assert!(decision.allowed);
-}
-
-#[tokio::test]
-async fn test_scanner_standard() {
-    let config = create_test_config(false);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    let scanner = manager.scanner();
-    
-    let test_data = b"SELECT * FROM users WHERE id = '1' OR '1'='1'";
-    let threats = scanner.enhanced_scan(test_data).expect("Failed to scan");
-    
-    // Should detect SQL injection
+    // Test SQL injection detection
+    let threats = scanner.scan_text("SELECT * FROM users WHERE id = '1' OR '1'='1'").unwrap();
     assert!(!threats.is_empty());
-    assert_eq!(threats[0].threat_type, kindly_guard_server::ThreatType::SqlInjection);
-}
-
-#[tokio::test]
-async fn test_scanner_enhanced() {
-    let config = create_test_config(true);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    let scanner = manager.scanner();
     
-    let test_data = b"SELECT * FROM users WHERE id = '1' OR '1'='1'";
-    let threats = scanner.enhanced_scan(test_data).expect("Failed to scan");
-    
-    // Should detect SQL injection with enhanced performance
-    assert!(!threats.is_empty());
-}
-
-#[tokio::test]
-async fn test_correlation_standard() {
-    let config = create_test_config(false);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    let correlation_engine = manager.correlation_engine();
-    
-    // Create suspicious pattern of events
-    let events: Vec<SecurityEvent> = (0..10)
-        .map(|i| SecurityEvent {
-            event_type: if i < 5 { "auth_failure" } else { "request" }.to_string(),
-            client_id: "suspicious_client".to_string(),
-            timestamp: i as u64,
-            metadata: json!({}),
-        })
+    let sql_threats: Vec<_> = threats.iter()
+        .filter(|t| matches!(t.threat_type, ThreatType::SqlInjection))
         .collect();
-    
-    let patterns = correlation_engine.correlate(&events).await.expect("Failed to correlate");
-    
-    // Should detect repeated failures
-    assert!(!patterns.is_empty());
-    assert_eq!(patterns[0].pattern_type, "repeated_failures");
+    assert!(!sql_threats.is_empty());
 }
 
-#[tokio::test]
-async fn test_correlation_enhanced() {
-    let config = create_test_config(true);
-    let manager = ComponentManager::new(&config).expect("Failed to create component manager");
-    let correlation_engine = manager.correlation_engine();
+#[test]
+fn test_scanner_threat_detection() {
+    let config = ScannerConfig {
+        unicode_detection: true,
+        injection_detection: true,
+        path_traversal_detection: true,
+        custom_patterns: None,
+        max_scan_depth: 10,
+        enable_event_buffer: false,
+    };
+    let scanner = SecurityScanner::new(config).unwrap();
     
-    // Create attack pattern
-    let events: Vec<SecurityEvent> = (0..10)
-        .map(|i| SecurityEvent {
-            event_type: if i % 2 == 0 { "auth_failure" } else { "threat_detected" }.to_string(),
-            client_id: "attacker".to_string(),
-            timestamp: i as u64,
-            metadata: json!({}),
-        })
-        .collect();
+    // Test various threats
+    let test_cases = vec![
+        ("Hello\u{202E}World", ThreatType::UnicodeBiDi),
+        ("rm -rf /; echo done", ThreatType::CommandInjection),
+        ("../../etc/passwd", ThreatType::PathTraversal),
+    ];
     
-    let patterns = correlation_engine.correlate(&events).await.expect("Failed to correlate");
-    
-    // Should detect active attack
-    assert!(patterns.iter().any(|p| p.pattern_type == "active_attack"));
-}
-
-#[tokio::test]
-async fn test_message_handling() {
-    let config = create_test_config(false);
-    let server = Arc::new(McpServer::new(config).expect("Failed to create server"));
-    
-    // Test initialize request
-    let init_request = json!({
-        "jsonrpc": "2.0",
-        "method": "initialize",
-        "params": {
-            "protocolVersion": "2024-11-05",
-            "capabilities": {},
-            "clientInfo": {
-                "name": "test-client",
-                "version": "1.0.0"
-            }
-        },
-        "id": 1
-    });
-    
-    let response = server.handle_message(&serde_json::to_string(&init_request).unwrap()).await;
-    assert!(response.is_some());
-    
-    let response_json: serde_json::Value = serde_json::from_str(&response.unwrap()).unwrap();
-    assert_eq!(response_json["jsonrpc"], "2.0");
-    assert_eq!(response_json["id"], 1);
-    assert!(response_json["result"].is_object());
-}
-
-#[tokio::test]
-async fn test_threat_detection_flow() {
-    let config = create_test_config(true);
-    let server = Arc::new(McpServer::new(config).expect("Failed to create server"));
-    
-    // Test scan_text tool with SQL injection
-    let scan_request = json!({
-        "jsonrpc": "2.0",
-        "method": "tools/call",
-        "params": {
-            "name": "scan_text",
-            "arguments": {
-                "text": "'; DROP TABLE users; --"
-            }
-        },
-        "id": 2
-    });
-    
-    let response = server.handle_message(&serde_json::to_string(&scan_request).unwrap()).await;
-    assert!(response.is_some());
-    
-    let response_json: serde_json::Value = serde_json::from_str(&response.unwrap()).unwrap();
-    
-    // Should detect threat
-    if let Some(result) = response_json.get("result") {
-        assert_eq!(result["safe"], false);
-        assert!(!result["threats"].as_array().unwrap().is_empty());
-    } else {
-        // If error, check it's an auth error (expected without auth token)
-        assert!(response_json["error"].is_object());
+    for (input, expected_type) in test_cases {
+        let threats = scanner.scan_text(input).unwrap();
+        assert!(!threats.is_empty(), "Expected threats for input: {}", input);
+        
+        let has_expected = threats.iter().any(|t| t.threat_type == expected_type);
+        assert!(has_expected, "Expected {:?} threat for input: {}", expected_type, input);
     }
+}
+
+#[tokio::test]
+async fn test_component_manager_creation() {
+    // Test that all components can be created successfully
+    let config = Config::default();
+    let component_manager = ComponentManager::new(&config).unwrap();
+    
+    // Verify all components are accessible
+    assert!(!component_manager.event_processor().is_monitored("test"));
+    assert_eq!(component_manager.scanner().get_metrics().scans_performed, 0);
+    assert_eq!(component_manager.rate_limiter().get_stats().requests_allowed, 0);
+    
+    // Check storage
+    let storage_stats = component_manager.storage_provider().get_stats().await.unwrap();
+    assert_eq!(storage_stats.event_count, 0);
+    
+    // Check plugin manager (should be no-op when disabled)
+    let plugins = component_manager.plugin_manager().list_plugins().await.unwrap();
+    assert!(plugins.is_empty());
+}
+
+#[test]
+fn test_json_scanning() {
+    let config = ScannerConfig {
+        unicode_detection: true,
+        injection_detection: true,
+        path_traversal_detection: true,
+        custom_patterns: None,
+        max_scan_depth: 10,
+        enable_event_buffer: false,
+    };
+    let scanner = SecurityScanner::new(config).unwrap();
+    
+    let json = serde_json::json!({
+        "user": "admin' OR '1'='1",
+        "command": "ls; cat /etc/passwd",
+        "path": "../../../etc/shadow",
+        "script": "<img src=x onerror=alert('xss')>"
+    });
+    
+    let threats = scanner.scan_json(&json).unwrap();
+    assert!(threats.len() >= 3, "Expected at least 3 threats, got {}", threats.len());
+    
+    // Verify threat locations are JSON paths
+    for threat in &threats {
+        match &threat.location {
+            kindly_guard_server::scanner::Location::Json { path } => {
+                assert!(path.starts_with("$"), "JSON path should start with $");
+            }
+            _ => panic!("Expected JSON location for JSON scanning"),
+        }
+    }
+}
+
+#[tokio::test]
+async fn test_audit_logger_integration() {
+    use kindly_guard_server::audit::{AuditEvent, AuditEventType, AuditSeverity, AuditFilter};
+    
+    // Create config with audit enabled
+    let mut config = Config::default();
+    config.audit.enabled = true;
+    config.audit.backend = kindly_guard_server::audit::AuditBackend::Memory;
+    
+    // Create component manager
+    let component_manager = Arc::new(ComponentManager::new(&config).unwrap());
+    
+    // Get audit logger
+    let audit_logger = component_manager.audit_logger();
+    
+    // Log some events
+    let event1 = AuditEvent::new(
+        AuditEventType::AuthSuccess { user_id: "test_user".to_string() },
+        AuditSeverity::Info
+    ).with_client_id("client123".to_string());
+    
+    let event2 = AuditEvent::new(
+        AuditEventType::ThreatDetected { 
+            client_id: "client123".to_string(),
+            threat_count: 3
+        },
+        AuditSeverity::Warning
+    ).with_client_id("client123".to_string());
+    
+    let event3 = AuditEvent::new(
+        AuditEventType::RateLimitTriggered {
+            client_id: "client456".to_string(),
+            limit_type: "request".to_string()
+        },
+        AuditSeverity::Warning
+    ).with_client_id("client456".to_string());
+    
+    // Log events
+    let id1 = audit_logger.log(event1).await.unwrap();
+    let id2 = audit_logger.log(event2).await.unwrap();
+    let id3 = audit_logger.log(event3).await.unwrap();
+    
+    // Query all events
+    let all_events = audit_logger.query(AuditFilter::default()).await.unwrap();
+    assert_eq!(all_events.len(), 3);
+    
+    // Query by client ID
+    let filter = AuditFilter {
+        client_id: Some("client123".to_string()),
+        ..Default::default()
+    };
+    let client_events = audit_logger.query(filter).await.unwrap();
+    assert_eq!(client_events.len(), 2);
+    
+    // Query by severity
+    let filter = AuditFilter {
+        min_severity: Some(AuditSeverity::Warning),
+        ..Default::default()
+    };
+    let warning_events = audit_logger.query(filter).await.unwrap();
+    // Should include Warning and higher severity events (Warning, Error, Critical)
+    assert_eq!(warning_events.len(), 2);
+    
+    // Get specific event
+    let event = audit_logger.get_event(&id1).await.unwrap();
+    assert!(event.is_some());
+    
+    // Check stats
+    let stats = audit_logger.get_stats().await.unwrap();
+    assert_eq!(stats.total_events, 3);
+    assert_eq!(stats.events_by_severity.get("Warning"), Some(&2));
+    assert_eq!(stats.events_by_severity.get("Info"), Some(&1));
 }

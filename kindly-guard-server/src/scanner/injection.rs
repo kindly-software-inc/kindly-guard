@@ -9,6 +9,7 @@
 use super::{Location, ScanResult, ScanError, Threat, ThreatType, Severity, ThreatPatterns};
 use std::sync::atomic::{AtomicU64, Ordering};
 use regex::Regex;
+use tracing::error;
 
 /// Injection threat scanner
 pub struct InjectionScanner {
@@ -18,10 +19,10 @@ pub struct InjectionScanner {
     command_patterns: Vec<Regex>,
     path_patterns: Vec<Regex>,
     sql_patterns: Vec<Regex>,
-    /// Optional performance enhancement (not exposed in logs)
+    /// Internal marker for enhanced mode
     #[allow(dead_code)]
     #[cfg(feature = "enhanced")]
-    enhancement: Option<std::sync::Arc<kindly_guard_core::AtomicEventBuffer>>,
+    enhanced_mode: bool,
 }
 
 impl InjectionScanner {
@@ -35,15 +36,15 @@ impl InjectionScanner {
             path_patterns: compile_patterns(&patterns.path_traversal_patterns())?,
             sql_patterns: compile_patterns(&patterns.sql_injection_patterns())?,
             #[cfg(feature = "enhanced")]
-            enhancement: None,
+            enhanced_mode: false,
         })
     }
     
-    /// Set performance enhancement (internal use only)
+    /// Enable enhanced mode (internal use only)
     #[allow(dead_code)]
     #[cfg(feature = "enhanced")]
-    pub(crate) fn with_enhancement(&mut self, buffer: std::sync::Arc<kindly_guard_core::AtomicEventBuffer>) {
-        self.enhancement = Some(buffer);
+    pub(crate) fn enable_enhancement(&mut self) {
+        self.enhanced_mode = true;
     }
     
     /// Scan text for injection threats
@@ -53,11 +54,9 @@ impl InjectionScanner {
         
         // Use accelerated regex matching when available
         #[cfg(feature = "enhanced")]
-        if let Some(buffer) = &self.enhancement {
-            // Track injection sequences for multi-stage attack detection
-            let seq_data = format!("injection:seq{}", text.len());
-            let _ = buffer.enqueue_event(3, seq_data.as_bytes(), kindly_guard_core::Priority::Normal);
-            tracing::trace!("Pattern analysis enhanced");
+        if self.enhanced_mode {
+            // Enhanced pattern matching is active for multi-stage attack detection
+            tracing::trace!("Enhanced injection scanning active for {} chars", text.len());
         }
         
         // Scan for prompt injection
@@ -140,7 +139,13 @@ impl InjectionScanner {
         let mut threats = Vec::new();
         
         // Check for session ID patterns
-        let session_pattern = Regex::new(r#"session[_-]?id["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_]{20,})"#).unwrap();
+        let session_pattern = match Regex::new(r#"session[_-]?id["']?\s*[:=]\s*["']?([a-zA-Z0-9\-_]{20,})"#) {
+            Ok(re) => re,
+            Err(e) => {
+                error!("Failed to compile session pattern regex: {}", e);
+                return threats;
+            }
+        };
         if let Some(m) = session_pattern.find(text) {
             threats.push(Threat {
                 threat_type: ThreatType::SessionIdExposure,

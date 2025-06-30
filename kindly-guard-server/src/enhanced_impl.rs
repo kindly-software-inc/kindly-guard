@@ -428,7 +428,8 @@ impl RateLimiter for EnhancedRateLimiter {
 pub struct EnhancedComponentFactory;
 
 impl SecurityComponentFactory for EnhancedComponentFactory {
-    fn create_event_processor(&self, config: &crate::config::Config) -> Result<Arc<dyn SecurityEventProcessor>> {
+    fn create_event_processor(&self, config: &crate::config::Config, _storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn SecurityEventProcessor>> {
+        // Enhanced implementation uses its own buffer, storage is secondary
         Ok(Arc::new(EnhancedEventProcessor::new(config)?))
     }
     
@@ -443,7 +444,7 @@ impl SecurityComponentFactory for EnhancedComponentFactory {
         Ok(Arc::new(EnhancedScannerImpl::new(config, buffer)?))
     }
     
-    fn create_correlation_engine(&self, config: &crate::config::Config) -> Result<Arc<dyn CorrelationEngine>> {
+    fn create_correlation_engine(&self, config: &crate::config::Config, _storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn CorrelationEngine>> {
         // Create shared buffer for correlation
         let buffer = Arc::new(AtomicEventBuffer::new(
             config.event_processor.buffer_size_mb,
@@ -454,7 +455,7 @@ impl SecurityComponentFactory for EnhancedComponentFactory {
         Ok(Arc::new(EnhancedCorrelationEngine::new(buffer)))
     }
     
-    fn create_rate_limiter(&self, config: &crate::config::Config) -> Result<Arc<dyn RateLimiter>> {
+    fn create_rate_limiter(&self, config: &crate::config::Config, _storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn RateLimiter>> {
         // Create shared buffer for rate limiting
         let buffer = Arc::new(AtomicEventBuffer::new(
             5, // 5MB for rate limiter

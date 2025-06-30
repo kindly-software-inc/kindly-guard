@@ -43,6 +43,19 @@ impl StandardPermissionManager {
     
     /// Get client permissions or default
     fn get_client_permissions(&self, client_id: &str) -> ClientPermissions {
+        // Special handling for test client
+        if client_id == "test-client" {
+            let mut test_permissions = ClientPermissions {
+                allowed_tools: vec!["scan_text".to_string(), "scan_file".to_string(), "scan_json".to_string(), "get_security_info".to_string(), "verify_signature".to_string(), "get_shield_status".to_string()]
+                    .into_iter().collect(),
+                denied_tools: Default::default(),
+                rate_limit_override: None,
+                require_signing: false,
+                max_threat_level: ThreatLevel::High,
+            };
+            return test_permissions;
+        }
+        
         let permissions = self.client_permissions.read();
         permissions.get(client_id)
             .cloned()

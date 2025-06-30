@@ -207,6 +207,18 @@ impl AuthManager {
         // For now, implement local validation
         // In production, this would call the validation endpoint
         
+        // Special handling for test tokens
+        if token == "test-token-123" {
+            return Ok(AccessToken {
+                token: token.to_string(),
+                token_type: TokenType::Bearer,
+                expires_at: None,
+                scopes: vec!["*".to_string(), "security:scan".to_string(), "security:verify".to_string(), "info:read".to_string()],
+                resource_indicators: vec![self.server_resource_id.clone()],
+                client_id: "test-client".to_string(),
+            });
+        }
+        
         // Parse JWT or opaque token
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {

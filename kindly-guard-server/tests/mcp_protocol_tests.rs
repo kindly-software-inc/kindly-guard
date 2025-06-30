@@ -7,6 +7,7 @@ use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_test::io::Builder;
 use pretty_assertions::assert_eq;
+use base64::{Engine as _, engine::general_purpose};
 
 mod helpers;
 use helpers::*;
@@ -16,7 +17,7 @@ fn create_test_server() -> Arc<McpServer> {
     let mut config = Config::default();
     config.server.stdio = true;
     config.shield.enabled = false;
-    config.auth.require_auth = false; // Disable auth for protocol tests
+    config.auth.enabled = false; // Disable auth for protocol tests
     Arc::new(McpServer::new(config).expect("Failed to create server"))
 }
 
@@ -25,8 +26,9 @@ fn create_auth_server() -> Arc<McpServer> {
     let mut config = Config::default();
     config.server.stdio = true;
     config.shield.enabled = false;
-    config.auth.require_auth = true;
-    config.auth.valid_tokens = vec!["test-token-123".to_string()];
+    config.auth.enabled = true;
+    config.auth.jwt_secret = Some(general_purpose::STANDARD.encode(b"test-secret-key"));
+    config.auth.require_signature_verification = true;
     Arc::new(McpServer::new(config).expect("Failed to create server"))
 }
 
@@ -152,7 +154,9 @@ async fn test_mcp_tool_call_scan_text() {
     
     let response = server.handle_message(&request.to_string()).await
         .expect("Should return response");
+    println!("Raw response: {}", response);
     let response_json: Value = serde_json::from_str(&response).unwrap();
+    println!("Parsed response: {}", serde_json::to_string_pretty(&response_json).unwrap());
     
     let result = &response_json["result"]["content"][0];
     assert_eq!(result["type"], "text");
@@ -184,7 +188,9 @@ async fn test_mcp_tool_call_scan_text_with_threat() {
     
     let response = server.handle_message(&request.to_string()).await
         .expect("Should return response");
+    println!("Raw response: {}", response);
     let response_json: Value = serde_json::from_str(&response).unwrap();
+    println!("Parsed response: {}", serde_json::to_string_pretty(&response_json).unwrap());
     
     let result = &response_json["result"]["content"][0];
     let content: Value = serde_json::from_str(result["text"].as_str().unwrap()).unwrap();
@@ -347,6 +353,11 @@ async fn test_mcp_auth_with_token() {
     let response = server.handle_message(&request.to_string()).await
         .expect("Should return response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
+    
+    // Debug output
+    if response_json["error"].is_object() {
+        eprintln!("Auth test failed with error: {}", serde_json::to_string_pretty(&response_json["error"]).unwrap());
+    }
     
     assert!(response_json["result"].is_object());
     assert!(response_json["error"].is_null());

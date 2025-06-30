@@ -127,7 +127,7 @@ fn print_table_results(
         let mut threat_counts = std::collections::HashMap::new();
         for (_, threats) in results {
             for threat in threats {
-                *threat_counts.entry(threat.threat_type).or_insert(0) += 1;
+                *threat_counts.entry(threat.threat_type.clone()).or_insert(0) += 1;
             }
         }
         

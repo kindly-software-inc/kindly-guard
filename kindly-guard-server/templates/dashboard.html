@@ -1,0 +1,455 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #ffffff;
+            --text-color: #202124;
+            --border-color: #e8eaed;
+            --accent-color: #1a73e8;
+            --accent-purple: #8b5cf6;
+            --success-color: #1e8e3e;
+            --danger-color: #d93025;
+            --muted-color: #5f6368;
+            --card-bg: #f8f9fa;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --bg-color: #202124;
+                --text-color: #e8eaed;
+                --border-color: #3c4043;
+                --accent-color: #8ab4f8;
+                --accent-purple: #a78bfa;
+                --success-color: #81c995;
+                --danger-color: #f28b82;
+                --muted-color: #9aa0a6;
+                --card-bg: #292a2d;
+            }
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            font-size: 14px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            font-weight: 400;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .mode-indicator {
+            font-size: 0.875rem;
+            color: var(--muted-color);
+            transition: color 0.3s ease;
+        }
+
+        .mode-indicator.enhanced {
+            color: var(--accent-purple);
+            font-weight: 500;
+        }
+
+        .status-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .status-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+
+        .status-label {
+            font-size: 0.75rem;
+            color: var(--muted-color);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .status-value {
+            font-size: 1.25rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--muted-color);
+        }
+
+        .status-indicator.active {
+            background: var(--success-color);
+            box-shadow: 0 0 0 3px rgba(30, 142, 62, 0.2);
+        }
+
+        .threat-breakdown {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.75rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+
+        .threat-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.875rem;
+        }
+
+        .threat-count {
+            font-weight: 500;
+            color: var(--accent-color);
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1.5rem;
+        }
+
+        button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-color);
+            color: var(--text-color);
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        button:hover {
+            background: var(--card-bg);
+            border-color: var(--accent-color);
+        }
+
+        button.active {
+            background: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+
+        button.enhanced {
+            border-color: var(--accent-purple);
+            color: var(--accent-purple);
+        }
+
+        button.enhanced.active {
+            background: var(--accent-purple);
+            color: white;
+        }
+
+        .activity-log {
+            margin-top: 2rem;
+        }
+
+        .activity-title {
+            font-size: 0.875rem;
+            font-weight: 500;
+            margin-bottom: 1rem;
+            color: var(--muted-color);
+        }
+
+        .activity-list {
+            list-style: none;
+            font-size: 0.875rem;
+        }
+
+        .activity-item {
+            padding: 0.5rem 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .activity-item:last-child {
+            border-bottom: none;
+        }
+
+        .activity-dot {
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: var(--muted-color);
+            flex-shrink: 0;
+        }
+
+        .enhanced-indicator {
+            color: var(--accent-purple);
+        }
+
+        .footer {
+            margin-top: 3rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--muted-color);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>
+                <span>🛡️</span>
+                <span>KindlyGuard</span>
+                <span class="mode-indicator" id="modeIndicator">Standard</span>
+            </h1>
+        </header>
+
+        <div class="status-card">
+            <div class="status-grid">
+                <div class="status-item">
+                    <span class="status-label">Protection Status</span>
+                    <span class="status-value">
+                        <span class="status-indicator" id="statusIndicator"></span>
+                        <span id="statusText">Loading...</span>
+                    </span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Threats Blocked</span>
+                    <span class="status-value" id="threatsBlocked">0</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Uptime</span>
+                    <span class="status-value" id="uptime">0s</span>
+                </div>
+                <div class="status-item">
+                    <span class="status-label">Threat Rate</span>
+                    <span class="status-value" id="threatRate">0.0/min</span>
+                </div>
+            </div>
+
+            <div class="threat-breakdown">
+                <div class="threat-item">
+                    <span>Unicode Attacks</span>
+                    <span class="threat-count" id="unicodeCount">0</span>
+                </div>
+                <div class="threat-item">
+                    <span>Injection Attempts</span>
+                    <span class="threat-count" id="injectionCount">0</span>
+                </div>
+                <div class="threat-item">
+                    <span>Path Traversal</span>
+                    <span class="threat-count" id="traversalCount">0</span>
+                </div>
+                <div class="threat-item">
+                    <span>MCP Threats</span>
+                    <span class="threat-count" id="mcpCount">0</span>
+                </div>
+            </div>
+
+            <div class="controls">
+                <button id="toggleShield" onclick="toggleShield()">Toggle Shield</button>
+                <button id="toggleMode" onclick="toggleMode()" class="enhanced">Toggle Enhanced Mode</button>
+            </div>
+        </div>
+
+        <div class="activity-log">
+            <h2 class="activity-title">Recent Activity</h2>
+            <ul class="activity-list" id="activityList">
+                <li class="activity-item">
+                    <span class="activity-dot"></span>
+                    <span>System initialized</span>
+                </li>
+                <li class="activity-item">
+                    <span class="activity-dot"></span>
+                    <span>Monitoring active</span>
+                </li>
+            </ul>
+        </div>
+
+        <footer class="footer">
+            <p>KindlyGuard Security Dashboard • Real-time Protection Status</p>
+        </footer>
+    </div>
+
+    <script>
+        let currentStatus = {};
+        let pollInterval;
+
+        function formatDuration(seconds) {
+            const hours = Math.floor(seconds / 3600);
+            const minutes = Math.floor((seconds % 3600) / 60);
+            const secs = seconds % 60;
+            
+            if (hours > 0) {
+                return `${hours}h${minutes}m`;
+            } else if (minutes > 0) {
+                return `${minutes}m${secs}s`;
+            } else {
+                return `${secs}s`;
+            }
+        }
+
+        function updateUI(status) {
+            currentStatus = status;
+            
+            // Update status indicator
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            if (status.active) {
+                statusIndicator.classList.add('active');
+                statusText.textContent = 'Active';
+            } else {
+                statusIndicator.classList.remove('active');
+                statusText.textContent = 'Inactive';
+            }
+            
+            // Update mode indicator
+            const modeIndicator = document.getElementById('modeIndicator');
+            if (status.enhanced_mode) {
+                modeIndicator.textContent = 'Enhanced ⚡';
+                modeIndicator.classList.add('enhanced');
+                document.querySelectorAll('.status-card, header').forEach(el => {
+                    el.style.borderColor = 'var(--accent-purple)';
+                });
+            } else {
+                modeIndicator.textContent = 'Standard';
+                modeIndicator.classList.remove('enhanced');
+                document.querySelectorAll('.status-card, header').forEach(el => {
+                    el.style.borderColor = '';
+                });
+            }
+            
+            // Update stats
+            document.getElementById('threatsBlocked').textContent = status.threats_blocked;
+            document.getElementById('uptime').textContent = formatDuration(status.uptime_seconds);
+            document.getElementById('threatRate').textContent = `${status.recent_threat_rate.toFixed(1)}/min`;
+            
+            // Update threat breakdown
+            document.getElementById('unicodeCount').textContent = status.threat_breakdown.unicode_attacks;
+            document.getElementById('injectionCount').textContent = status.threat_breakdown.injection_attempts;
+            document.getElementById('traversalCount').textContent = status.threat_breakdown.path_traversal;
+            document.getElementById('mcpCount').textContent = status.threat_breakdown.mcp_threats;
+            
+            // Update activity based on mode
+            const activityList = document.getElementById('activityList');
+            if (status.enhanced_mode) {
+                activityList.innerHTML = `
+                    <li class="activity-item">
+                        <span class="activity-dot enhanced-indicator"></span>
+                        <span class="enhanced-indicator">Advanced analytics enabled</span>
+                    </li>
+                    <li class="activity-item">
+                        <span class="activity-dot enhanced-indicator"></span>
+                        <span class="enhanced-indicator">Correlation engine active</span>
+                    </li>
+                    <li class="activity-item">
+                        <span class="activity-dot enhanced-indicator"></span>
+                        <span class="enhanced-indicator">Real-time threat analysis</span>
+                    </li>
+                `;
+            } else {
+                activityList.innerHTML = `
+                    <li class="activity-item">
+                        <span class="activity-dot"></span>
+                        <span>System initialized</span>
+                    </li>
+                    <li class="activity-item">
+                        <span class="activity-dot"></span>
+                        <span>Monitoring active</span>
+                    </li>
+                `;
+            }
+            
+            // Update button states
+            const toggleShield = document.getElementById('toggleShield');
+            toggleShield.textContent = status.active ? 'Deactivate Shield' : 'Activate Shield';
+            toggleShield.classList.toggle('active', status.active);
+            
+            const toggleMode = document.getElementById('toggleMode');
+            toggleMode.textContent = status.enhanced_mode ? 'Disable Enhanced Mode' : 'Enable Enhanced Mode';
+            toggleMode.classList.toggle('active', status.enhanced_mode);
+        }
+
+        async function toggleShield() {
+            try {
+                await fetch('/api/shield/toggle', { method: 'POST' });
+            } catch (error) {
+                console.error('Failed to toggle shield:', error);
+            }
+        }
+
+        async function toggleMode() {
+            try {
+                await fetch('/api/mode/toggle', { method: 'POST' });
+            } catch (error) {
+                console.error('Failed to toggle mode:', error);
+            }
+        }
+
+        async function pollStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                updateUI(status);
+            } catch (error) {
+                console.error('Failed to fetch status:', error);
+            }
+        }
+
+        // Initial load
+        async function loadInitialStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                updateUI(status);
+            } catch (error) {
+                console.error('Failed to load initial status:', error);
+            }
+        }
+
+        // Start
+        loadInitialStatus();
+        // Poll every second
+        pollInterval = setInterval(pollStatus, 1000);
+    </script>
+</body>
+</html>

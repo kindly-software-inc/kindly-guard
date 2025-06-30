@@ -51,6 +51,10 @@ enum Commands {
         /// Maximum file size in MB
         #[arg(long, default_value = "10")]
         max_size_mb: u64,
+        
+        /// Configuration file to use
+        #[arg(short, long)]
+        config: Option<String>,
     },
     
     /// Monitor KindlyGuard server status
@@ -114,8 +118,8 @@ async fn main() -> Result<()> {
         .init();
     
     match cli.command {
-        Commands::Scan { path, format, recursive, extensions, max_size_mb } => {
-            scan_command(path, format, recursive, extensions, max_size_mb).await
+        Commands::Scan { path, format, recursive, extensions, max_size_mb, config } => {
+            scan_command(path, format, recursive, extensions, max_size_mb, config).await
         }
         Commands::Monitor { url, interval } => {
             monitor_command(url, interval).await
@@ -135,6 +139,7 @@ async fn scan_command(
     recursive: bool,
     extensions: Option<String>,
     max_size_mb: u64,
+    config_path: Option<String>,
 ) -> Result<()> {
     let start_time = Instant::now();
     let path = Path::new(&path);
@@ -153,18 +158,43 @@ async fn scan_command(
             .collect()
     });
     
-    // Create scanner
-    let config = ScannerConfig {
-        unicode_detection: true,
-        injection_detection: true,
-        path_traversal_detection: true,
-        custom_patterns: None,
-        max_scan_depth: 10,
-        enable_event_buffer: false,
+    // Create scanner with optional config file
+    let scanner = if let Some(config_file) = config_path {
+        // Load full configuration from file
+        let server_config = ServerConfig::load_from_file(&config_file)
+            .context("Failed to load configuration file")?;
+        
+        // Create scanner with config
+        let mut scanner = SecurityScanner::new(server_config.scanner.clone())
+            .context("Failed to create security scanner")?;
+        
+        // Set up plugins if enabled
+        if server_config.plugins.enabled {
+            use kindly_guard_server::component_selector::ComponentManager;
+            use std::sync::Arc;
+            
+            // Create component manager to get plugin manager
+            let component_manager = Arc::new(ComponentManager::new(&server_config)
+                .context("Failed to create component manager")?);
+            
+            scanner.set_plugin_manager(component_manager.plugin_manager().clone());
+        }
+        
+        scanner
+    } else {
+        // Use default config
+        let config = ScannerConfig {
+            unicode_detection: true,
+            injection_detection: true,
+            path_traversal_detection: true,
+            custom_patterns: None,
+            max_scan_depth: 10,
+            enable_event_buffer: false,
+        };
+        
+        SecurityScanner::new(config)
+            .context("Failed to create security scanner")?
     };
-    
-    let scanner = SecurityScanner::new(config)
-        .context("Failed to create security scanner")?;
     
     // Collect files to scan
     let files_to_scan = collect_files(path, recursive, &allowed_extensions, max_size_mb)?;

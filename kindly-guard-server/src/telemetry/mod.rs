@@ -196,5 +196,7 @@ impl SecureTelemetry {
 pub mod standard;
 #[cfg(feature = "enhanced")]
 pub mod enhanced;
+pub mod metrics;
 
 pub use standard::StandardTelemetryProvider;
+pub use metrics::{MetricsCollector, CommandMetrics, MetricsSnapshot};

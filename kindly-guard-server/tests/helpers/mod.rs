@@ -4,6 +4,9 @@ use serde_json::{json, Value};
 use tokio::io::{AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt};
 use std::pin::Pin;
 use std::task::{Context, Poll};
+use base64::{Engine as _, engine::general_purpose};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
 
 /// Create a standard initialize request
 pub fn create_init_request(id: u64) -> Value {
@@ -121,7 +124,43 @@ pub fn validate_jsonrpc_error(response: &Value, expected_code: i32) {
 
 /// Create a mock auth token for testing
 pub fn create_test_auth_token() -> String {
-    "Bearer test-token-123".to_string()
+    format!("Bearer {}", create_test_jwt_token("test-secret-key", "test-client", vec!["security:scan"]))
+}
+
+/// Create a JWT token for testing
+pub fn create_test_jwt_token(secret: &str, client_id: &str, scopes: Vec<&str>) -> String {
+    // Create header
+    let header = json!({
+        "alg": "HS256",
+        "typ": "JWT"
+    });
+    
+    // Create payload with claims
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    
+    let payload = json!({
+        "sub": client_id,
+        "iat": now,
+        "exp": now + 3600, // 1 hour expiry
+        "scope": scopes.join(" "),
+        "client_id": client_id,
+    });
+    
+    // Encode header and payload
+    let header_b64 = general_purpose::URL_SAFE_NO_PAD.encode(header.to_string());
+    let payload_b64 = general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string());
+    
+    // Create signature
+    let message = format!("{}.{}", header_b64, payload_b64);
+    let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
+    mac.update(message.as_bytes());
+    let signature = mac.finalize().into_bytes();
+    let signature_b64 = general_purpose::URL_SAFE_NO_PAD.encode(&signature);
+    
+    format!("{}.{}.{}", header_b64, payload_b64, signature_b64)
 }
 
 /// Create a test signature for message signing tests

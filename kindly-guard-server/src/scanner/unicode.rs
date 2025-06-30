@@ -14,10 +14,10 @@ use unicode_security::MixedScript;
 pub struct UnicodeScanner {
     threats_detected: AtomicU64,
     total_scans: AtomicU64,
-    /// Optional performance enhancement (not exposed in logs)
+    /// Internal marker for enhanced mode
     #[allow(dead_code)]
     #[cfg(feature = "enhanced")]
-    enhancement: Option<std::sync::Arc<kindly_guard_core::AtomicEventBuffer>>,
+    enhanced_mode: bool,
 }
 
 impl UnicodeScanner {
@@ -27,15 +27,15 @@ impl UnicodeScanner {
             threats_detected: AtomicU64::new(0),
             total_scans: AtomicU64::new(0),
             #[cfg(feature = "enhanced")]
-            enhancement: None,
+            enhanced_mode: false,
         }
     }
     
-    /// Set performance enhancement (internal use only)
+    /// Enable enhanced mode (internal use only)
     #[allow(dead_code)]
     #[cfg(feature = "enhanced")]
-    pub(crate) fn with_enhancement(&mut self, buffer: std::sync::Arc<kindly_guard_core::AtomicEventBuffer>) {
-        self.enhancement = Some(buffer);
+    pub(crate) fn enable_enhancement(&mut self) {
+        self.enhanced_mode = true;
     }
     
     /// Scan text for Unicode threats
@@ -45,11 +45,9 @@ impl UnicodeScanner {
         
         // Use accelerated pattern matching when available
         #[cfg(feature = "enhanced")]
-        if let Some(buffer) = &self.enhancement {
-            // Track unicode patterns for homograph detection
-            let pattern_data = format!("unicode:len{}", text.len());
-            let _ = buffer.enqueue_event(2, pattern_data.as_bytes(), kindly_guard_core::Priority::Normal);
-            tracing::trace!("Unicode analysis optimized");
+        if self.enhanced_mode {
+            // Enhanced pattern matching is active
+            tracing::trace!("Enhanced unicode scanning active for {} chars", text.len());
         }
         
         // Check each character and its position

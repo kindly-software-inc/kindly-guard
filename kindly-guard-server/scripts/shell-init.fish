@@ -7,6 +7,9 @@ if not command -v kindly-guard &> /dev/null
     exit 0
 end
 
+# Add /kindlyguard command alias
+alias /kindlyguard 'kindly-guard'
+
 # KindlyGuard functions
 function _kindly_guard_pre_command --on-event fish_preexec
     kindly-guard shield pre-command 2>/dev/null

@@ -1,0 +1,12 @@
+{
+  "method": "test",
+  "params": {
+    "sql_injection": "SELECT * FROM users WHERE id = '1' OR '1'='1'",
+    "xss_attempt": "<script>alert('XSS')</script>",
+    "command_injection": "ls; cat /etc/passwd",
+    "unicode_trick": "Hello\u202EWorld",
+    "admin_bypass": "admin' --",
+    "union_select": "' UNION SELECT password FROM users --",
+    "clean_text": "This is a perfectly safe message with no threats"
+  }
+}

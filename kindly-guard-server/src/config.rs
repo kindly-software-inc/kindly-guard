@@ -4,12 +4,18 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
+pub mod reload;
+
 use crate::auth::AuthConfig;
 #[cfg(feature = "enhanced")]
 use crate::event_processor::EventProcessorConfig;
 use crate::rate_limit::RateLimitConfig;
 use crate::signing::SigningConfig;
 use crate::telemetry::TelemetryConfig;
+use crate::storage::StorageConfig;
+use crate::plugins::PluginConfig;
+use crate::audit::AuditConfig;
+use crate::transport::TransportConfig;
 
 // Stub EventProcessorConfig when enhanced feature is not enabled
 #[cfg(not(feature = "enhanced"))]
@@ -45,11 +51,23 @@ pub struct Config {
     /// Rate limiting configuration
     pub rate_limit: RateLimitConfig,
     
-    /// Advanced security event processing (patented technology)
+    /// Enhanced security event processing configuration
     pub event_processor: EventProcessorConfig,
     
     /// Telemetry configuration
     pub telemetry: TelemetryConfig,
+    
+    /// Storage configuration
+    pub storage: StorageConfig,
+    
+    /// Plugin system configuration
+    pub plugins: PluginConfig,
+    
+    /// Audit logging configuration
+    pub audit: AuditConfig,
+    
+    /// Transport layer configuration
+    pub transport: TransportConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -176,6 +194,10 @@ impl Default for Config {
             rate_limit: RateLimitConfig::default(),
             event_processor: EventProcessorConfig::default(),
             telemetry: TelemetryConfig::default(),
+            storage: StorageConfig::default(),
+            plugins: PluginConfig::default(),
+            audit: AuditConfig::default(),
+            transport: TransportConfig::default(),
         }
     }
 }

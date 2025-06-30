@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
+use std::sync::Arc;
 use thiserror::Error;
 
 pub mod unicode;
@@ -18,9 +19,10 @@ pub struct SecurityScanner {
     injection_scanner: InjectionScanner,
     pub patterns: ThreatPatterns,
     config: crate::config::ScannerConfig,
+    plugin_manager: Option<Arc<dyn crate::plugins::PluginManagerTrait>>,
     #[allow(dead_code)]
     #[cfg(feature = "enhanced")]
-    event_buffer: Option<std::sync::Arc<kindly_guard_core::AtomicEventBuffer>>,
+    event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>>,
 }
 
 /// Represents a detected security threat
@@ -34,7 +36,7 @@ pub struct Threat {
 }
 
 /// Types of security threats
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
 #[serde(rename_all = "snake_case")]
 pub enum ThreatType {
     // Unicode threats
@@ -48,11 +50,15 @@ pub enum ThreatType {
     CommandInjection,
     PathTraversal,
     SqlInjection,
+    CrossSiteScripting,
     
     // MCP-specific threats
     SessionIdExposure,
     ToolPoisoning,
     TokenTheft,
+    
+    // Plugin-detected threats
+    Custom(String),
 }
 
 /// Threat severity levels
@@ -90,39 +96,47 @@ pub enum ScanError {
 pub type ScanResult = Result<Vec<Threat>, ScanError>;
 
 impl SecurityScanner {
+    /// Set the plugin manager for this scanner
+    pub fn set_plugin_manager(&mut self, plugin_manager: Arc<dyn crate::plugins::PluginManagerTrait>) {
+        self.plugin_manager = Some(plugin_manager);
+    }
+    
     /// Create a new security scanner with the given configuration
     pub fn new(config: crate::config::ScannerConfig) -> Result<Self, ScanError> {
+        Self::with_processor(config, None)
+    }
+    
+    /// Create a new security scanner with an optional event processor
+    pub fn with_processor(
+        config: crate::config::ScannerConfig,
+        event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>>
+    ) -> Result<Self, ScanError> {
         let patterns = if let Some(path) = &config.custom_patterns {
             ThreatPatterns::load_from_file(path)?
         } else {
             ThreatPatterns::default()
         };
         
-        // Initialize high-performance event buffer if configured
+        // Use provided event processor if available and enabled
         #[cfg(feature = "enhanced")]
-        let event_buffer = if config.enable_event_buffer {
-            Some(std::sync::Arc::new(kindly_guard_core::AtomicEventBuffer::new(
-                10, // 10MB buffer
-                100, // 100 endpoints
-                10000.0, // 10k events/sec
-                5, // 5 failures before circuit opens
-            )))
+        let event_processor = if config.enable_event_buffer {
+            event_processor
         } else {
             None
         };
         
         #[cfg(not(feature = "enhanced"))]
-        let _unused = config.enable_event_buffer; // Avoid unused warning
+        let event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>> = None;
         
         // Create scanners with optional enhancement
         let mut unicode_scanner = UnicodeScanner::new();
         let mut injection_scanner = InjectionScanner::new(&patterns)?;
         
-        // Silently enhance scanners when buffer is available
+        // Enhance scanners when processor is available
         #[cfg(feature = "enhanced")]
-        if let Some(ref buffer) = event_buffer {
-            unicode_scanner.with_enhancement(buffer.clone());
-            injection_scanner.with_enhancement(buffer.clone());
+        if event_processor.is_some() {
+            unicode_scanner.enable_enhancement();
+            injection_scanner.enable_enhancement();
             tracing::debug!("Scanner optimization enabled");
         }
         
@@ -131,8 +145,9 @@ impl SecurityScanner {
             injection_scanner,
             patterns,
             config,
+            plugin_manager: None, // Will be set later
             #[cfg(feature = "enhanced")]
-            event_buffer,
+            event_processor,
         })
     }
     
@@ -140,14 +155,25 @@ impl SecurityScanner {
     pub fn scan_text(&self, text: &str) -> ScanResult {
         let mut threats = Vec::new();
         
-        // Use high-performance scanning when available
+        // Use enhanced scanning when available
         #[cfg(feature = "enhanced")]
-        if let Some(buffer) = &self.event_buffer {
-            // Silently log scan patterns for correlation
-            let scan_data = format!("scan:{}", &text[..text.len().min(100)]);
-            let _ = buffer.enqueue_event(0, scan_data.as_bytes(), kindly_guard_core::Priority::Normal);
+        if let Some(processor) = &self.event_processor {
+            // Process scan event for correlation
+            let event = crate::traits::SecurityEvent {
+                event_type: "scan".to_string(),
+                client_id: "scanner".to_string(),
+                timestamp: std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_secs(),
+                metadata: serde_json::json!({
+                    "preview": &text[..text.len().min(100)]
+                }),
+            };
+            let _ = tokio::task::block_in_place(|| {
+                tokio::runtime::Handle::current().block_on(processor.process_event(event))
+            });
             
-            // Note: Enhanced pattern matching active (do not log specifics)
             tracing::trace!("Optimized scanning active");
         }
         
@@ -159,13 +185,64 @@ impl SecurityScanner {
             threats.extend(self.injection_scanner.scan_text(text)?);
         }
         
-        // Track all threats through buffer for pattern analysis
+        // Run plugin scanners if available
+        if let Some(plugin_manager) = &self.plugin_manager {
+            // Note: Plugin scanning is currently only supported when called from
+            // non-async contexts (e.g., from the MCP server). The CLI uses async
+            // and cannot call plugins from within its runtime.
+            if tokio::runtime::Handle::try_current().is_err() {
+                use crate::plugins::{ScanContext, ScanOptions};
+                use tokio::runtime::Runtime;
+                
+                let context = ScanContext {
+                    data: text.as_bytes(),
+                    content_type: Some("text/plain"),
+                    client_id: "scanner",
+                    metadata: &std::collections::HashMap::new(),
+                    options: ScanOptions::default(),
+                };
+                
+                // Create runtime for async plugin calls
+                let rt = Runtime::new().map_err(|e| ScanError::InvalidInput(e.to_string()))?;
+                
+                match rt.block_on(plugin_manager.scan_all(context)) {
+                    Ok(plugin_results) => {
+                        for (_plugin_id, plugin_threats) in plugin_results {
+                            threats.extend(plugin_threats);
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Plugin scan error: {}", e);
+                    }
+                }
+            } else {
+                tracing::debug!("Plugin scanning skipped in async context");
+            }
+        }
+        
+        // Track threats through processor for pattern analysis
         #[cfg(feature = "enhanced")]
         if !threats.is_empty() {
-            if let Some(buffer) = &self.event_buffer {
+            if let Some(processor) = &self.event_processor {
                 for threat in &threats {
-                    let threat_data = format!("threat:{}:{}", threat.threat_type, threat.severity);
-                    let _ = buffer.enqueue_event(1, threat_data.as_bytes(), kindly_guard_core::Priority::Urgent);
+                    let event = crate::traits::SecurityEvent {
+                        event_type: "threat_detected".to_string(),
+                        client_id: "scanner".to_string(),
+                        timestamp: std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs(),
+                        metadata: serde_json::json!({
+                            "threat_type": match &threat.threat_type {
+                                ThreatType::Custom(name) => name.clone(),
+                                _ => format!("{:?}", threat.threat_type),
+                            },
+                            "severity": format!("{:?}", threat.severity)
+                        }),
+                    };
+                    let _ = tokio::task::block_in_place(|| {
+                        tokio::runtime::Handle::current().block_on(processor.process_event(event))
+                    });
                 }
             }
         }
@@ -175,7 +252,53 @@ impl SecurityScanner {
     
     /// Scan JSON value for threats
     pub fn scan_json(&self, value: &serde_json::Value) -> ScanResult {
-        self.scan_json_recursive(value, "$", 0)
+        let mut threats = self.scan_json_recursive(value, "$", 0)?;
+        
+        // Run plugin scanners if available
+        if let Some(plugin_manager) = &self.plugin_manager {
+            // Note: Plugin scanning is currently only supported when called from
+            // non-async contexts (e.g., from the MCP server). The CLI uses async
+            // and cannot call plugins from within its runtime.
+            if tokio::runtime::Handle::try_current().is_err() {
+                use crate::plugins::{ScanContext, ScanOptions};
+                use tokio::runtime::Runtime;
+                
+                // Convert JSON to bytes for plugin scanning
+                let json_bytes = serde_json::to_vec(value).map_err(|e| ScanError::InvalidInput(e.to_string()))?;
+                
+                let context = ScanContext {
+                    data: &json_bytes,
+                    content_type: Some("application/json"),
+                    client_id: "scanner",
+                    metadata: &std::collections::HashMap::new(),
+                    options: ScanOptions::default(),
+                };
+                
+                // Create runtime for async plugin calls
+                let rt = Runtime::new().map_err(|e| ScanError::InvalidInput(e.to_string()))?;
+                
+                match rt.block_on(plugin_manager.scan_all(context)) {
+                    Ok(plugin_results) => {
+                        for (_plugin_id, plugin_threats) in plugin_results {
+                            // Convert plugin threats to have JSON location
+                            for mut threat in plugin_threats {
+                                if matches!(threat.location, Location::Text { .. }) {
+                                    threat.location = Location::Json { path: "$".to_string() };
+                                }
+                                threats.push(threat);
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        tracing::warn!("Plugin scan error: {}", e);
+                    }
+                }
+            } else {
+                tracing::debug!("Plugin scanning skipped in async context");
+            }
+        }
+        
+        Ok(threats)
     }
     
     fn scan_json_recursive(&self, value: &serde_json::Value, path: &str, depth: usize) -> ScanResult {
@@ -228,12 +351,12 @@ impl SecurityScanner {
             total_scans: self.unicode_scanner.total_scans() + self.injection_scanner.total_scans(),
         };
         
-        // Enhance stats with buffer metrics (but hide the source)
+        // Enhance stats with processor metrics
         #[cfg(feature = "enhanced")]
-        if let Some(buffer) = &self.event_buffer {
-            let buffer_stats = buffer.get_buffer_stats();
-            // Add buffer event count to total scans for more accurate metrics
-            stats.total_scans += buffer_stats.total_enqueued as u64 / 10; // Approximate scan count
+        if let Some(processor) = &self.event_processor {
+            let processor_stats = processor.get_stats();
+            // Add processed events to total scans for more accurate metrics
+            stats.total_scans += processor_stats.events_processed / 10; // Approximate scan count
             tracing::trace!("Analytics enhanced");
         }
         
@@ -260,9 +383,11 @@ impl fmt::Display for ThreatType {
             ThreatType::CommandInjection => write!(f, "Command Injection"),
             ThreatType::PathTraversal => write!(f, "Path Traversal"),
             ThreatType::SqlInjection => write!(f, "SQL Injection"),
+            ThreatType::CrossSiteScripting => write!(f, "Cross-Site Scripting"),
             ThreatType::SessionIdExposure => write!(f, "Session ID Exposure"),
             ThreatType::ToolPoisoning => write!(f, "Tool Poisoning"),
             ThreatType::TokenTheft => write!(f, "Token Theft Risk"),
+            ThreatType::Custom(name) => write!(f, "{}", name),
         }
     }
 }

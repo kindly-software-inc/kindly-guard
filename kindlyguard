@@ -1,0 +1,27 @@
+#!/bin/bash
+# KindlyGuard universal command wrapper
+# This script provides the /kindlyguard command interface
+
+# Get the directory where this script is located
+SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# Find the kindly-guard binary
+BINARY=""
+if command -v kindly-guard &> /dev/null; then
+    BINARY="kindly-guard"
+elif [ -f "/usr/local/bin/kindly-guard" ]; then
+    BINARY="/usr/local/bin/kindly-guard"
+elif [ -f "$SCRIPT_DIR/target/release/kindly-guard" ]; then
+    BINARY="$SCRIPT_DIR/target/release/kindly-guard"
+elif [ -f "$SCRIPT_DIR/target/debug/kindly-guard" ]; then
+    BINARY="$SCRIPT_DIR/target/debug/kindly-guard"
+elif [ -f "$SCRIPT_DIR/kindly-guard-server/target/release/kindly-guard" ]; then
+    BINARY="$SCRIPT_DIR/kindly-guard-server/target/release/kindly-guard"
+else
+    echo "Error: kindly-guard binary not found!"
+    echo "Please install KindlyGuard or build it first."
+    exit 1
+fi
+
+# Execute with all arguments
+exec "$BINARY" "$@"

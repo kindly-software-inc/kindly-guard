@@ -7,7 +7,7 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use mockall::{automock, predicate::*};
 
 pub mod standard;
@@ -27,7 +27,7 @@ pub enum Permission {
 
 /// Tool permission trait
 #[async_trait]
-#[cfg_attr(test, automock)]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
 pub trait ToolPermissionManager: Send + Sync {
     /// Check if a client has permission to use a tool
     async fn check_permission(
@@ -246,3 +246,4 @@ pub fn default_tool_definitions() -> HashMap<String, ToolDefinition> {
     
     tools
 }
+

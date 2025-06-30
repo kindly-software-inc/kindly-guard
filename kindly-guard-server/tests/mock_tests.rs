@@ -1,17 +1,28 @@
 //! Tests using mockall for component isolation
 //! Demonstrates mocking external dependencies and error conditions
 
+#[cfg(feature = "test-utils")]
+use kindly_guard_server::{
+    traits::*,
+    mocks::*,
+    scanner::{Threat, ThreatType, Severity, Location},
+    permissions::{Permission, PermissionContext, ThreatLevel},
+};
+
+#[cfg(not(feature = "test-utils"))]
 use kindly_guard_server::{
     traits::*,
     scanner::{Threat, ThreatType, Severity, Location},
     permissions::{Permission, PermissionContext, ThreatLevel},
 };
+
 use mockall::predicate::*;
 use anyhow::{Result, anyhow};
 use std::sync::Arc;
 
 /// Test that the scanner correctly handles processor failures
 #[tokio::test]
+#[cfg(feature = "test-utils")]
 async fn test_scanner_with_failing_event_processor() {
     // Create a mock event processor that always fails
     let mut mock_processor = MockSecurityEventProcessor::new();
@@ -49,6 +60,7 @@ async fn test_scanner_with_failing_event_processor() {
 
 /// Test rate limiter with various scenarios
 #[tokio::test]
+#[cfg(feature = "test-utils")]
 async fn test_rate_limiter_mocking() {
     let mut mock_limiter = MockRateLimiter::new();
     
@@ -101,6 +113,7 @@ async fn test_rate_limiter_mocking() {
 
 /// Test permission manager with complex scenarios
 #[tokio::test]
+#[cfg(feature = "test-utils")]
 async fn test_permission_manager_edge_cases() {
     let mut mock_permissions = MockToolPermissionManager::new();
     
@@ -159,6 +172,7 @@ async fn test_permission_manager_edge_cases() {
 
 /// Test scanner with mock pattern injection
 #[test]
+#[cfg(feature = "test-utils")]
 fn test_scanner_with_pattern_failures() {
     let mut mock_scanner = MockEnhancedScanner::new();
     
@@ -202,6 +216,7 @@ fn test_scanner_with_pattern_failures() {
 
 /// Test correlation engine with attack patterns
 #[tokio::test]
+#[cfg(feature = "test-utils")]
 async fn test_correlation_engine_attack_detection() {
     let mut mock_correlation = MockCorrelationEngine::new();
     
@@ -245,6 +260,7 @@ async fn test_correlation_engine_attack_detection() {
 
 /// Test error propagation through mocked components
 #[tokio::test]
+#[cfg(feature = "test-utils")]
 async fn test_error_handling_with_mocks() {
     let mut mock_processor = MockSecurityEventProcessor::new();
     let mut mock_scanner = MockEnhancedScanner::new();
@@ -296,6 +312,7 @@ async fn test_error_handling_with_mocks() {
 
 /// Test component factory with mocks
 #[test]
+#[cfg(feature = "test-utils")]
 fn test_component_factory_with_mocks() {
     // Create a mock factory that returns specific mock implementations
     struct MockComponentFactory {
@@ -369,6 +386,7 @@ fn test_component_factory_with_mocks() {
 
 /// Test timeout behavior with mocks
 #[tokio::test]
+#[cfg(feature = "test-utils")]
 async fn test_timeout_handling() {
     use tokio::time::{timeout, Duration};
     

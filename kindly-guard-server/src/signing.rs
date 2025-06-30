@@ -131,7 +131,11 @@ impl SigningManager {
                             anyhow::bail!("Ed25519 private key must be exactly 32 bytes");
                         }
                         
-                        let secret = SigningKey::from_bytes(&key_bytes.try_into().unwrap());
+                        let key_array: [u8; 32] = match key_bytes.try_into() {
+                            Ok(arr) => arr,
+                            Err(_) => anyhow::bail!("Failed to convert key bytes to array")
+                        };
+                        let secret = SigningKey::from_bytes(&key_array);
                         verifying_key = Some(secret.verifying_key());
                         signing_key = Some(secret);
                     } else {
@@ -368,6 +372,8 @@ mod tests {
             algorithm: SigningAlgorithm::HmacSha256,
             hmac_secret: Some(general_purpose::STANDARD.encode(b"test-secret-key-at-least-32-bytes")),
             include_timestamp: false,
+            require_signatures: true,
+            grace_period_seconds: 0, // No grace period
             ..Default::default()
         };
         

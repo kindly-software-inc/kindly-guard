@@ -7,6 +7,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
 use serial_test::serial;
+use base64::{Engine as _, engine::general_purpose};
 
 mod helpers;
 use helpers::*;
@@ -17,9 +18,11 @@ fn create_e2e_server() -> Arc<McpServer> {
     config.server.stdio = true;
     config.shield.enabled = true;
     config.shield.detailed_stats = true;
-    config.auth.require_auth = true;
-    config.auth.valid_tokens = vec!["e2e-test-token".to_string()];
-    config.signing.require_signing = false; // Simplify for E2E
+    config.auth.enabled = true;
+    config.auth.jwt_secret = Some(general_purpose::STANDARD.encode(b"e2e-test-secret"));
+    config.auth.require_signature_verification = false;
+    config.signing.require_signatures = false; // Simplify for E2E
+    config.signing.enabled = false;
     config.rate_limit.default_rpm = 60;
     
     Arc::new(McpServer::new(config).expect("Failed to create server"))
@@ -266,10 +269,10 @@ async fn test_e2e_attack_detection_workflow() {
 async fn test_e2e_rate_limiting_scenario() {
     let mut config = Config::default();
     config.server.stdio = true;
-    config.auth.require_auth = true;
-    config.auth.valid_tokens = vec!["rate-limit-token".to_string()];
+    config.auth.enabled = true;
+    // Note: Authentication is now handled by JWT tokens
     config.rate_limit.default_rpm = 10; // Very low for testing
-    config.rate_limit.burst_size = 3;
+    config.rate_limit.burst_capacity = 3;
     
     let server = Arc::new(McpServer::new(config).unwrap());
     
@@ -363,9 +366,9 @@ async fn test_e2e_error_recovery_scenario() {
     
     // Send various problematic requests
     let problematic_requests = vec![
-        "{invalid json}",
-        "",
-        "null",
+        "{invalid json}".to_string(),
+        "".to_string(),
+        "null".to_string(),
         json!({"no": "jsonrpc field"}).to_string(),
     ];
     

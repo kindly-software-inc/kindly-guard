@@ -1,5 +1,5 @@
 //! Standard implementations of security component traits
-//! These work without any enhanced/patented technology
+//! These provide baseline functionality without enhanced optimizations
 
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -10,21 +10,22 @@ use anyhow::Result;
 use parking_lot::RwLock;
 use crate::traits::*;
 use crate::scanner::Threat;
+use crate::storage::StorageProvider;
 
 /// Standard event processor implementation
 pub struct StandardEventProcessor {
     events_processed: AtomicU64,
     start_time: Instant,
-    recent_events: RwLock<Vec<SecurityEvent>>,
+    storage: Arc<dyn StorageProvider>,
     monitored_endpoints: RwLock<HashMap<String, Instant>>,
 }
 
 impl StandardEventProcessor {
-    pub fn new() -> Self {
+    pub fn new(storage: Arc<dyn StorageProvider>) -> Self {
         Self {
             events_processed: AtomicU64::new(0),
             start_time: Instant::now(),
-            recent_events: RwLock::new(Vec::with_capacity(1000)),
+            storage,
             monitored_endpoints: RwLock::new(HashMap::new()),
         }
     }
@@ -35,19 +36,13 @@ impl SecurityEventProcessor for StandardEventProcessor {
     async fn process_event(&self, event: SecurityEvent) -> Result<EventHandle> {
         let event_id = self.events_processed.fetch_add(1, Ordering::SeqCst);
         
-        // Store event in memory (limited buffer)
-        {
-            let mut events = self.recent_events.write();
-            events.push(event.clone());
-            if events.len() > 1000 {
-                events.remove(0);
-            }
-        }
+        // Store event persistently
+        self.storage.store_event(&event).await?;
         
         // Simple monitoring based on event type
         if event.event_type.contains("failure") || event.event_type.contains("threat") {
             let mut monitored = self.monitored_endpoints.write();
-            monitored.insert(event.client_id, Instant::now());
+            monitored.insert(event.client_id.clone(), Instant::now());
         }
         
         Ok(EventHandle {
@@ -63,7 +58,7 @@ impl SecurityEventProcessor for StandardEventProcessor {
         ProcessorStats {
             events_processed,
             events_per_second: events_processed as f64 / elapsed.max(1.0),
-            buffer_utilization: self.recent_events.read().len() as f64 / 1000.0,
+            buffer_utilization: 0.0, // Storage doesn't expose buffer utilization yet
             correlation_hits: 0,
         }
     }
@@ -76,12 +71,20 @@ impl SecurityEventProcessor for StandardEventProcessor {
     }
     
     async fn get_insights(&self, client_id: &str) -> Result<SecurityInsights> {
-        let events = self.recent_events.read();
-        let client_events: Vec<_> = events.iter()
-            .filter(|e| e.client_id == client_id)
-            .collect();
+        use crate::storage::EventFilter;
+        use chrono::{Utc, Duration};
         
-        let threat_count = client_events.iter()
+        // Query recent events for this client
+        let filter = EventFilter {
+            client_id: Some(client_id.to_string()),
+            from_time: Some(Utc::now() - Duration::hours(1)),
+            limit: Some(100),
+            ..Default::default()
+        };
+        
+        let events = self.storage.query_events(filter).await?;
+        
+        let threat_count = events.iter()
             .filter(|e| e.event_type.contains("threat"))
             .count();
         
@@ -230,6 +233,7 @@ impl CorrelationEngine for StandardCorrelationEngine {
 
 /// Standard rate limiter using token bucket
 pub struct StandardRateLimiter {
+    storage: Arc<dyn StorageProvider>,
     buckets: RwLock<HashMap<RateLimitKey, TokenBucket>>,
     requests_allowed: AtomicU64,
     requests_denied: AtomicU64,
@@ -244,8 +248,9 @@ struct TokenBucket {
 }
 
 impl StandardRateLimiter {
-    pub fn new(default_rpm: u32, burst_capacity: u32) -> Self {
+    pub fn new(storage: Arc<dyn StorageProvider>, default_rpm: u32, burst_capacity: u32) -> Self {
         Self {
+            storage,
             buckets: RwLock::new(HashMap::new()),
             requests_allowed: AtomicU64::new(0),
             requests_denied: AtomicU64::new(0),
@@ -315,20 +320,21 @@ impl RateLimiter for StandardRateLimiter {
 pub struct StandardComponentFactory;
 
 impl SecurityComponentFactory for StandardComponentFactory {
-    fn create_event_processor(&self, _config: &crate::config::Config) -> Result<Arc<dyn SecurityEventProcessor>> {
-        Ok(Arc::new(StandardEventProcessor::new()))
+    fn create_event_processor(&self, _config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn SecurityEventProcessor>> {
+        Ok(Arc::new(StandardEventProcessor::new(storage)))
     }
     
     fn create_scanner(&self, _config: &crate::config::Config) -> Result<Arc<dyn EnhancedScanner>> {
         Ok(Arc::new(StandardScanner::new()))
     }
     
-    fn create_correlation_engine(&self, _config: &crate::config::Config) -> Result<Arc<dyn CorrelationEngine>> {
+    fn create_correlation_engine(&self, _config: &crate::config::Config, _storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn CorrelationEngine>> {
         Ok(Arc::new(StandardCorrelationEngine::new()))
     }
     
-    fn create_rate_limiter(&self, config: &crate::config::Config) -> Result<Arc<dyn RateLimiter>> {
+    fn create_rate_limiter(&self, config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn RateLimiter>> {
         Ok(Arc::new(StandardRateLimiter::new(
+            storage,
             config.rate_limit.default_rpm,
             config.rate_limit.burst_capacity,
         )))

@@ -55,21 +55,32 @@ once_cell = "1.20"
 parking_lot = "0.12"
 uuid = { version = "1.11", features = ["v4", "serde"] }
 chrono = { version = "0.4", features = ["serde"] }
+csv = "1.3"
+notify = "8.0"
+axum = { version = "0.7", features = ["tokio"] }
+tower = "0.4"
+tower-http = { version = "0.5", features = ["cors"] }
 
 # Private core dependency (optional for enhanced features)
 kindly-guard-core = { path = "../kindly-guard-core", optional = true }
 
+# Testing support
+mockall = { version = "0.13", optional = true }
+
 [features]
 default = []
 enhanced = ["kindly-guard-core"]
+test-utils = ["mockall"]
 
 [dev-dependencies]
 criterion.workspace = true
 proptest.workspace = true
 tempfile = "3.14"
 arbitrary = { version = "1.3", features = ["derive"] }
+jemallocator = "0.5"
+jemalloc-ctl = "0.5"
 tokio-test = "0.4"
-mockall = "0.13"
+mockall = { version = "0.13", features = [] }
 pretty_assertions = "1.4"
 serial_test = "3.2"
 
@@ -79,4 +90,12 @@ harness = false
 
 [[bench]]
 name = "regression_benchmarks"
+harness = false
+
+[[bench]]
+name = "critical_path_benchmarks"
+harness = false
+
+[[bench]]
+name = "memory_profile_bench"
 harness = false

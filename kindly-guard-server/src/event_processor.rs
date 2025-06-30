@@ -1,4 +1,4 @@
-//! Security Event Processor using patented AtomicEventBuffer technology
+//! Enhanced Security Event Processor
 //! Provides lock-free, high-performance security event tracking and correlation
 
 use std::collections::HashMap;
@@ -294,7 +294,7 @@ impl SecurityEventProcessor {
         
         SecurityEvent {
             event_type,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
             correlation_id: None,
             metadata: None,
         }
@@ -320,7 +320,7 @@ impl SecurityEventProcessor {
         
         SecurityEvent {
             event_type,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
             correlation_id: None,
             metadata: None,
         }
@@ -343,7 +343,7 @@ impl SecurityEventProcessor {
         
         SecurityEvent {
             event_type,
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
             correlation_id: None,
             metadata: None,
         }
@@ -357,7 +357,7 @@ impl SecurityEventProcessor {
                 method: method.to_string(),
                 request_id: request_id.to_string(),
             },
-            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs(),
+            timestamp: SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs(),
             correlation_id: Some(request_id.to_string()),
             metadata: None,
         }

@@ -7,12 +7,12 @@ use anyhow::Result;
 use serde::{Serialize, Deserialize};
 use crate::scanner::Threat;
 
-#[cfg(test)]
+#[cfg(any(test, feature = "test-utils"))]
 use mockall::{automock, predicate::*};
 
 /// Security event processor trait for handling and correlating events
 #[async_trait]
-#[cfg_attr(test, automock)]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
 pub trait SecurityEventProcessor: Send + Sync {
     /// Process a security event
     async fn process_event(&self, event: SecurityEvent) -> Result<EventHandle>;
@@ -31,7 +31,7 @@ pub trait SecurityEventProcessor: Send + Sync {
 }
 
 /// Enhanced scanner trait for advanced threat detection
-#[cfg_attr(test, automock)]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
 pub trait EnhancedScanner: Send + Sync {
     /// Scan with enhanced capabilities
     fn enhanced_scan(&self, data: &[u8]) -> Result<Vec<Threat>>;
@@ -45,7 +45,7 @@ pub trait EnhancedScanner: Send + Sync {
 
 /// Correlation engine trait for pattern detection
 #[async_trait]
-#[cfg_attr(test, automock)]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
 pub trait CorrelationEngine: Send + Sync {
     /// Correlate events to detect patterns
     async fn correlate(&self, events: &[SecurityEvent]) -> Result<Vec<ThreatPattern>>;
@@ -59,7 +59,7 @@ pub trait CorrelationEngine: Send + Sync {
 
 /// Rate limiter trait for flexible implementations
 #[async_trait]
-#[cfg_attr(test, automock)]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
 pub trait RateLimiter: Send + Sync {
     /// Check if request is allowed
     async fn check_rate_limit(&self, key: &RateLimitKey) -> Result<RateLimitDecision>;
@@ -175,14 +175,15 @@ pub struct RateLimiterStats {
 /// Factory trait for creating security components
 pub trait SecurityComponentFactory: Send + Sync {
     /// Create event processor
-    fn create_event_processor(&self, config: &crate::config::Config) -> Result<Arc<dyn SecurityEventProcessor>>;
+    fn create_event_processor(&self, config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn SecurityEventProcessor>>;
     
     /// Create enhanced scanner
     fn create_scanner(&self, config: &crate::config::Config) -> Result<Arc<dyn EnhancedScanner>>;
     
     /// Create correlation engine
-    fn create_correlation_engine(&self, config: &crate::config::Config) -> Result<Arc<dyn CorrelationEngine>>;
+    fn create_correlation_engine(&self, config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn CorrelationEngine>>;
     
     /// Create rate limiter
-    fn create_rate_limiter(&self, config: &crate::config::Config) -> Result<Arc<dyn RateLimiter>>;
+    fn create_rate_limiter(&self, config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn RateLimiter>>;
 }
+

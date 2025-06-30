@@ -29,9 +29,19 @@ mod logging;
 mod permissions;
 mod versioning;
 mod telemetry;
+mod storage;
+mod plugins;
+mod audit;
+mod transport;
+mod web;
+mod cli;
+mod security;
+mod daemon;
+mod metrics;
 
 use config::Config;
 use server::McpServer;
+use cli::commands::Commands;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
@@ -46,9 +56,29 @@ struct Args {
     #[arg(long, default_value = "true")]
     stdio: bool,
     
+    /// Run as daemon
+    #[arg(long, conflicts_with = "stdio")]
+    daemon: bool,
+    
+    /// PID file path (for daemon mode)
+    #[arg(long, requires = "daemon")]
+    pid_file: Option<String>,
+    
     /// Enable shield display
     #[arg(long)]
     shield: bool,
+    
+    /// Run as command interface (e.g., /kindlyguard status)
+    #[command(subcommand)]
+    command: Option<Commands>,
+    
+    /// Output format for commands
+    #[arg(short = 'f', long, global = true)]
+    format: Option<String>,
+    
+    /// Disable color output
+    #[arg(long, global = true)]
+    no_color: bool,
 }
 
 #[tokio::main]
@@ -64,6 +94,17 @@ async fn main() -> Result<()> {
         )
         .with(tracing_subscriber::fmt::layer())
         .init();
+
+    // Check if running in command mode
+    if args.command.is_some() {
+        // Command mode - don't show server startup message
+        let cmd = cli::commands::KindlyCommand {
+            command: args.command,
+            format: args.format.unwrap_or_else(|| "text".to_string()),
+            no_color: args.no_color,
+        };
+        return cli::commands::run_command(cmd).await;
+    }
 
     info!("🛡️ KindlyGuard MCP Security Server starting...");
 
@@ -94,7 +135,34 @@ async fn main() -> Result<()> {
     };
     
     // Run the server
-    if args.stdio {
+    if args.daemon {
+        // Daemon mode
+        info!("Running in daemon mode");
+        
+        let daemon_config = daemon::DaemonConfig {
+            pid_file: args.pid_file,
+            ..Default::default()
+        };
+        
+        daemon::run_with_daemon(daemon_config, |mut shutdown_rx| async move {
+            // Start HTTP server in daemon mode
+            let server_clone = server.clone();
+            let server_handle = tokio::spawn(async move {
+                if let Err(e) = server_clone.run_http("127.0.0.1:8080").await {
+                    error!("HTTP server error: {}", e);
+                }
+            });
+            
+            // Wait for shutdown signal
+            let _ = shutdown_rx.recv().await;
+            info!("Received shutdown signal");
+            
+            // Gracefully shutdown server
+            server_handle.abort();
+            Ok(())
+        }).await?;
+        
+    } else if args.stdio {
         info!("Running in stdio mode");
         
         // Start periodic telemetry flush if configured

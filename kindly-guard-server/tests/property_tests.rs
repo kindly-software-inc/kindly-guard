@@ -100,8 +100,8 @@ proptest! {
                     (Ok(threats1), Ok(threats2)) => {
                         prop_assert_eq!(threats1.len(), threats2.len());
                         for (t1, t2) in threats1.iter().zip(threats2.iter()) {
-                            prop_assert_eq!(t1.threat_type, t2.threat_type);
-                            prop_assert_eq!(t1.severity, t2.severity);
+                            prop_assert_eq!(&t1.threat_type, &t2.threat_type);
+                            prop_assert_eq!(&t1.severity, &t2.severity);
                             prop_assert_eq!(&t1.location, &t2.location);
                         }
                     }
@@ -247,7 +247,7 @@ proptest! {
 // Additional property tests for edge cases
 proptest! {
     #[test]
-    fn scanner_handles_empty_input(dummy in 0..1) {
+    fn scanner_handles_empty_input(_dummy in 0..1) {
         let config = ScannerConfig {
             unicode_detection: true,
             injection_detection: true,

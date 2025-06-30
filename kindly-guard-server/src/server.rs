@@ -3,6 +3,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use anyhow::Result;
+use async_trait::async_trait;
 use serde_json::Value;
 use tokio::sync::Mutex;
 use tracing::{debug, info, warn, error};
@@ -17,6 +18,10 @@ use crate::signing::{SigningManager, SignedMessage};
 use crate::telemetry::{TelemetryProvider, TelemetryMetric, MetricValue};
 use crate::traits::{SecurityEventProcessor, RateLimiter, SecurityEvent, RateLimitKey};
 use crate::versioning::{ApiRegistry, add_version_metadata};
+use crate::transport::{
+    Transport, TransportManager, TransportMessage, MessageHandler, 
+    TransportConnection, DefaultTransportFactory, TransportFactory, TransportType
+};
 
 /// Session information
 struct SessionInfo {
@@ -126,13 +131,59 @@ impl ServerError {
 impl McpServer {
     /// Helper to track security events
     async fn track_security_event(&self, event_type: &str, client_id: &str, metadata: serde_json::Value) {
+        // Log to audit system
+        if self.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            
+            let audit_event_type = match event_type {
+                "auth.success" => AuditEventType::AuthSuccess { 
+                    user_id: client_id.to_string() 
+                },
+                "auth.failure" => AuditEventType::AuthFailure { 
+                    user_id: Some(client_id.to_string()),
+                    reason: metadata.get("reason")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("Unknown")
+                        .to_string()
+                },
+                "threat.detected" => AuditEventType::ThreatDetected {
+                    client_id: client_id.to_string(),
+                    threat_count: 1,
+                },
+                "rate_limit.exceeded" => AuditEventType::RateLimitTriggered {
+                    client_id: client_id.to_string(),
+                    limit_type: "request".to_string(),
+                },
+                _ => AuditEventType::Custom {
+                    event_type: event_type.to_string(),
+                    data: metadata.clone(),
+                },
+            };
+            
+            let severity = match event_type {
+                "auth.failure" | "threat.detected" => AuditSeverity::Warning,
+                "rate_limit.exceeded" => AuditSeverity::Warning,
+                "auth.success" => AuditSeverity::Info,
+                _ => AuditSeverity::Info,
+            };
+            
+            let audit_event = AuditEvent::new(audit_event_type, severity)
+                .with_client_id(client_id.to_string());
+            
+            let audit_logger = self.component_manager.audit_logger();
+            if let Err(e) = audit_logger.log(audit_event).await {
+                warn!("Failed to log audit event: {}", e);
+            }
+        }
+        
+        // Track in event processor if enabled
         if self.config.is_event_processor_enabled() {
             let event = SecurityEvent {
                 event_type: event_type.to_string(),
                 client_id: client_id.to_string(),
                 timestamp: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
+                    .unwrap_or_default()
                     .as_secs(),
                 metadata,
             };
@@ -144,7 +195,14 @@ impl McpServer {
         // Create component manager to handle standard vs enhanced implementations
         let component_manager = Arc::new(ComponentManager::new(&config)?);
         
-        let scanner = Arc::new(SecurityScanner::new(config.scanner.clone())?);
+        let mut scanner = SecurityScanner::new(config.scanner.clone())?;
+        
+        // Set plugin manager on scanner if plugins are enabled
+        if config.plugins.enabled {
+            scanner.set_plugin_manager(component_manager.plugin_manager().clone());
+        }
+        
+        let scanner = Arc::new(scanner);
         let shield = Arc::new(Shield::with_config(config.shield.clone()));
         
         // Set event processor state in shield for purple mode
@@ -170,7 +228,7 @@ impl McpServer {
         }
         
         let server_info = ServerInfo {
-            name: "KindlyGuard".to_string(),
+            name: "kindly-guard".to_string(),
             version: env!("CARGO_PKG_VERSION").to_string(),
             description: Some("Security-focused MCP server protecting against unicode attacks and injection threats".to_string()),
         };
@@ -178,7 +236,7 @@ impl McpServer {
         let capabilities = ServerCapabilities {
             tools: Some(ToolsCapability {}),
             resources: Some(ResourcesCapability { subscribe: Some(false) }),
-            prompts: None,
+            prompts: Some(PromptsCapability {}),
             logging: Some(LoggingCapability {}),
         };
         
@@ -201,8 +259,55 @@ impl McpServer {
     
     /// Handle incoming JSON-RPC message
     pub async fn handle_message(&self, message: &str) -> Option<String> {
-        // Check if this is a signed message
-        if let Ok(signed) = serde_json::from_str::<SignedMessage>(message) {
+        // Try to parse as Value first to handle batch requests
+        match serde_json::from_str::<Value>(message) {
+            Ok(Value::Array(requests)) => {
+                // Handle batch request
+                let mut responses = Vec::new();
+                for req in requests {
+                    if let Some(response) = self.handle_value(req).await {
+                        if let Ok(resp_value) = serde_json::from_str::<Value>(&response) {
+                            responses.push(resp_value);
+                        }
+                    }
+                }
+                
+                if responses.is_empty() {
+                    None
+                } else {
+                    match serde_json::to_string(&responses) {
+                        Ok(json) => Some(json),
+                        Err(e) => {
+                            error!("Failed to serialize batch response: {}", e);
+                            None
+                        }
+                    }
+                }
+            }
+            Ok(value) => self.handle_value(value).await,
+            Err(_) => {
+                // Invalid JSON
+                let error_response = error_response(
+                    error_codes::PARSE_ERROR,
+                    "Parse error".to_string(),
+                    ResponseId::Null { id: None },
+                    None,
+                );
+                match serde_json::to_string(&error_response) {
+                    Ok(json) => Some(json),
+                    Err(e) => {
+                        error!("Failed to serialize error response: {}", e);
+                        None
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Handle a parsed JSON value
+    async fn handle_value(&self, mut value: Value) -> Option<String> {
+        // Check if this is a signed message and unwrap it
+        if let Ok(signed) = serde_json::from_value::<SignedMessage>(value.clone()) {
             // Verify signature if signing is enabled
             if self.config.signing.enabled {
                 let verification_result = self.signing_manager.verify_message(&signed);
@@ -236,35 +341,82 @@ impl McpServer {
                         ResponseId::Null { id: None },
                         None,
                     );
-                    return Some(serde_json::to_string(&error_response).unwrap());
+                    return match serde_json::to_string(&error_response) {
+                        Ok(json) => Some(json),
+                        Err(e) => {
+                            error!("Failed to serialize error response: {}", e);
+                            None
+                        }
+                    };
                 }
             }
             
-            // Process the inner message
-            return self.handle_value(signed.message).await;
+            // Process the inner message by extracting it
+            value = signed.message;
         }
         
-        // Try to parse as request
-        if let Ok(request) = serde_json::from_str::<JsonRpcRequest>(message) {
-            let response = self.handle_request(request).await;
-            return self.maybe_sign_response(response).await;
+        // Check if it has an id field to distinguish request from notification
+        let has_id = value.get("id").is_some();
+        
+        if !has_id {
+            // Try to parse as notification (no id field)
+            if let Ok(notification) = serde_json::from_value::<JsonRpcNotification>(value.clone()) {
+                self.handle_notification(notification).await;
+                return None; // Notifications don't get responses
+            }
+        } else {
+            // Try to parse as request (has id field)
+            if let Ok(request) = serde_json::from_value::<JsonRpcRequest>(value.clone()) {
+                let response = self.handle_request(request).await;
+                return self.maybe_sign_response(response).await;
+            }
         }
         
-        // Try to parse as notification
-        if let Ok(notification) = serde_json::from_str::<JsonRpcNotification>(message) {
-            self.handle_notification(notification).await;
-            return None; // Notifications don't get responses
+        // Check if it's missing required fields
+        if value.is_object() {
+            let obj = value.as_object().unwrap();
+            if !obj.contains_key("method") {
+                // Missing method field
+                let id = obj.get("id").cloned().unwrap_or(Value::Null);
+                let response_id = if let Some(num) = id.as_i64() {
+                    ResponseId::Number { id: num }
+                } else if let Some(s) = id.as_str() {
+                    ResponseId::String { id: s.to_string() }
+                } else {
+                    ResponseId::Null { id: None }
+                };
+                
+                let error_response = error_response(
+                    error_codes::INVALID_REQUEST,
+                    "Missing method field".to_string(),
+                    response_id,
+                    None,
+                );
+                match serde_json::to_string(&error_response) {
+                    Ok(json) => return Some(json),
+                    Err(e) => {
+                        error!("Failed to serialize error response: {}", e);
+                        return None;
+                    }
+                }
+            }
         }
         
-        // Invalid JSON-RPC
+        // Invalid JSON-RPC format
         let error_response = error_response(
-            error_codes::PARSE_ERROR,
-            "Parse error".to_string(),
+            error_codes::INVALID_REQUEST,
+            "Invalid request".to_string(),
             ResponseId::Null { id: None },
             None,
         );
         
-        Some(serde_json::to_string(&error_response).unwrap())
+        match serde_json::to_string(&error_response) {
+            Ok(json) => Some(json),
+            Err(e) => {
+                error!("Failed to serialize error response: {}", e);
+                None
+            }
+        }
     }
     
     /// Handle JSON-RPC request
@@ -285,8 +437,28 @@ impl McpServer {
             );
         }
         
+        // Extract authorization from request or params._meta.authToken
+        let mut authorization = request.authorization.clone();
+        if authorization.is_none() {
+            // Check if authToken is in params._meta
+            if let Some(params) = &request.params {
+                if let Some(meta) = params.get("_meta") {
+                    if let Some(auth_token) = meta.get("authToken").and_then(|v| v.as_str()) {
+                        authorization = Some(format!("Bearer {}", auth_token));
+                    }
+                } else if let Some(arguments) = params.get("arguments") {
+                    // For tools/call, check in arguments._meta
+                    if let Some(meta) = arguments.get("_meta") {
+                        if let Some(auth_token) = meta.get("authToken").and_then(|v| v.as_str()) {
+                            authorization = Some(format!("Bearer {}", auth_token));
+                        }
+                    }
+                }
+            }
+        }
+        
         // Authenticate the request
-        let auth_context = match self.auth_manager.authenticate(request.authorization.as_deref()).await {
+        let auth_context = match self.auth_manager.authenticate(authorization.as_deref()).await {
             Ok(ctx) => {
                 // Track successful auth event
                 let client_id = ctx.client_id.as_deref().unwrap_or("anonymous");
@@ -395,58 +567,76 @@ impl McpServer {
             );
         }
         
-        // Security scan the request
-        match self.scan_request(&request).await {
-            Ok(threats) if !threats.is_empty() => {
-                self.shield.record_threats(&threats);
-                error!("Threats detected in request: {:?}", threats);
-                
-                // Track threat detection event
-                for threat in &threats {
-                    self.track_security_event(
-                        "threat.detected",
-                        client_id,
-                        serde_json::json!({
-                            "threat_type": format!("{:?}", threat.threat_type),
-                            "severity": format!("{:?}", threat.severity),
-                            "threat": threat,
-                        })
-                    ).await;
+        // Security scan the request (skip for security scanning tools)
+        let should_scan_request = match request.method.as_str() {
+            "tools/call" => {
+                // Check if it's a security scanning tool
+                if let Some(params) = &request.params {
+                    if let Some(tool_name) = params.get("name").and_then(|n| n.as_str()) {
+                        !matches!(tool_name, "scan_text" | "scan_file" | "scan_json")
+                    } else {
+                        true
+                    }
+                } else {
+                    true
+                }
+            }
+            _ => true,
+        };
+        
+        if should_scan_request {
+            match self.scan_request(&request).await {
+                Ok(threats) if !threats.is_empty() => {
+                    self.shield.record_threats(&threats);
+                    error!("Threats detected in request: {:?}", threats);
                     
-                    // Record threat metric
-                    telemetry.record_metric(TelemetryMetric {
-                        name: "threats.detected".to_string(),
-                        value: MetricValue::Counter(1),
-                        labels: vec![
-                            ("threat_type".to_string(), format!("{:?}", threat.threat_type)),
-                            ("severity".to_string(), format!("{:?}", threat.severity)),
-                            ("client_id".to_string(), client_id.to_string()),
-                        ],
-                    });
+                    // Track threat detection event
+                    for threat in &threats {
+                        self.track_security_event(
+                            "threat.detected",
+                            client_id,
+                            serde_json::json!({
+                                "threat_type": format!("{:?}", threat.threat_type),
+                                "severity": format!("{:?}", threat.severity),
+                                "threat": threat,
+                            })
+                        ).await;
+                        
+                        // Record threat metric
+                        telemetry.record_metric(TelemetryMetric {
+                            name: "threats.detected".to_string(),
+                            value: MetricValue::Counter(1),
+                            labels: vec![
+                                ("threat_type".to_string(), format!("{:?}", threat.threat_type)),
+                                ("severity".to_string(), format!("{:?}", threat.severity)),
+                                ("client_id".to_string(), client_id.to_string()),
+                            ],
+                        });
+                    }
+                    
+                    // Apply rate limit penalty for security threats
+                    if let Err(e) = self.rate_limiter.apply_penalty(
+                        client_id,
+                        self.config.rate_limit.threat_penalty_multiplier,
+                    ).await {
+                        error!("Failed to apply rate limit penalty: {}", e);
+                    }
+                    
+                    telemetry.set_status(&request_span, true, Some("Threat detected"));
+                    telemetry.end_span(request_span);
+                    return error_response(
+                        error_codes::THREAT_DETECTED,
+                        "Security threat detected".to_string(),
+                        request.id.into(),
+                        Some(serde_json::to_value(&threats).unwrap_or(Value::Null)),
+                    );
                 }
-                
-                // Apply rate limit penalty for security threats
-                if let Err(e) = self.rate_limiter.apply_penalty(
-                    client_id,
-                    self.config.rate_limit.threat_penalty_multiplier,
-                ).await {
-                    error!("Failed to apply rate limit penalty: {}", e);
+                Err(e) => {
+                    error!("Failed to scan request: {}", e);
+                    // Continue processing but log the error
                 }
-                
-                telemetry.set_status(&request_span, true, Some("Threat detected"));
-                telemetry.end_span(request_span);
-                return error_response(
-                    error_codes::THREAT_DETECTED,
-                    "Security threat detected".to_string(),
-                    request.id.into(),
-                    Some(serde_json::to_value(&threats).unwrap_or(Value::Null)),
-                );
+                _ => {}
             }
-            Err(e) => {
-                error!("Failed to scan request: {}", e);
-                // Continue processing but log the error
-            }
-            _ => {}
         }
         
         // Track MCP request event
@@ -491,6 +681,9 @@ impl McpServer {
             
             "resources/list" => self.handle_resources_list(request.params).await,
             "resources/read" => self.handle_resources_read(request.params, &auth_context).await,
+            
+            "prompts/list" => self.handle_prompts_list(request.params).await,
+            "prompts/get" => self.handle_prompts_get(request.params).await,
             
             "logging/setLevel" => self.handle_logging_set_level(request.params).await,
             
@@ -638,13 +831,16 @@ impl McpServer {
         });
         
         // Version negotiation - we support 2024-11-05
-        let protocol_version = if params.protocol_version == PROTOCOL_VERSION {
-            PROTOCOL_VERSION.to_string()
-        } else {
+        if params.protocol_version != PROTOCOL_VERSION {
             warn!("Client requested protocol version {}, we support {}", 
                 params.protocol_version, PROTOCOL_VERSION);
-            PROTOCOL_VERSION.to_string()
-        };
+            return Err(ServerError::InvalidParams(
+                format!("Unsupported protocol version: {}. Supported version: {}", 
+                    params.protocol_version, PROTOCOL_VERSION)
+            ));
+        }
+        
+        let protocol_version = PROTOCOL_VERSION.to_string();
         
         let result = InitializeResult {
             protocol_version,
@@ -744,20 +940,33 @@ impl McpServer {
                     "required": ["message", "signature"]
                 }),
             },
+            Tool {
+                name: "get_shield_status".to_string(),
+                description: "Get current shield status and protection level".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                }),
+            },
         ];
         
         // Get allowed tools for this client
         let client_id = auth.client_id.as_deref().unwrap_or("anonymous");
-        let allowed_tools = self.component_manager.permission_manager()
-            .get_allowed_tools(client_id)
-            .await
-            .map_err(|e| ServerError::InternalError(format!("Failed to get allowed tools: {}", e)))?;
-        
-        // Filter tools based on permissions
-        let tools: Vec<Tool> = all_tools
-            .into_iter()
-            .filter(|tool| allowed_tools.contains(&tool.name))
-            .collect();
+        let tools = if self.config.auth.enabled {
+            let allowed_tools = self.component_manager.permission_manager()
+                .get_allowed_tools(client_id)
+                .await
+                .map_err(|e| ServerError::InternalError(format!("Failed to get allowed tools: {}", e)))?;
+            
+            // Filter tools based on permissions
+            all_tools
+                .into_iter()
+                .filter(|tool| allowed_tools.contains(&tool.name))
+                .collect()
+        } else {
+            // When auth is disabled, allow all tools
+            all_tools
+        };
         
         info!("Client {} has access to {} tools", client_id, tools.len());
         
@@ -774,27 +983,31 @@ impl McpServer {
             return Err(ServerError::InvalidParams("Missing tool call params".to_string()));
         };
         
-        // Check OAuth2 authorization for tool
-        self.auth_manager.authorize_tool(auth, &params.name)
-            .map_err(|_e| ServerError::Unauthorized)?;
+        // Check OAuth2 authorization for tool (only if auth is enabled)
+        if self.config.auth.enabled {
+            self.auth_manager.authorize_tool(auth, &params.name)
+                .map_err(|_e| ServerError::Unauthorized)?;
+        }
         
-        // Check fine-grained permissions
-        let permission_context = crate::permissions::PermissionContext {
-            auth_token: None, // Auth token is internal to auth manager
-            scopes: auth.scopes.clone(),
-            threat_level: self.get_current_threat_level(),
-            request_metadata: std::collections::HashMap::new(),
-        };
-        
-        let client_id = auth.client_id.as_deref().unwrap_or("anonymous");
-        let permission = self.component_manager.permission_manager()
-            .check_permission(client_id, &params.name, &permission_context)
-            .await
-            .map_err(|e| ServerError::InternalError(format!("Permission check failed: {}", e)))?;
-        
-        if let crate::permissions::Permission::Deny(reason) = permission {
-            warn!("Tool access denied for {}: {}", client_id, reason);
-            return Err(ServerError::Unauthorized);
+        // Check fine-grained permissions (only if auth is enabled)
+        if self.config.auth.enabled {
+            let permission_context = crate::permissions::PermissionContext {
+                auth_token: None, // Auth token is internal to auth manager
+                scopes: auth.scopes.clone(),
+                threat_level: self.get_current_threat_level(),
+                request_metadata: std::collections::HashMap::new(),
+            };
+            
+            let client_id = auth.client_id.as_deref().unwrap_or("anonymous");
+            let permission = self.component_manager.permission_manager()
+                .check_permission(client_id, &params.name, &permission_context)
+                .await
+                .map_err(|e| ServerError::InternalError(format!("Permission check failed: {}", e)))?;
+            
+            if let crate::permissions::Permission::Deny(reason) = permission {
+                warn!("Tool access denied for {}: {}", client_id, reason);
+                return Err(ServerError::Unauthorized);
+            }
         }
         
         // Apply timeout to tool execution
@@ -822,10 +1035,45 @@ impl McpServer {
                     self.shield.record_threats(&threats);
                 }
                 
-                Ok(serde_json::json!({
-                    "threats": threats,
+                // Format response according to MCP protocol
+                let threat_data = threats.iter().map(|t| {
+                    serde_json::json!({
+                        "type": match &t.threat_type {
+                            crate::scanner::ThreatType::UnicodeInvisible => "unicode_invisible".to_string(),
+                            crate::scanner::ThreatType::UnicodeBiDi => "unicode_bidi".to_string(),
+                            crate::scanner::ThreatType::UnicodeHomograph => "unicode_homograph".to_string(),
+                            crate::scanner::ThreatType::UnicodeControl => "unicode_control".to_string(),
+                            crate::scanner::ThreatType::PromptInjection => "prompt_injection".to_string(),
+                            crate::scanner::ThreatType::CommandInjection => "command_injection".to_string(),
+                            crate::scanner::ThreatType::PathTraversal => "path_traversal".to_string(),
+                            crate::scanner::ThreatType::SqlInjection => "sql_injection".to_string(),
+                            crate::scanner::ThreatType::CrossSiteScripting => "cross_site_scripting".to_string(),
+                            crate::scanner::ThreatType::SessionIdExposure => "session_id_exposure".to_string(),
+                            crate::scanner::ThreatType::ToolPoisoning => "tool_poisoning".to_string(),
+                            crate::scanner::ThreatType::TokenTheft => "token_theft".to_string(),
+                            crate::scanner::ThreatType::Custom(s) => s.to_lowercase().replace(' ', "_"),
+                        },
+                        "severity": format!("{:?}", t.severity).to_lowercase(),
+                        "description": &t.description,
+                        "location": t.location,
+                    })
+                }).collect::<Vec<_>>();
+                
+                let response_json = serde_json::json!({
                     "safe": threats.is_empty(),
-                    "scanned_length": text.len(),
+                    "threats": threat_data,
+                    "scan_info": {
+                        "text_length": text.len(),
+                        "threats_found": threats.len(),
+                    }
+                });
+                
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string(&response_json)
+                            .unwrap_or_else(|_| r#"{"error": "Failed to serialize response"}"#.to_string())
+                    }]
                 }))
             }
             
@@ -849,11 +1097,46 @@ impl McpServer {
                     self.shield.record_threats(&threats);
                 }
                 
-                Ok(serde_json::json!({
-                    "threats": threats,
+                // Format response according to MCP protocol
+                let threat_data = threats.iter().map(|t| {
+                    serde_json::json!({
+                        "type": match &t.threat_type {
+                            crate::scanner::ThreatType::UnicodeInvisible => "unicode_invisible".to_string(),
+                            crate::scanner::ThreatType::UnicodeBiDi => "unicode_bidi".to_string(),
+                            crate::scanner::ThreatType::UnicodeHomograph => "unicode_homograph".to_string(),
+                            crate::scanner::ThreatType::UnicodeControl => "unicode_control".to_string(),
+                            crate::scanner::ThreatType::PromptInjection => "prompt_injection".to_string(),
+                            crate::scanner::ThreatType::CommandInjection => "command_injection".to_string(),
+                            crate::scanner::ThreatType::PathTraversal => "path_traversal".to_string(),
+                            crate::scanner::ThreatType::SqlInjection => "sql_injection".to_string(),
+                            crate::scanner::ThreatType::CrossSiteScripting => "cross_site_scripting".to_string(),
+                            crate::scanner::ThreatType::SessionIdExposure => "session_id_exposure".to_string(),
+                            crate::scanner::ThreatType::ToolPoisoning => "tool_poisoning".to_string(),
+                            crate::scanner::ThreatType::TokenTheft => "token_theft".to_string(),
+                            crate::scanner::ThreatType::Custom(s) => s.to_lowercase().replace(' ', "_"),
+                        },
+                        "severity": format!("{:?}", t.severity).to_lowercase(),
+                        "description": &t.description,
+                        "location": t.location,
+                    })
+                }).collect::<Vec<_>>();
+                
+                let response_json = serde_json::json!({
                     "safe": threats.is_empty(),
-                    "file_path": path,
-                    "file_size": content.len(),
+                    "threats": threat_data,
+                    "scan_info": {
+                        "file_path": path,
+                        "file_size": content.len(),
+                        "threats_found": threats.len(),
+                    }
+                });
+                
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string(&response_json)
+                            .unwrap_or_else(|_| r#"{"error": "Failed to serialize response"}"#.to_string())
+                    }]
                 }))
             }
             
@@ -868,9 +1151,45 @@ impl McpServer {
                     self.shield.record_threats(&threats);
                 }
                 
-                Ok(serde_json::json!({
-                    "threats": threats,
+                // Format response according to MCP protocol
+                let threat_data = threats.iter().map(|t| {
+                    serde_json::json!({
+                        "type": match &t.threat_type {
+                            crate::scanner::ThreatType::UnicodeInvisible => "unicode_invisible".to_string(),
+                            crate::scanner::ThreatType::UnicodeBiDi => "unicode_bidi".to_string(),
+                            crate::scanner::ThreatType::UnicodeHomograph => "unicode_homograph".to_string(),
+                            crate::scanner::ThreatType::UnicodeControl => "unicode_control".to_string(),
+                            crate::scanner::ThreatType::PromptInjection => "prompt_injection".to_string(),
+                            crate::scanner::ThreatType::CommandInjection => "command_injection".to_string(),
+                            crate::scanner::ThreatType::PathTraversal => "path_traversal".to_string(),
+                            crate::scanner::ThreatType::SqlInjection => "sql_injection".to_string(),
+                            crate::scanner::ThreatType::CrossSiteScripting => "cross_site_scripting".to_string(),
+                            crate::scanner::ThreatType::SessionIdExposure => "session_id_exposure".to_string(),
+                            crate::scanner::ThreatType::ToolPoisoning => "tool_poisoning".to_string(),
+                            crate::scanner::ThreatType::TokenTheft => "token_theft".to_string(),
+                            crate::scanner::ThreatType::Custom(s) => s.to_lowercase().replace(' ', "_"),
+                        },
+                        "severity": format!("{:?}", t.severity).to_lowercase(),
+                        "description": &t.description,
+                        "location": t.location,
+                    })
+                }).collect::<Vec<_>>();
+                
+                let response_json = serde_json::json!({
                     "safe": threats.is_empty(),
+                    "threats": threat_data,
+                    "scan_info": {
+                        "data_type": "json",
+                        "threats_found": threats.len(),
+                    }
+                });
+                
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string(&response_json)
+                            .unwrap_or_else(|_| r#"{"error": "Failed to serialize response"}"#.to_string())
+                    }]
                 }))
             }
             
@@ -881,7 +1200,7 @@ impl McpServer {
                 let rate_limiter_stats = self.rate_limiter.get_stats();
                 let permission_stats = self.component_manager.permission_manager().get_stats();
                 
-                Ok(serde_json::json!({
+                let security_info = serde_json::json!({
                     "status": "active",
                     "enhanced_mode": self.component_manager.is_enhanced_mode(),
                     "shield": {
@@ -902,6 +1221,15 @@ impl McpServer {
                         "allowed": permission_stats.allowed,
                         "denied": permission_stats.denied,
                     }
+                });
+                
+                // Format response according to MCP protocol
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string_pretty(&security_info)
+                            .unwrap_or_else(|_| "Failed to serialize security info".to_string())
+                    }]
                 }))
             }
             
@@ -919,14 +1247,44 @@ impl McpServer {
                     .and_then(|v| v.as_bool())
                     .unwrap_or(false);
                 
-                Ok(serde_json::json!({
+                let verification_result = serde_json::json!({
                     "valid": !tampered,
                     "algorithm": "ed25519",
                     "message": message,
+                });
+                
+                // Format response according to MCP protocol
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string_pretty(&verification_result)
+                            .unwrap_or_else(|_| "Failed to serialize verification result".to_string())
+                    }]
                 }))
             }
             
-            _ => Err(ServerError::MethodNotFound(format!("Unknown tool: {}", name))),
+            "get_shield_status" => {
+                let shield_info = self.shield.get_info();
+                
+                let shield_status = serde_json::json!({
+                    "active": shield_info.active,
+                    "protection_level": if shield_info.threats_blocked > 100 { "high" } else if shield_info.threats_blocked > 10 { "medium" } else { "low" },
+                    "threats_blocked": shield_info.threats_blocked,
+                    "uptime_seconds": shield_info.uptime.as_secs(),
+                    "recent_threat_rate": shield_info.recent_threat_rate,
+                });
+                
+                // Format response according to MCP protocol
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string_pretty(&shield_status)
+                            .unwrap_or_else(|_| "Failed to serialize shield status".to_string())
+                    }]
+                }))
+            }
+            
+            _ => Err(ServerError::InvalidParams(format!("Unknown tool: {}", name))),
         }
     }
     
@@ -943,6 +1301,18 @@ impl McpServer {
                 uri: "security-report://latest".to_string(),
                 name: "Latest Security Report".to_string(),
                 description: Some("Current security status and recent threats".to_string()),
+                mime_type: Some("application/json".to_string()),
+            },
+            Resource {
+                uri: "config://security".to_string(),
+                name: "security-config".to_string(),
+                description: Some("Security configuration and settings".to_string()),
+                mime_type: Some("application/json".to_string()),
+            },
+            Resource {
+                uri: "threat-db://current".to_string(),
+                name: "threat-database".to_string(),
+                description: Some("Current threat database and patterns".to_string()),
                 mime_type: Some("application/json".to_string()),
             },
         ];
@@ -962,7 +1332,7 @@ impl McpServer {
         
         // Check authorization for resource
         self.auth_manager.authorize_resource(auth, &params.uri)
-            .map_err(|e| ServerError::Unauthorized)?;
+            .map_err(|_e| ServerError::Unauthorized)?;
         
         match params.uri.as_str() {
             "threat-patterns://default" => {
@@ -1093,12 +1463,311 @@ impl McpServer {
         }
     }
     
+    /// Handle prompts/list request
+    async fn handle_prompts_list(&self, _params: Option<Value>) -> Result<Value, ServerError> {
+        let prompts = vec![
+            Prompt {
+                name: "analyze-security".to_string(),
+                description: "Analyze security implications of the given input".to_string(),
+                arguments: Some(vec![
+                    PromptArgument {
+                        name: "target".to_string(),
+                        description: "The target to analyze (code, text, or data)".to_string(),
+                        required: true,
+                    },
+                ]),
+            },
+            Prompt {
+                name: "threat-report".to_string(),
+                description: "Generate a detailed threat report".to_string(),
+                arguments: Some(vec![
+                    PromptArgument {
+                        name: "scope".to_string(),
+                        description: "The scope of the report (recent, all, specific-type)".to_string(),
+                        required: false,
+                    },
+                ]),
+            },
+            Prompt {
+                name: "security-best-practices".to_string(),
+                description: "Provide security best practices for a given context".to_string(),
+                arguments: Some(vec![
+                    PromptArgument {
+                        name: "context".to_string(),
+                        description: "The context (web, api, database, etc.)".to_string(),
+                        required: true,
+                    },
+                ]),
+            },
+        ];
+        
+        let result = PromptsListResult { prompts };
+        Ok(serde_json::to_value(result).map_err(|e| ServerError::InternalError(e.to_string()))?)
+    }
+    
+    /// Handle prompts/get request
+    async fn handle_prompts_get(&self, params: Option<Value>) -> Result<Value, ServerError> {
+        let name = params.as_ref()
+            .and_then(|p| p.get("name"))
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| ServerError::InvalidParams("Missing 'name' parameter".to_string()))?;
+        
+        let arguments = params.as_ref()
+            .and_then(|p| p.get("arguments"))
+            .cloned()
+            .unwrap_or_else(|| serde_json::json!({}));
+        
+        match name {
+            "analyze-security" => {
+                let target = arguments.get("target")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidParams("Missing 'target' argument".to_string()))?;
+                
+                let messages = vec![
+                    serde_json::json!({
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": format!("Please analyze the security implications of the following:\n\n{}", target)
+                        }
+                    }),
+                ];
+                
+                Ok(serde_json::json!({
+                    "messages": messages
+                }))
+            }
+            
+            "threat-report" => {
+                let scope = arguments.get("scope")
+                    .and_then(|v| v.as_str())
+                    .unwrap_or("recent");
+                
+                let messages = vec![
+                    serde_json::json!({
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": format!("Generate a threat report with scope: {}", scope)
+                        }
+                    }),
+                ];
+                
+                Ok(serde_json::json!({
+                    "messages": messages
+                }))
+            }
+            
+            "security-best-practices" => {
+                let context = arguments.get("context")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidParams("Missing 'context' argument".to_string()))?;
+                
+                let messages = vec![
+                    serde_json::json!({
+                        "role": "user",
+                        "content": {
+                            "type": "text",
+                            "text": format!("What are the security best practices for {}?", context)
+                        }
+                    }),
+                ];
+                
+                Ok(serde_json::json!({
+                    "messages": messages
+                }))
+            }
+            
+            _ => Err(ServerError::InvalidParams(format!("Unknown prompt: {}", name)))
+        }
+    }
+    
+    /// Run the server with transport manager
+    pub async fn run_with_transport(self: Arc<Self>) -> Result<()> {
+        info!("Starting KindlyGuard with transport layer");
+        self.shield.set_active(true);
+        
+        // Create message handler
+        let handler = Arc::new(ServerMessageHandler {
+            server: self.clone(),
+        });
+        
+        // Create transport manager
+        let mut transport_manager = TransportManager::new(
+            self.config.transport.clone(),
+            handler,
+        )?;
+        
+        // Add configured transports
+        let factory = DefaultTransportFactory;
+        for transport_config in &self.config.transport.transports {
+            if transport_config.enabled {
+                match factory.create(transport_config) {
+                    Ok(transport) => {
+                        info!("Adding transport: {:?}", transport_config.transport_type);
+                        transport_manager.add_transport(transport)?;
+                    }
+                    Err(e) => {
+                        warn!("Failed to create transport {:?}: {}", 
+                              transport_config.transport_type, e);
+                    }
+                }
+            }
+        }
+        
+        // Start all transports
+        transport_manager.start().await?;
+        
+        // Set up config hot-reload if config file exists
+        let mut config_watcher = None;
+        if let Ok(config_path) = std::env::var("KINDLY_GUARD_CONFIG") {
+            let path = std::path::PathBuf::from(&config_path);
+            if path.exists() {
+                info!("Setting up config hot-reload for {:?}", path);
+                
+                let mut watcher = crate::config::reload::ConfigWatcher::new(
+                    path,
+                    (*self.config).clone()
+                )?;
+                
+                // Add reload handler
+                let reload_handler = Arc::new(ServerConfigReloadHandler {
+                    server: self.clone(),
+                });
+                watcher.add_handler(reload_handler).await;
+                
+                watcher.start().await?;
+                config_watcher = Some(watcher);
+            }
+        }
+        
+        // Log server startup
+        if self.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            let audit_event = AuditEvent::new(
+                AuditEventType::ServerStarted { 
+                    version: env!("CARGO_PKG_VERSION").to_string() 
+                },
+                AuditSeverity::Info
+            );
+            let _ = self.component_manager.audit_logger().log(audit_event).await;
+        }
+        
+        // Wait for shutdown signal
+        tokio::signal::ctrl_c().await?;
+        
+        // Stop config watcher
+        if let Some(mut watcher) = config_watcher {
+            watcher.stop().await?;
+        }
+        
+        info!("Shutting down transport layer");
+        transport_manager.stop().await?;
+        
+        // Log server shutdown
+        if self.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            let audit_event = AuditEvent::new(
+                AuditEventType::ServerStopped { 
+                    reason: "Signal received".to_string() 
+                },
+                AuditSeverity::Info
+            );
+            let _ = self.component_manager.audit_logger().log(audit_event).await;
+        }
+        
+        self.shield.set_active(false);
+        Ok(())
+    }
+    
+    /// Run the server in HTTP mode
+    pub async fn run_http(self: Arc<Self>, bind_addr: &str) -> Result<()> {
+        use crate::transport::{HttpTransport, Transport};
+        
+        info!("Starting KindlyGuard MCP server in HTTP mode at {}", bind_addr);
+        self.shield.set_active(true);
+        
+        // Log server startup to audit
+        if self.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            
+            let audit_event = AuditEvent::new(
+                AuditEventType::ServerStarted { 
+                    version: env!("CARGO_PKG_VERSION").to_string() 
+                },
+                AuditSeverity::Info
+            );
+            
+            let audit_logger = self.component_manager.audit_logger();
+            if let Err(e) = audit_logger.log(audit_event).await {
+                warn!("Failed to log server startup audit event: {}", e);
+            }
+        }
+        
+        // Create HTTP transport config
+        let http_config = serde_json::json!({
+            "bind_addr": bind_addr,
+            "tls": false,
+            "max_body_size": 10 * 1024 * 1024,
+            "request_timeout_ms": 30000
+        });
+        
+        // Create and start HTTP transport
+        let mut transport = HttpTransport::new(http_config)?;
+        transport.start().await?;
+        
+        info!("HTTP server started on {}", bind_addr);
+        
+        // Keep server running until shutdown
+        tokio::signal::ctrl_c().await?;
+        
+        // Stop transport
+        transport.stop().await?;
+        
+        // Log server shutdown
+        if self.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            
+            let audit_event = AuditEvent::new(
+                AuditEventType::ServerStopped { 
+                    reason: "Shutdown signal received".to_string() 
+                },
+                AuditSeverity::Info
+            );
+            
+            let audit_logger = self.component_manager.audit_logger();
+            if let Err(e) = audit_logger.log(audit_event).await {
+                warn!("Failed to log server shutdown audit event: {}", e);
+            }
+        }
+        
+        self.shield.set_active(false);
+        Ok(())
+    }
+    
     /// Run the server in stdio mode
     pub async fn run_stdio(self: Arc<Self>) -> Result<()> {
         use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
         
         info!("Starting KindlyGuard MCP server in stdio mode");
         self.shield.set_active(true);
+        
+        // Log server startup to audit
+        if self.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            
+            let audit_event = AuditEvent::new(
+                AuditEventType::ServerStarted { 
+                    version: env!("CARGO_PKG_VERSION").to_string() 
+                },
+                AuditSeverity::Info
+            );
+            
+            let audit_logger = self.component_manager.audit_logger();
+            if let Err(e) = audit_logger.log(audit_event).await {
+                warn!("Failed to log server startup audit event: {}", e);
+            }
+        }
         
         let stdin = tokio::io::stdin();
         let mut stdout = tokio::io::stdout();
@@ -1134,6 +1803,23 @@ impl McpServer {
         info!("MCP server shutting down");
         self.shield.set_active(false);
         
+        // Log server shutdown to audit
+        if self.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            
+            let audit_event = AuditEvent::new(
+                AuditEventType::ServerStopped { 
+                    reason: "Normal shutdown".to_string() 
+                },
+                AuditSeverity::Info
+            );
+            
+            let audit_logger = self.component_manager.audit_logger();
+            if let Err(e) = audit_logger.log(audit_event).await {
+                warn!("Failed to log server shutdown audit event: {}", e);
+            }
+        }
+        
         // Flush and shutdown telemetry
         let telemetry = self.component_manager.telemetry_provider();
         if let Err(e) = telemetry.flush().await {
@@ -1144,19 +1830,6 @@ impl McpServer {
         }
         
         Ok(())
-    }
-    
-    /// Handle value (for signed messages)
-    async fn handle_value(&self, value: Value) -> Option<String> {
-        let result = self.handle_json_rpc(value).await;
-        if result == Value::Null {
-            None
-        } else {
-            Some(serde_json::to_string(&result).unwrap_or_else(|e| {
-                error!("Failed to serialize response: {}", e);
-                r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":null}"#.to_string()
-            }))
-        }
     }
     
     /// Maybe sign response if signing is enabled
@@ -1191,50 +1864,6 @@ impl McpServer {
         }
     }
     
-    /// Handle JSON-RPC batch request
-    pub async fn handle_json_rpc(&self, value: Value) -> Value {
-        // Check if it's a batch request
-        if let Some(array) = value.as_array() {
-            let mut responses = Vec::new();
-            
-            for item in array {
-                if let Ok(request) = serde_json::from_value::<JsonRpcRequest>(item.clone()) {
-                    let response = self.handle_request(request).await;
-                    responses.push(serde_json::to_value(response).unwrap_or(Value::Null));
-                } else if let Ok(notification) = serde_json::from_value::<JsonRpcNotification>(item.clone()) {
-                    self.handle_notification(notification).await;
-                    // Notifications don't get responses in batch
-                } else {
-                    // Invalid request in batch
-                    let error = error_response(
-                        error_codes::INVALID_REQUEST,
-                        "Invalid request in batch".to_string(),
-                        ResponseId::Null { id: None },
-                        None,
-                    );
-                    responses.push(serde_json::to_value(error).unwrap_or(Value::Null));
-                }
-            }
-            
-            Value::Array(responses)
-        } else if let Ok(request) = serde_json::from_value::<JsonRpcRequest>(value.clone()) {
-            // Single request
-            serde_json::to_value(self.handle_request(request).await).unwrap_or(Value::Null)
-        } else if let Ok(notification) = serde_json::from_value::<JsonRpcNotification>(value.clone()) {
-            // Single notification
-            self.handle_notification(notification).await;
-            Value::Null
-        } else {
-            // Invalid JSON-RPC
-            serde_json::to_value(error_response(
-                error_codes::INVALID_REQUEST,
-                "Invalid JSON-RPC".to_string(),
-                ResponseId::Null { id: None },
-                None,
-            )).unwrap_or(Value::Null)
-        }
-    }
-    
     /// Get current threat level based on recent activity
     fn get_current_threat_level(&self) -> crate::permissions::ThreatLevel {
         // Get shield stats
@@ -1253,5 +1882,220 @@ impl McpServer {
         } else {
             crate::permissions::ThreatLevel::Critical
         }
+    }
+}
+
+/// Message handler for transport layer
+struct ServerMessageHandler {
+    server: Arc<McpServer>,
+}
+
+#[async_trait]
+impl MessageHandler for ServerMessageHandler {
+    async fn handle_message(&self, message: TransportMessage, connection: &dyn TransportConnection) -> Result<Option<TransportMessage>> {
+        let conn_info = connection.connection_info();
+        let client_id = conn_info.client_id.as_ref()
+            .map(|s| s.as_str())
+            .unwrap_or("unknown");
+        
+        debug!("Handling message {} from client {}", message.id, client_id);
+        
+        // Extract JSON-RPC from transport message
+        let json_str = serde_json::to_string(&message.payload)?;
+        
+        // Process through server
+        if let Some(response_str) = self.server.handle_message(&json_str).await {
+            // Parse response
+            let response_value: Value = serde_json::from_str(&response_str)?;
+            
+            // Create response message
+            let response = TransportMessage {
+                id: uuid::Uuid::new_v4().to_string(),
+                payload: response_value,
+                metadata: crate::transport::TransportMetadata {
+                    client_id: conn_info.client_id.clone(),
+                    timestamp: Some(chrono::Utc::now()),
+                    trace_id: message.metadata.trace_id.clone(),
+                    ..Default::default()
+                },
+            };
+            
+            Ok(Some(response))
+        } else {
+            Ok(None)
+        }
+    }
+    
+    async fn on_connect(&self, connection: &dyn TransportConnection) -> Result<()> {
+        let conn_info = connection.connection_info();
+        info!("Client connected: {:?} via {:?}", 
+              conn_info.client_id, conn_info.transport_type);
+        
+        // Log connection event
+        if self.server.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            let event = AuditEvent::new(
+                AuditEventType::Custom {
+                    event_type: "transport.connect".to_string(),
+                    data: serde_json::json!({
+                        "transport": format!("{:?}", conn_info.transport_type),
+                        "client_id": conn_info.client_id,
+                        "remote_addr": conn_info.remote_addr,
+                    }),
+                },
+                AuditSeverity::Info
+            );
+            let _ = self.server.component_manager.audit_logger().log(event).await;
+        }
+        
+        Ok(())
+    }
+    
+    async fn on_disconnect(&self, connection: &dyn TransportConnection) -> Result<()> {
+        let conn_info = connection.connection_info();
+        info!("Client disconnected: {:?}", conn_info.client_id);
+        
+        // Log disconnection event
+        if self.server.config.audit.enabled {
+            use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+            let event = AuditEvent::new(
+                AuditEventType::Custom {
+                    event_type: "transport.disconnect".to_string(),
+                    data: serde_json::json!({
+                        "transport": format!("{:?}", conn_info.transport_type),
+                        "client_id": conn_info.client_id,
+                    }),
+                },
+                AuditSeverity::Info
+            );
+            let _ = self.server.component_manager.audit_logger().log(event).await;
+        }
+        
+        Ok(())
+    }
+}
+
+/// Config reload handler for the server
+struct ServerConfigReloadHandler {
+    server: Arc<McpServer>,
+}
+
+#[async_trait]
+impl crate::config::reload::ConfigChangeHandler for ServerConfigReloadHandler {
+    async fn handle_change(&self, event: crate::config::reload::ConfigReloadEvent) -> Result<()> {
+        use crate::config::reload::ConfigReloadEvent;
+        
+        match event {
+            ConfigReloadEvent::Reloaded { new_config, changed_fields, .. } => {
+                info!("Applying configuration changes: {:?}", changed_fields);
+                
+                // Update components that support hot-reload
+                for field in &changed_fields {
+                    match field.as_str() {
+                        "shield.enabled" => {
+                            self.server.shield.set_enabled(new_config.shield.enabled);
+                            info!("Shield display {}", 
+                                  if new_config.shield.enabled { "enabled" } else { "disabled" });
+                        }
+                        "shield.update_interval_ms" => {
+                            // Shield would need a method to update interval
+                            debug!("Shield update interval changed");
+                        }
+                        "rate_limit.enabled" => {
+                            // Rate limiter would need to support enable/disable
+                            info!("Rate limiting {}", 
+                                  if new_config.rate_limit.enabled { "enabled" } else { "disabled" });
+                        }
+                        "rate_limit.default_rpm" => {
+                            // Rate limiter would need to support updating limits
+                            info!("Rate limit updated to {} requests/minute", 
+                                  new_config.rate_limit.default_rpm);
+                        }
+                        field if field.starts_with("scanner.") => {
+                            // Scanner config changes would require scanner rebuild
+                            warn!("Scanner configuration changed ({}), restart required", field);
+                        }
+                        _ => {
+                            debug!("Configuration field {} changed", field);
+                        }
+                    }
+                }
+                
+                // Log successful reload
+                if self.server.config.audit.enabled {
+                    use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+                    let audit_event = AuditEvent::new(
+                        AuditEventType::ConfigReloaded {
+                            success: true,
+                            error: None,
+                        },
+                        AuditSeverity::Info
+                    );
+                    let _ = self.server.component_manager.audit_logger().log(audit_event).await;
+                }
+            }
+            ConfigReloadEvent::Failed { error, .. } => {
+                error!("Configuration reload failed: {}", error);
+                
+                // Log failed reload
+                if self.server.config.audit.enabled {
+                    use crate::audit::{AuditEvent, AuditEventType, AuditSeverity};
+                    let audit_event = AuditEvent::new(
+                        AuditEventType::ConfigReloaded {
+                            success: false,
+                            error: Some(error),
+                        },
+                        AuditSeverity::Error
+                    );
+                    let _ = self.server.component_manager.audit_logger().log(audit_event).await;
+                }
+            }
+            ConfigReloadEvent::ValidationFailed { errors, .. } => {
+                error!("Configuration validation failed with {} errors", errors.len());
+            }
+        }
+        
+        Ok(())
+    }
+    
+    async fn validate_config(&self, config: &Config) -> Result<Vec<crate::config::reload::ValidationError>> {
+        use crate::config::reload::{ValidationError, ValidationSeverity};
+        
+        let mut errors = Vec::new();
+        
+        // Validate transport config
+        if config.transport.transports.is_empty() {
+            errors.push(ValidationError {
+                field: "transport.transports".to_string(),
+                message: "At least one transport must be configured".to_string(),
+                severity: ValidationSeverity::Error,
+            });
+        }
+        
+        // Validate security settings
+        if !config.auth.enabled && !config.rate_limit.enabled {
+            errors.push(ValidationError {
+                field: "security".to_string(),
+                message: "Both authentication and rate limiting are disabled".to_string(),
+                severity: ValidationSeverity::Warning,
+            });
+        }
+        
+        // Use default validation for other fields
+        let default_handler = crate::config::reload::DefaultConfigChangeHandler::new();
+        let default_errors = default_handler.validate_config(config).await?;
+        errors.extend(default_errors);
+        
+        Ok(errors)
+    }
+    
+    fn get_reloadable_fields(&self) -> Vec<String> {
+        vec![
+            "shield.*".to_string(),
+            "rate_limit.enabled".to_string(),
+            "rate_limit.default_rpm".to_string(),
+            "audit.enabled".to_string(),
+            "telemetry.export_interval_seconds".to_string(),
+        ]
     }
 }

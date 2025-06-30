@@ -25,9 +25,9 @@ async fn main() -> Result<()> {
     // Test both standard and enhanced modes
     for enhanced in [false, true] {
         let mode = if enhanced { "ENHANCED" } else { "STANDARD" };
-        info!("\n{'='*50}");
+        info!("\n{}", "=".repeat(50));
         info!("Testing {} mode", mode);
-        info!("{'='*50}\n");
+        info!("{}\n", "=".repeat(50));
 
         // Create config file for the mode
         let config_content = format!(

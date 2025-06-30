@@ -1,0 +1,85 @@
+# KindlyGuard configuration with plugins enabled
+
+[server]
+port = 8080
+stdio = true
+max_connections = 100
+request_timeout_secs = 30
+
+[scanner]
+unicode_detection = true
+injection_detection = true
+path_traversal_detection = true
+max_scan_depth = 10
+enable_event_buffer = false
+
+[shield]
+enabled = true
+update_interval_ms = 1000
+detailed_stats = true
+color = true
+
+[auth]
+enabled = false
+trusted_issuers = []
+cache_ttl_seconds = 300
+validate_resource_indicators = true
+require_signature_verification = false
+
+[auth.required_scopes]
+default = ["mcp:read"]
+
+[auth.required_scopes.tools]
+
+[auth.required_scopes.resources]
+
+[signing]
+enabled = false
+algorithm = "hmac_sha256"
+require_signatures = false
+grace_period_seconds = 86400
+include_timestamp = true
+max_clock_skew_seconds = 300
+
+[rate_limit]
+enabled = true
+default_rpm = 60
+burst_capacity = 10
+cleanup_interval_secs = 300
+adaptive = false
+threat_penalty_multiplier = 0.5
+
+[rate_limit.method_limits]
+
+[rate_limit.client_limits]
+
+[event_processor]
+enabled = false
+
+[telemetry]
+enabled = false
+service_name = "kindly-guard"
+service_version = "0.1.0"
+export_interval_seconds = 60
+tracing_enabled = true
+metrics_enabled = true
+sampling_rate = 0.1
+
+# Storage configuration
+[storage]
+enabled = false
+storage_type = "memory"
+retention_days = 30
+compression = true
+encryption_at_rest = false
+
+# Plugin configuration
+[plugins]
+enabled = true
+plugin_dirs = ["./plugins"]
+auto_load = true
+allowlist = []
+denylist = []
+max_execution_time_ms = 5000
+
+isolation_level = "none"  # Options: none, standard, strong

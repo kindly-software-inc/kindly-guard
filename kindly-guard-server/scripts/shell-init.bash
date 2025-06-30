@@ -7,6 +7,9 @@ if ! command -v kindly-guard &> /dev/null; then
     return 0
 fi
 
+# Add /kindlyguard command alias
+alias /kindlyguard='kindly-guard'
+
 # KindlyGuard functions
 _kindly_guard_pre_command() {
     kindly-guard shield pre-command 2>/dev/null || true

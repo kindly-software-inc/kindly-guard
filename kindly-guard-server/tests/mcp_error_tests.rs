@@ -12,7 +12,7 @@ fn create_test_server() -> Arc<McpServer> {
     let mut config = Config::default();
     config.server.stdio = true;
     config.shield.enabled = false;
-    config.auth.require_auth = false;
+    config.auth.enabled = false;
     Arc::new(McpServer::new(config).expect("Failed to create server"))
 }
 
@@ -87,7 +87,7 @@ async fn test_method_not_found_errors() {
         "prompts/create",  // We don't support create
         "../../../etc/passwd", // Path traversal attempt
         "tools/../admin/delete", // Path traversal in method
-        ""; // Semicolon injection
+        "", // Empty method
         "SELECT * FROM methods", // SQL injection attempt
     ];
     

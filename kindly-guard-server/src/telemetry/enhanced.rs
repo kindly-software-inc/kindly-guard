@@ -3,9 +3,73 @@
 
 use super::*;
 use crate::traits::SecurityEventProcessor;
-use kindly_guard_core::telemetry::AdvancedTelemetryBuffer;
 use std::sync::Arc;
 use tracing::{info, debug};
+
+// Stub for advanced telemetry buffer that would use proprietary tech
+struct AdvancedTelemetryBuffer;
+
+impl AdvancedTelemetryBuffer {
+    fn new(_buffer_size: usize, _sampling_rate: f64) -> Result<Self> {
+        Ok(Self)
+    }
+    
+    fn track_span_start(&self, _name: &str, _timestamp: u64) {
+        // Stub implementation
+    }
+    
+    fn track_span_end(&self, _name: &str, _duration_ns: u64, _attributes: Vec<(String, String)>) {
+        // Stub implementation
+    }
+    
+    fn increment_counter(&self, _name: &str, _value: u64, _labels: Vec<(String, String)>) {
+        // Stub implementation
+    }
+    
+    fn record_gauge(&self, _name: &str, _value: f64, _labels: Vec<(String, String)>) {
+        // Stub implementation
+    }
+    
+    fn record_histogram(&self, _name: &str, _value: f64, _labels: Vec<(String, String)>) {
+        // Stub implementation
+    }
+    
+    fn add_event(&self, _name: &str, _attributes: Vec<(&str, &str)>) {
+        // Stub implementation
+    }
+    
+    async fn flush(&self) -> Result<()> {
+        Ok(())
+    }
+    
+    async fn shutdown(&self) -> Result<()> {
+        Ok(())
+    }
+    
+    fn set_span_status(&self, _name: &str, _is_error: bool, _message: Option<&str>) {
+        // Stub implementation
+    }
+    
+    fn prepare_export_batch(&self) -> Result<ExportBatch> {
+        Ok(ExportBatch::default())
+    }
+    
+    async fn export_batch(&self, _batch: ExportBatch, _endpoint: &str) -> Result<()> {
+        Ok(())
+    }
+}
+
+// Stub for export batch
+#[derive(Default)]
+struct ExportBatch;
+impl ExportBatch {
+    fn span_count(&self) -> usize {
+        0
+    }
+    fn metric_count(&self) -> usize {
+        0
+    }
+}
 
 /// Enhanced telemetry provider using proprietary buffering
 pub struct EnhancedTelemetryProvider {
