@@ -17,7 +17,7 @@ A security-focused MCP (Model Context Protocol) server that protects AI model in
 
 - **⚡ High Performance**
   - Lock-free concurrent operations
-  - Zero-copy scanning algorithms
+  - Optimized scanning algorithms
   - Optimized pattern matching
 
 - **🎯 MCP Protocol Compliance**

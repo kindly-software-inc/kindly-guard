@@ -239,6 +239,6 @@ The enhanced implementation contains:
 - High-performance event processing
 - Advanced circuit breaker implementation
 - Optimized pattern matching algorithms
-- Zero-copy scanning techniques
+- Optimized scanning techniques
 
 This keeps the valuable IP separate while providing a useful open-source tool.

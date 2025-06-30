@@ -7,8 +7,8 @@ use super::*;
 use tracing::{info, debug};
 
 // Stubs for advanced storage components
-struct CompactedEventStore;
-impl CompactedEventStore {
+struct EventStore;
+impl EventStore {
     fn new(_size: usize, _compression: bool, _encryption: bool) -> Result<Self> {
         Ok(Self)
     }
@@ -38,8 +38,8 @@ impl CompactedEventStore {
     }
 }
 
-struct OptimizedRateLimiter;
-impl OptimizedRateLimiter {
+struct RateLimiterImpl;
+impl RateLimiterImpl {
     fn new(_size: usize) -> Result<Self> {
         Ok(Self)
     }
@@ -69,7 +69,7 @@ impl CorrelationIndex {
 
 struct SnapshotEngine;
 impl SnapshotEngine {
-    fn new(_store: &CompactedEventStore, _retention_days: u32) -> Result<Self> {
+    fn new(_store: &EventStore, _retention_days: u32) -> Result<Self> {
         Ok(Self)
     }
     async fn create(&self, _id: &str) -> Result<()> {
@@ -97,7 +97,7 @@ impl ArchivalSystem {
     fn should_archive(&self, _timestamp: DateTime<Utc>) -> bool {
         false
     }
-    async fn archive_old_events(&self, _store: &CompactedEventStore) -> Result<u64> {
+    async fn archive_old_events(&self, _store: &EventStore) -> Result<u64> {
         Ok(0)
     }
     fn is_enabled(&self) -> bool {
@@ -113,9 +113,9 @@ pub struct EnhancedStorage {
     /// Configuration
     config: StorageConfig,
     /// Event store with advanced compression
-    event_store: Arc<CompactedEventStore>,
-    /// Optimized rate limiter storage
-    rate_limiter: Arc<OptimizedRateLimiter>,
+    event_store: Arc<EventStore>,
+    /// Rate limiter storage implementation
+    rate_limiter: Arc<RateLimiterImpl>,
     /// High-performance correlation index
     correlation_index: Arc<CorrelationIndex>,
     /// Snapshot engine with incremental backups
@@ -130,13 +130,13 @@ impl EnhancedStorage {
         info!("Initializing enhanced storage with advanced optimizations");
         
         // Initialize advanced components
-        let event_store = CompactedEventStore::new(
+        let event_store = EventStore::new(
             config.data_dir.as_deref().unwrap_or("/var/lib/kindlyguard"),
             config.compression,
             config.encryption_at_rest,
         )?;
         
-        let rate_limiter = OptimizedRateLimiter::new(
+        let rate_limiter = RateLimiterImpl::new(
             config.max_storage_mb.unwrap_or(1024) * 1024 * 1024, // Convert to bytes
         )?;
         
@@ -291,7 +291,7 @@ impl StorageProvider for EnhancedStorage {
                 "archive_size": archive_stats.total_size,
                 "snapshot_count": self.snapshot_engine.count().await?,
                 "features": [
-                    "zero-copy-decompression",
+                    "optimized-decompression",
                     "lock-free-rate-limiting",
                     "incremental-snapshots",
                     "tiered-archival"
