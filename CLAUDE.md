@@ -231,6 +231,74 @@ fn test_no_panics() {
     <decision name="Trait-based architecture" reason="Enables stealth integration of proprietary technology"/>
   </architecture-decisions>
 
+  <resilience-architecture priority="CRITICAL">
+    <principle>ALWAYS use trait-based architecture for resilience components</principle>
+    <rule id="1">All resilience components (circuit breakers, retry handlers) MUST be trait-based</rule>
+    <rule id="2">ALWAYS provide open-source standard implementations alongside enhanced ones</rule>
+    <rule id="3">Configuration determines runtime selection between standard and enhanced</rule>
+    <rule id="4">Enhanced implementations MUST be feature-gated and never exposed in public APIs</rule>
+    
+    <pattern name="Resilience Trait Architecture">
+      <description>How to implement resilience components with hidden proprietary tech</description>
+      <code><![CDATA[
+// Public trait in src/traits.rs
+pub trait CircuitBreakerTrait: Send + Sync {
+    async fn call<F, T, Fut>(&self, name: &str, f: F) -> Result<T, CircuitBreakerError>
+    where F: FnOnce() -> Fut + Send,
+          Fut: Future<Output = Result<T>> + Send,
+          T: Send;
+}
+
+// Standard implementation in src/resilience/standard.rs
+pub struct StandardCircuitBreaker { /* open source */ }
+
+// Enhanced implementation in src/resilience/enhanced.rs
+#[cfg(feature = "enhanced")]
+struct AtomicBitPackedCircuitBreaker {
+    // Proprietary AtomicEventBuffer used internally only
+    event_buffer: Arc<AtomicEventBuffer>,
+}
+
+// Factory selection in src/resilience/mod.rs
+pub fn create_circuit_breaker(config: &Config) -> Arc<dyn CircuitBreakerTrait> {
+    if config.resilience.enhanced_mode {
+        #[cfg(feature = "enhanced")]
+        return Arc::new(enhanced::AtomicBitPackedCircuitBreaker::new(config));
+        #[cfg(not(feature = "enhanced"))]
+        Arc::new(standard::StandardCircuitBreaker::new(config))
+    } else {
+        Arc::new(standard::StandardCircuitBreaker::new(config))
+    }
+}
+      ]]></code>
+    </pattern>
+
+    <integration-rules>
+      <rule>Resilience traits are injected into server/scanner/storage components</rule>
+      <rule>Never import enhanced implementations directly, always use factory</rule>
+      <rule>Configuration flag is "enhanced_mode" not specific tech names</rule>
+      <rule>Logs use semantic descriptions like "resilience mode: enhanced"</rule>
+    </integration-rules>
+
+    <config-schema>
+      <code><![CDATA[
+[resilience]
+enhanced_mode = false  # Toggle enhanced implementations
+
+[resilience.circuit_breaker]
+failure_threshold = 5
+recovery_timeout = "30s"
+half_open_max_requests = 3
+
+[resilience.retry]
+max_attempts = 3
+initial_delay = "100ms"
+max_delay = "10s"
+jitter_factor = 0.1
+      ]]></code>
+    </config-schema>
+  </resilience-architecture>
+
   <stealth-integration priority="PARAMOUNT">
     <principle>ALWAYS use trait-based architecture when integrating proprietary or patented technology</principle>
     <rule id="1">NEVER expose patented implementations in public APIs</rule>

@@ -3,6 +3,7 @@
 
 use async_trait::async_trait;
 use std::sync::Arc;
+use std::time::Duration;
 use anyhow::Result;
 use serde::{Serialize, Deserialize};
 use crate::scanner::Threat;
@@ -185,5 +186,289 @@ pub trait SecurityComponentFactory: Send + Sync {
     
     /// Create rate limiter
     fn create_rate_limiter(&self, config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn RateLimiter>>;
+    
+    /// Create security scanner
+    fn create_security_scanner(&self, config: &crate::config::Config) -> Result<Arc<dyn SecurityScannerTrait>>;
+}
+
+/// Circuit breaker trait for failure protection
+#[async_trait]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
+pub trait CircuitBreakerTrait: Send + Sync {
+    /// Execute a function with circuit protection
+    async fn call<F, T, Fut>(&self, name: &str, f: F) -> Result<T, CircuitBreakerError>
+    where
+        F: FnOnce() -> Fut + Send,
+        Fut: std::future::Future<Output = Result<T>> + Send,
+        T: Send;
+    
+    /// Get circuit state
+    fn state(&self, name: &str) -> CircuitState;
+    
+    /// Get statistics
+    fn stats(&self, name: &str) -> CircuitStats;
+    
+    /// Manual circuit control
+    async fn trip(&self, name: &str, reason: &str);
+    async fn reset(&self, name: &str);
+}
+
+/// Retry strategy trait for resilient operations
+#[async_trait]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
+pub trait RetryStrategyTrait: Send + Sync {
+    /// Execute with retry logic
+    async fn execute<F, T, Fut>(&self, operation: &str, f: F) -> Result<T>
+    where
+        F: Fn() -> Fut + Send + Sync,
+        Fut: std::future::Future<Output = Result<T>> + Send,
+        T: Send;
+    
+    /// Analyze error for retry decision
+    fn should_retry(&self, error: &anyhow::Error, context: &RetryContext) -> RetryDecision;
+    
+    /// Get retry statistics
+    fn stats(&self) -> RetryStats;
+}
+
+/// Factory trait for resilience components
+pub trait ResilienceFactory: Send + Sync {
+    /// Create circuit breaker
+    fn create_circuit_breaker(&self, config: &crate::config::Config) -> Result<Arc<dyn CircuitBreakerTrait>>;
+    
+    /// Create retry strategy
+    fn create_retry_strategy(&self, config: &crate::config::Config) -> Result<Arc<dyn RetryStrategyTrait>>;
+    
+    /// Create health checker
+    fn create_health_checker(&self, config: &crate::config::Config) -> Result<Arc<dyn HealthCheckTrait>>;
+    
+    /// Create recovery strategy
+    fn create_recovery_strategy(&self, config: &crate::config::Config) -> Result<Arc<dyn RecoveryStrategyTrait>>;
+}
+
+/// Circuit breaker error types
+#[derive(Debug, thiserror::Error, Clone)]
+pub enum CircuitBreakerError {
+    #[error("Circuit breaker is open")]
+    CircuitOpen,
+    
+    #[error("Circuit breaker is throttled")]
+    Throttled,
+    
+    #[error("Service call failed: {0}")]
+    ServiceError(String),
+    
+    #[error("Timeout after {0:?}")]
+    Timeout(Duration),
+}
+
+/// Circuit breaker states
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum CircuitState {
+    /// Circuit is closed - normal operation
+    Closed,
+    /// Circuit is throttled - degraded operation
+    Throttled,
+    /// Circuit is half-open - testing recovery
+    HalfOpen,
+    /// Circuit is open - all requests blocked
+    Open,
+}
+
+/// Circuit breaker statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CircuitStats {
+    pub state: CircuitState,
+    pub failure_count: u32,
+    pub success_count: u32,
+    pub total_requests: u64,
+    pub last_failure_time: Option<u64>,
+    pub tokens_available: f64,
+}
+
+/// Retry context for decision making
+#[derive(Debug, Clone)]
+pub struct RetryContext {
+    pub attempts: u32,
+    pub error_category: ErrorCategory,
+    pub total_elapsed: Duration,
+}
+
+/// Error categorization
+#[derive(Debug, Clone, Copy)]
+pub struct ErrorCategory {
+    pub is_retryable: bool,
+    pub error_type: ErrorType,
+}
+
+/// Error types for retry decisions
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ErrorType {
+    Network,
+    Timeout,
+    RateLimit,
+    Authentication,
+    ServerError,
+    ClientError,
+    Unknown,
+}
+
+/// Retry decision
+#[derive(Debug, Clone)]
+pub struct RetryDecision {
+    pub should_retry: bool,
+    pub delay: Option<Duration>,
+    pub reason: String,
+}
+
+/// Retry statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RetryStats {
+    pub total_attempts: u64,
+    pub successful_retries: u64,
+    pub failed_retries: u64,
+    pub retry_budget_remaining: u32,
+}
+
+/// Health check trait for monitoring service health
+#[async_trait]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
+pub trait HealthCheckTrait: Send + Sync {
+    /// Perform health check
+    async fn check(&self) -> Result<HealthStatus>;
+    
+    /// Get detailed health report
+    async fn detailed_check(&self) -> Result<HealthReport>;
+    
+    /// Register dependency health check
+    fn register_dependency(&self, name: String, checker: Arc<dyn HealthCheckTrait>);
+    
+    /// Get health check metadata
+    fn metadata(&self) -> HealthCheckMetadata;
+}
+
+/// Recovery strategy trait for failure recovery
+#[async_trait]
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
+pub trait RecoveryStrategyTrait: Send + Sync {
+    /// Execute recovery strategy with a JSON value result
+    async fn recover(&self, context: &RecoveryContext, operation_name: &str) -> Result<serde_json::Value>;
+    
+    /// Check if recovery is possible
+    fn can_recover(&self, error: &anyhow::Error) -> bool;
+    
+    /// Get recovery statistics
+    fn stats(&self) -> RecoveryStats;
+    
+    /// Update recovery state
+    async fn update_state(&self, state: RecoveryState);
+}
+
+/// Health status levels
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HealthStatus {
+    /// Service is healthy
+    Healthy,
+    /// Service is degraded but operational
+    Degraded,
+    /// Service is unhealthy
+    Unhealthy,
+}
+
+/// Detailed health report
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthReport {
+    pub status: HealthStatus,
+    pub checks: Vec<HealthCheckResult>,
+    pub timestamp: u64,
+    pub latency_ms: u64,
+}
+
+/// Individual health check result
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthCheckResult {
+    pub name: String,
+    pub status: HealthStatus,
+    pub message: Option<String>,
+    pub metadata: serde_json::Value,
+}
+
+/// Health check metadata
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HealthCheckMetadata {
+    pub name: String,
+    pub check_type: HealthCheckType,
+    pub timeout: Duration,
+    pub critical: bool,
+}
+
+/// Types of health checks
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HealthCheckType {
+    Liveness,
+    Readiness,
+    Startup,
+    Dependency,
+}
+
+/// Recovery context
+#[derive(Debug, Clone)]
+pub struct RecoveryContext {
+    pub failure_count: u32,
+    pub last_error: String,
+    pub recovery_attempts: u32,
+    pub service_name: String,
+}
+
+/// Recovery state
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum RecoveryState {
+    /// Normal operation
+    Normal,
+    /// Recovering from failure
+    Recovering,
+    /// Using fallback
+    Fallback,
+    /// Recovery failed
+    Failed,
+}
+
+/// Recovery statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RecoveryStats {
+    pub recoveries_attempted: u64,
+    pub recoveries_succeeded: u64,
+    pub fallbacks_used: u64,
+    pub current_state: RecoveryState,
+}
+
+/// Security scanner trait for threat detection
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
+pub trait SecurityScannerTrait: Send + Sync {
+    /// Scan text for threats
+    fn scan_text(&self, text: &str) -> Vec<crate::scanner::Threat>;
+    
+    /// Scan JSON value for threats
+    fn scan_json(&self, value: &serde_json::Value) -> Vec<crate::scanner::Threat>;
+    
+    /// Scan with depth limit
+    fn scan_with_depth(&self, text: &str, max_depth: usize) -> Vec<crate::scanner::Threat>;
+    
+    /// Get scanner statistics
+    fn get_stats(&self) -> ScannerStats;
+    
+    /// Reset scanner statistics
+    fn reset_stats(&self);
+}
+
+/// Scanner statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScannerStats {
+    pub texts_scanned: u64,
+    pub threats_found: u64,
+    pub unicode_threats: u64,
+    pub injection_threats: u64,
+    pub pattern_threats: u64,
+    pub avg_scan_time_us: u64,
 }
 

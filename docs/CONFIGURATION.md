@@ -1,6 +1,6 @@
 # KindlyGuard Configuration Guide
 
-This guide covers all configuration options for KindlyGuard, including standard and enhanced modes.
+This guide covers all configuration options for KindlyGuard, including standard and performance modes.
 
 ## Table of Contents
 
@@ -10,7 +10,7 @@ This guide covers all configuration options for KindlyGuard, including standard 
 - [Authentication](#authentication)
 - [Rate Limiting](#rate-limiting)
 - [Message Signing](#message-signing)
-- [Event Processor (Enhanced Mode)](#event-processor-enhanced-mode)
+- [Event Processor (Performance Mode)](#event-processor-performance-mode)
 - [Tool Permissions](#tool-permissions)
 - [Logging](#logging)
 - [Environment Variables](#environment-variables)
@@ -167,7 +167,7 @@ Visual security indicator configuration.
 ### Shield States
 
 - 🟢 Green - Standard mode, active protection
-- 🟣 Purple - Enhanced mode with AtomicEventBuffer
+- 🟣 Purple - Optimized performance mode
 - 🔴 Red - Threat detected
 - ⚫ Gray - Inactive/disabled
 
@@ -307,15 +307,15 @@ signing:
   timestamp_tolerance_secs: 60  # Strict timing
 ```
 
-## Event Processor (Enhanced Mode)
+## Event Processor (Performance Mode)
 
-Enable advanced threat detection with AtomicEventBuffer.
+Enable advanced threat detection with optimized event processing.
 
 ### Options
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
-| `enabled` | bool | `false` | Enable enhanced mode |
+| `enabled` | bool | `false` | Enable performance mode |
 | `buffer_size_mb` | int | `10` | Event buffer size |
 | `endpoint_limit` | int | `1000` | Max tracked endpoints |
 | `event_rate_limit` | float | `10000.0` | Events per second |
@@ -323,7 +323,7 @@ Enable advanced threat detection with AtomicEventBuffer.
 | `pattern_detection` | bool | `true` | Detect attack patterns |
 | `correlation_window_secs` | int | `300` | Event correlation window |
 
-### Enabling Enhanced Mode
+### Enabling Performance Mode
 
 ```yaml
 event_processor:
@@ -335,7 +335,7 @@ event_processor:
 
 ### Performance Impact
 
-Enhanced mode provides:
+Performance mode provides:
 - 🟣 Purple shield indicator
 - Advanced pattern detection
 - Event correlation

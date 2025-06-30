@@ -12,7 +12,6 @@ use crate::scanner::{SecurityScanner, Threat};
 use crate::config::ScannerConfig;
 use crate::telemetry::TelemetryProvider;
 use crate::cli::validation::{CommandValidator, sanitize_output};
-use crate::error::{handlers, recovery, degradation};
 use crate::security::{CommandRateLimiter, SecurityContext, SecurityAuditLogger, CommandSource};
 use once_cell::sync::Lazy;
 

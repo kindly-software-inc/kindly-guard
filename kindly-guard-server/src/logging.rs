@@ -259,13 +259,10 @@ impl SemanticLogger {
 
 /// Sanitize sensitive data from logs
 pub fn sanitize_for_log(input: &str) -> String {
-    // Remove any references to internal components
+    // Normalize technical terms for consistency
     let sanitized = input
-        .replace("AtomicEventBuffer", "event processor")
         .replace("enhanced", "optimized")
-        .replace("standard", "normal")
-        .replace("kindly_guard_core", "core")
-        .replace("breaker", "protection");
+        .replace("standard", "normal");
     
     // Truncate if too long
     if sanitized.len() > 200 {

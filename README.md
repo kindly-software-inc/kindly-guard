@@ -115,7 +115,7 @@ scanner:
   unicode_detection: true
   injection_detection: true
   max_scan_depth: 10
-  enable_event_buffer: false  # Set to true for enhanced mode
+  enable_event_buffer: false  # Set to true for optimized performance
 
 # Authentication (recommended for production)
 auth:

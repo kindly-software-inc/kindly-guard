@@ -6,7 +6,7 @@ pub mod auth;
 pub mod config;
 pub mod error;
 #[cfg(feature = "enhanced")]
-pub mod event_processor;
+pub(crate) mod event_processor;
 pub mod protocol;
 pub mod rate_limit;
 pub mod scanner;
@@ -16,7 +16,7 @@ pub mod signing;
 pub mod traits;
 pub mod standard_impl;
 #[cfg(feature = "enhanced")]
-pub mod enhanced_impl;
+pub(crate) mod enhanced_impl;
 pub mod component_selector;
 pub mod logging;
 pub mod permissions;
@@ -31,6 +31,7 @@ pub mod cli;
 pub mod security;
 pub mod daemon;
 pub mod metrics;
+pub(crate) mod resilience;
 
 pub use config::{Config, ScannerConfig};
 pub use error::{KindlyError, KindlyResult, ResultExt};

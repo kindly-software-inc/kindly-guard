@@ -339,4 +339,10 @@ impl SecurityComponentFactory for StandardComponentFactory {
             config.rate_limit.burst_capacity,
         )))
     }
+    
+    fn create_security_scanner(&self, config: &crate::config::Config) -> Result<Arc<dyn SecurityScannerTrait>> {
+        // For now, return a simple wrapper around the existing scanner
+        // TODO: Properly refactor SecurityScanner to implement trait
+        Err(anyhow::anyhow!("SecurityScanner trait implementation pending"))
+    }
 }

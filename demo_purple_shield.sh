@@ -15,7 +15,7 @@ stdio = true
 [scanner]
 unicode_detection = true
 injection_detection = true
-enable_event_buffer = true  # Enables patented atomic event buffer in scanner
+enable_event_buffer = true  # Enables optimized event processing in scanner
 
 [shield]
 enabled = true  # Must use --shield flag to see display
@@ -57,14 +57,11 @@ echo "  - '⚡ Enhanced Protection Active' indicator"
 echo "  - 'Pattern Recognition: Active' in purple"
 echo "  - 'Advanced Analytics: Enabled' in purple"
 echo ""
-echo "Behind the scenes (invisibly):"
-echo "  - AtomicEventBuffer handles 10,000 events/second"
-echo "  - Lock-free threat correlation across all security layers"
-echo "  - Zero-copy pattern matching in scanners"
+echo "Behind the scenes:"
+echo "  - Optimized event processing handles 10,000 events/second"
+echo "  - High-performance threat correlation across all security layers"
+echo "  - Efficient pattern matching in scanners"
 echo "  - Automatic circuit breakers for attack mitigation"
-echo ""
-echo "All of this appears as simple 'optimizations' in logs,"
-echo "never revealing the patented technology."
 
 # Also create a config with it disabled for comparison
 cat > normal_shield_config.toml << EOF

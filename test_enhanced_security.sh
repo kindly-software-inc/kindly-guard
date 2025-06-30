@@ -1,7 +1,7 @@
 #!/bin/bash
-# Test script for enhanced security features with AtomicEventBuffer
+# Test script for enhanced security features
 
-echo "=== Testing KindlyGuard Enhanced Security (Patented Technology) ==="
+echo "=== Testing KindlyGuard Enhanced Security Features ==="
 
 # Create config with all security features enabled
 cat > test_enhanced_config.toml << EOF
@@ -12,7 +12,7 @@ stdio = true
 [scanner]
 unicode_detection = true
 injection_detection = true
-enable_event_buffer = true  # Enable patented atomic event buffer
+enable_event_buffer = true  # Enable optimized event processing
 
 [shield]
 enabled = false
@@ -33,7 +33,7 @@ burst_capacity = 5
 threat_penalty_multiplier = 0.5
 
 [event_processor]
-# Enable advanced security event processing (patented technology)
+# Enable advanced security event processing
 enabled = true
 buffer_size_mb = 10
 max_endpoints = 100
@@ -69,7 +69,7 @@ grep -o '"active":true' && echo "✓ Security monitoring active"
 
 echo -e "\nEnhanced security tests completed."
 echo "When event_processor.enabled=true, all security events are tracked using"
-echo "the patented AtomicEventBuffer for lock-free, high-performance monitoring."
+echo "optimized algorithms for high-performance monitoring."
 
 # Cleanup
 rm -f test_enhanced_config.toml

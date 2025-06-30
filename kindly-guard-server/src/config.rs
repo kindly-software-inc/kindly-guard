@@ -16,6 +16,7 @@ use crate::storage::StorageConfig;
 use crate::plugins::PluginConfig;
 use crate::audit::AuditConfig;
 use crate::transport::TransportConfig;
+use crate::resilience::config::ResilienceConfig;
 
 // Stub EventProcessorConfig when enhanced feature is not enabled
 #[cfg(not(feature = "enhanced"))]
@@ -68,6 +69,9 @@ pub struct Config {
     
     /// Transport layer configuration
     pub transport: TransportConfig,
+    
+    /// Resilience configuration for circuit breakers and retry
+    pub resilience: ResilienceConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -198,6 +202,7 @@ impl Default for Config {
             plugins: PluginConfig::default(),
             audit: AuditConfig::default(),
             transport: TransportConfig::default(),
+            resilience: ResilienceConfig::default(),
         }
     }
 }
