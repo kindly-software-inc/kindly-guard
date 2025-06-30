@@ -227,7 +227,7 @@ impl StorageProvider for EnhancedStorage {
     }
     
     async fn store_rate_limit_state(&self, key: &RateLimitKey, state: &RateLimitState) -> Result<()> {
-        // Use lock-free optimized storage
+        // Use optimized storage
         self.rate_limiter.store_atomic(key, state).await
     }
     
@@ -292,7 +292,7 @@ impl StorageProvider for EnhancedStorage {
                 "snapshot_count": self.snapshot_engine.count().await?,
                 "features": [
                     "optimized-decompression",
-                    "lock-free-rate-limiting",
+                    "optimized-rate-limiting",
                     "incremental-snapshots",
                     "tiered-archival"
                 ]

@@ -1,5 +1,5 @@
 //! Enhanced Security Event Processor
-//! Provides lock-free, high-performance security event tracking and correlation
+//! Provides high-performance security event tracking and correlation
 
 use std::collections::HashMap;
 use parking_lot::RwLock;

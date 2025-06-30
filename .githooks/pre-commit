@@ -6,7 +6,7 @@ set -e
 echo "🔍 Running security pre-commit checks..."
 
 # Define forbidden terms that should not be committed
-FORBIDDEN_TERMS="AtomicEventBuffer|AtomicBitPackedState|LockFreeCounter|AdaptiveThreshold|PredictiveAnalyzer|SmartCache|kindly-guard-core|kindly_guard_core|EventBuffer|StateManager|ThresholdManager|Analyzer|Cache|Counter|CompactedEventStore|OptimizedRateLimiter|CorrelationIndex|SnapshotEngine|ArchivalSystem|zero-copy|zero_copy|zerocopy|ZeroCopy|EventCompaction|MemoryMapped|memory-mapped|mmap|SIMD"
+FORBIDDEN_TERMS="AtomicEventBuffer|AtomicBitPackedState|LockFreeCounter|AdaptiveThreshold|PredictiveAnalyzer|SmartCache|kindly-guard-core|kindly_guard_core|EventBuffer|StateManager|ThresholdManager|Analyzer|Cache|Counter|CompactedEventStore|OptimizedRateLimiter|CorrelationIndex|SnapshotEngine|ArchivalSystem|zero-copy|zero_copy|zerocopy|ZeroCopy|EventCompaction|MemoryMapped|memory-mapped|mmap|SIMD|lock-free|lockfree"
 
 # Check for forbidden terms in staged files
 echo "Checking for forbidden terms..."

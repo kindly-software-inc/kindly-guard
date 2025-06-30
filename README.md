@@ -21,7 +21,7 @@ KindlyGuard is a blazing-fast security gateway that protects AI model interactio
 
 As AI becomes central to development workflows, new security risks emerge. KindlyGuard provides:
 
-- **Zero-overhead protection** - Sub-millisecond latency with lock-free algorithms
+- **Zero-overhead protection** - Sub-millisecond latency with optimized algorithms
 - **Comprehensive threat detection** - From unicode tricks to sophisticated injection attacks
 - **MCP-native integration** - Works seamlessly with any MCP-compatible AI system
 - **Visual security monitoring** - Real-time shield display shows protection status
@@ -244,7 +244,7 @@ Benchmarked on a standard developer machine (Apple M2):
 2. **No panics** in production paths
 3. **Constant-time** security comparisons
 4. **Memory safe** by Rust design
-5. **Thread safe** with lock-free statistics
+5. **Thread safe** with atomic statistics
 
 ## Development
 

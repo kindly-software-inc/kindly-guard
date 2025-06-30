@@ -122,7 +122,7 @@ impl TelemetryProvider for EnhancedTelemetryProvider {
         
         let duration = span.start_time.elapsed();
         
-        // Use lock-free buffer for high-performance recording
+        // Use optimized buffer for high-performance recording
         self.buffer.track_span_end(
             &span.name,
             duration.as_nanos() as u64,

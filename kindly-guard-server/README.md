@@ -16,7 +16,7 @@ A security-focused MCP (Model Context Protocol) server that protects AI model in
   - Configurable rate limiting with circuit breakers
 
 - **⚡ High Performance**
-  - Lock-free concurrent operations
+  - Optimized concurrent operations
   - Optimized scanning algorithms
   - Optimized pattern matching
 

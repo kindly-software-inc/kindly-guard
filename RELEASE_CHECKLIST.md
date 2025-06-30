@@ -87,7 +87,7 @@ KindlyGuard is a blazing-fast security gateway that protects AI model interactio
 
 - 🔍 **Unicode Threat Detection**: Protects against invisible characters, BiDi attacks, and homograph attempts
 - 💉 **Injection Prevention**: Blocks prompt injection, command injection, SQL injection, and path traversal
-- 🚀 **High Performance**: Sub-millisecond latency with lock-free algorithms
+- 🚀 **High Performance**: Sub-millisecond latency with optimized algorithms
 - 📊 **Real-time Shield**: Visual security status with threat statistics
 - 🔒 **Enterprise Security**: OAuth 2.0, Ed25519 signatures, fine-grained permissions
 - 🎯 **MCP Protocol Native**: Seamless integration with any MCP-compatible AI system
