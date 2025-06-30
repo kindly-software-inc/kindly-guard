@@ -1,15 +1,6 @@
 //! Tests using mockall for component isolation
 //! Demonstrates mocking external dependencies and error conditions
 
-#[cfg(feature = "test-utils")]
-use kindly_guard_server::{
-    traits::*,
-    mocks::*,
-    scanner::{Threat, ThreatType, Severity, Location},
-    permissions::{Permission, PermissionContext, ThreatLevel},
-};
-
-#[cfg(not(feature = "test-utils"))]
 use kindly_guard_server::{
     traits::*,
     scanner::{Threat, ThreatType, Severity, Location},
@@ -29,15 +20,17 @@ async fn test_scanner_with_failing_event_processor() {
     mock_processor
         .expect_process_event()
         .times(1)
-        .returning(|_| Err(anyhow!("Event processor failure")));
+        .returning(|_| Box::pin(async move { 
+            Err(anyhow!("Event processor failure"))
+        }));
     
     mock_processor
         .expect_get_stats()
         .returning(|| ProcessorStats {
             events_processed: 0,
-            events_failed: 1,
-            events_queued: 0,
-            active_monitors: 0,
+            events_per_second: 0.0,
+            buffer_utilization: 0.0,
+            correlation_hits: 0,
         });
     
     // Test that scanner continues to work even if processor fails
@@ -227,18 +220,16 @@ async fn test_correlation_engine_attack_detection() {
             events.iter().filter(|e| e.event_type == "auth_failure").count() >= 5
         })
         .returning(|events| {
-            let client_id = &events[0].client_id;
-            Ok(vec![
-                ThreatPattern {
-                    pattern_type: "brute_force".to_string(),
-                    confidence: 0.95,
-                    severity: Severity::High,
-                    client_id: client_id.clone(),
-                    event_count: events.len(),
-                    time_window: 60,
-                    description: "Multiple authentication failures detected".to_string(),
-                }
-            ])
+            Box::pin(async move {
+                Ok(vec![
+                    ThreatPattern {
+                        pattern_type: "brute_force".to_string(),
+                        confidence: 0.95,
+                        events: events.iter().enumerate().map(|(i, _)| i as u64).collect(),
+                        description: "Multiple authentication failures detected".to_string(),
+                    }
+                ])
+            })
         });
     
     // Create attack pattern events

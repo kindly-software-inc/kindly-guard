@@ -308,7 +308,8 @@ mod tests {
             authorization: None,
         };
         
-        let json = serde_json::to_string(&request).unwrap();
+        let json = serde_json::to_string(&request)
+            .expect("Failed to serialize valid request");
         assert!(json.contains("\"jsonrpc\":\"2.0\""));
         assert!(json.contains("\"method\":\"initialize\""));
         assert!(json.contains("\"id\":1"));
@@ -322,7 +323,8 @@ mod tests {
             "id": "test-123"
         }"#;
         
-        let response: JsonRpcResponse = serde_json::from_str(json).unwrap();
+        let response: JsonRpcResponse = serde_json::from_str(json)
+            .expect("Failed to deserialize valid response JSON");
         assert_eq!(response.jsonrpc, "2.0");
         assert!(response.result.is_some());
         assert!(response.error.is_none());

@@ -98,7 +98,7 @@ fuzz_target!(|data: &[u8]| {
     let token = String::from_utf8_lossy(data);
     
     let config = AuthConfig {
-        secret_key: "test-secret-key".to_string(),
+        secret_key: "FUZZING-TEST-KEY-NOT-FOR-PRODUCTION".to_string(),
         token_expiry: std::time::Duration::from_secs(3600),
         require_auth: true,
     };

@@ -302,7 +302,7 @@ config.event_processor.enabled = true;
 
 ## Integration Examples
 
-### With Claude Desktop
+### With AI Assistant Applications
 ```json
 {
   "mcpServers": {

@@ -1,7 +1,7 @@
 //! Enhanced audit logger implementation (stub)
 //! 
 //! This module provides a stub for the enhanced audit logger that would
-//! integrate with proprietary audit systems.
+//! integrate with advanced audit systems.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -170,5 +170,5 @@ enum TrendDirection {
     Stable,
 }
 
-// Note: The actual implementation would be in kindly-guard-core
+// Note: The actual implementation would use enhanced features
 // This stub maintains the trait-based architecture pattern

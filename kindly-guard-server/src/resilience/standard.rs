@@ -1,12 +1,13 @@
 //! Standard implementations of resilience traits
-//! These provide solid reliability features without proprietary technology
+//! These provide solid reliability features for production use
 
 use async_trait::async_trait;
 use std::sync::Arc;
 use std::collections::HashMap;
 use anyhow::Result;
 use parking_lot::RwLock;
-use crate::traits::*;
+use tokio::sync::RwLock as AsyncRwLock;
+use crate::traits::{*, CircuitBreakerWrapper, RetryStrategyWrapper};
 use crate::resilience::circuit_breaker::{CircuitBreaker as BaseCircuitBreaker, CircuitBreakerConfig};
 use crate::resilience::retry::{RetryBuilder, DefaultRetryPolicy, RetryConfig};
 use std::time::{Duration, Instant};
@@ -193,7 +194,7 @@ impl RetryStrategyTrait for StandardRetryStrategy {
         result
     }
     
-    fn should_retry(&self, error: &anyhow::Error, context: &RetryContext) -> RetryDecision {
+    fn should_retry(&self, _error: &anyhow::Error, context: &RetryContext) -> RetryDecision {
         // Check if we've exceeded max attempts
         if context.attempts >= self.config.max_attempts {
             return RetryDecision {
@@ -233,30 +234,32 @@ impl RetryStrategyTrait for StandardRetryStrategy {
 pub struct StandardResilienceFactory;
 
 impl ResilienceFactory for StandardResilienceFactory {
-    fn create_circuit_breaker(&self, config: &crate::config::Config) -> Result<Arc<dyn CircuitBreakerTrait>> {
+    fn create_circuit_breaker(&self, config: &crate::config::Config) -> Result<Arc<dyn DynCircuitBreaker>> {
         let cb_config = CircuitBreakerConfig {
             failure_threshold: config.resilience.circuit_breaker.failure_threshold,
             failure_window: config.resilience.circuit_breaker.failure_window,
-            success_threshold: config.resilience.circuit_breaker.success_threshold,
+            success_threshold: config.resilience.circuit_breaker.success_threshold as f64,
             recovery_timeout: config.resilience.circuit_breaker.recovery_timeout,
             request_timeout: config.resilience.circuit_breaker.request_timeout,
             half_open_max_requests: config.resilience.circuit_breaker.half_open_max_requests,
         };
         
-        Ok(Arc::new(StandardCircuitBreaker::new(cb_config)))
+        let breaker = StandardCircuitBreaker::new(cb_config);
+        Ok(Arc::new(CircuitBreakerWrapper::new(breaker)))
     }
     
-    fn create_retry_strategy(&self, config: &crate::config::Config) -> Result<Arc<dyn RetryStrategyTrait>> {
+    fn create_retry_strategy(&self, config: &crate::config::Config) -> Result<Arc<dyn DynRetryStrategy>> {
         let retry_config = RetryConfig {
             max_attempts: config.resilience.retry.max_attempts,
             initial_delay: config.resilience.retry.initial_delay,
             max_delay: config.resilience.retry.max_delay,
             multiplier: config.resilience.retry.multiplier,
             jitter_factor: config.resilience.retry.jitter_factor,
-            timeout: config.resilience.retry.timeout,
+            timeout: Some(config.resilience.retry.timeout),
         };
         
-        Ok(Arc::new(StandardRetryStrategy::new(retry_config)))
+        let strategy = StandardRetryStrategy::new(retry_config);
+        Ok(Arc::new(RetryStrategyWrapper::new(strategy)))
     }
     
     fn create_health_checker(&self, _config: &crate::config::Config) -> Result<Arc<dyn HealthCheckTrait>> {
@@ -270,7 +273,7 @@ impl ResilienceFactory for StandardResilienceFactory {
 
 /// Standard health checker implementation
 pub struct StandardHealthChecker {
-    dependencies: RwLock<HashMap<String, Arc<dyn HealthCheckTrait>>>,
+    dependencies: AsyncRwLock<HashMap<String, Arc<dyn HealthCheckTrait>>>,
     last_check: RwLock<Option<Instant>>,
     metadata: HealthCheckMetadata,
 }
@@ -278,7 +281,7 @@ pub struct StandardHealthChecker {
 impl StandardHealthChecker {
     pub fn new() -> Self {
         Self {
-            dependencies: RwLock::new(HashMap::new()),
+            dependencies: AsyncRwLock::new(HashMap::new()),
             last_check: RwLock::new(None),
             metadata: HealthCheckMetadata {
                 name: "standard_health_check".to_string(),
@@ -297,7 +300,7 @@ impl HealthCheckTrait for StandardHealthChecker {
         *self.last_check.write() = Some(start);
         
         // Check all dependencies
-        let deps = self.dependencies.read();
+        let deps = self.dependencies.read().await;
         let mut all_healthy = true;
         let mut has_degraded = false;
         
@@ -339,7 +342,7 @@ impl HealthCheckTrait for StandardHealthChecker {
         let overall_status = self.check().await?;
         
         let mut checks = Vec::new();
-        let deps = self.dependencies.read();
+        let deps = self.dependencies.read().await;
         
         for (name, checker) in deps.iter() {
             let check_start = Instant::now();
@@ -380,7 +383,13 @@ impl HealthCheckTrait for StandardHealthChecker {
     }
     
     fn register_dependency(&self, name: String, checker: Arc<dyn HealthCheckTrait>) {
-        self.dependencies.write().insert(name, checker);
+        // Since this is a sync method but we need async RwLock, we'll use block_on
+        // In production, this method should be made async in the trait
+        tokio::task::block_in_place(|| {
+            tokio::runtime::Handle::current().block_on(async {
+                self.dependencies.write().await.insert(name, checker);
+            })
+        });
     }
     
     fn metadata(&self) -> HealthCheckMetadata {

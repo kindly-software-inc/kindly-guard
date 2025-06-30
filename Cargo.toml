@@ -2,7 +2,7 @@
 members = [
     "kindly-guard-server",
     "kindly-guard-cli",
-    "kindly-guard-core",
+    # Private dependencies configured separately
     "kindly-guard-client",
 ]
 resolver = "2"

@@ -83,7 +83,7 @@ Based on 2025 best practices for production-ready security software:
 All benchmarks test both modes to help users understand the performance trade-offs:
 
 - **Standard Mode**: Baseline security with minimal overhead
-- **Enhanced Mode**: Advanced threat detection with proprietary optimizations
+- **Enhanced Mode**: Advanced threat detection with performance optimizations
 
 The benchmarks will show the performance difference between modes, typically:
 - Standard mode: Baseline performance

@@ -1,5 +1,5 @@
 //! Enhanced permission manager with advanced features
-//! Uses AtomicEventBuffer for high-performance pattern tracking
+//! Uses optimized event tracking for high-performance pattern analysis
 
 use async_trait::async_trait;
 use anyhow::Result;
@@ -13,13 +13,14 @@ use super::{
     ToolPermissionManager, Permission, PermissionContext, ClientPermissions,
     PermissionStats, PermissionRules, ThreatLevel,
 };
-use kindly_guard_core::{AtomicEventBuffer, Priority, CircuitState};
+use crate::resilience::stubs::EventBuffer;
+use crate::event_processor::{Priority, CircuitState};
 
 /// Enhanced permission manager with pattern learning
 pub struct EnhancedPermissionManager {
     rules: Arc<PermissionRules>,
     client_permissions: Arc<RwLock<HashMap<String, ClientPermissions>>>,
-    event_buffer: Arc<AtomicEventBuffer>,
+    event_buffer: Arc<EventBuffer>,
     risk_scores: Arc<RwLock<HashMap<String, f32>>>,
     total_checks: AtomicU64,
     allowed_count: AtomicU64,
@@ -31,7 +32,7 @@ impl EnhancedPermissionManager {
     /// Create a new enhanced permission manager
     pub fn new(rules: PermissionRules) -> Self {
         // Create event buffer for tracking permission patterns
-        let event_buffer = Arc::new(AtomicEventBuffer::new(
+        let event_buffer = Arc::new(EventBuffer::new(
             10, // 10MB buffer
             1000, // Track up to 1000 clients
             1000.0, // 1000 events/sec rate limit

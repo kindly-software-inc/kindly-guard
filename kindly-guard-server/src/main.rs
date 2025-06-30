@@ -9,35 +9,8 @@ use clap::Parser;
 use tracing::{info, error};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-mod auth;
-mod config;
-mod error;
-#[cfg(feature = "enhanced")]
-mod event_processor;
-mod protocol;
-mod rate_limit;
-mod scanner;
-mod server;
-mod shield;
-mod signing;
-mod traits;
-mod standard_impl;
-#[cfg(feature = "enhanced")]
-mod enhanced_impl;
-mod component_selector;
-mod logging;
-mod permissions;
-mod versioning;
-mod telemetry;
-mod storage;
-mod plugins;
-mod audit;
-mod transport;
-mod web;
-mod cli;
-mod security;
-mod daemon;
-mod metrics;
+// Use the library crate instead of re-declaring modules
+use kindly_guard_server::*;
 
 use config::Config;
 use server::McpServer;

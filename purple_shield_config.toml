@@ -5,7 +5,7 @@ stdio = true
 [scanner]
 unicode_detection = true
 injection_detection = true
-enable_event_buffer = true  # Enables patented atomic event buffer in scanner
+enable_event_buffer = true  # Enables enhanced event buffer in scanner
 
 [shield]
 enabled = true  # Must use --shield flag to see display

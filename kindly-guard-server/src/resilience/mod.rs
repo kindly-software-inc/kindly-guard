@@ -12,11 +12,12 @@ pub mod config;
 pub mod standard;
 #[cfg(feature = "enhanced")]
 pub mod enhanced;
+pub mod stubs;
 
 use std::sync::Arc;
 use anyhow::Result;
 use crate::config::Config;
-use crate::traits::{CircuitBreakerTrait, RetryStrategyTrait, HealthCheckTrait, RecoveryStrategyTrait, ResilienceFactory};
+use crate::traits::{CircuitBreakerTrait, RetryStrategyTrait, HealthCheckTrait, RecoveryStrategyTrait, ResilienceFactory, DynCircuitBreaker, DynRetryStrategy, CircuitBreakerWrapper, RetryStrategyWrapper};
 
 // Re-export core types
 pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
@@ -25,13 +26,13 @@ pub use config::ResilienceConfig;
 pub use standard::{StandardCircuitBreaker, StandardRetryStrategy, StandardResilienceFactory};
 
 /// Create a circuit breaker based on configuration
-pub fn create_circuit_breaker(config: &Config) -> Result<Arc<dyn CircuitBreakerTrait>> {
+pub fn create_circuit_breaker(config: &Config) -> Result<Arc<dyn DynCircuitBreaker>> {
     let factory = create_resilience_factory(config);
     factory.create_circuit_breaker(config)
 }
 
 /// Create a retry strategy based on configuration
-pub fn create_retry_strategy(config: &Config) -> Result<Arc<dyn RetryStrategyTrait>> {
+pub fn create_retry_strategy(config: &Config) -> Result<Arc<dyn DynRetryStrategy>> {
     let factory = create_resilience_factory(config);
     factory.create_retry_strategy(config)
 }

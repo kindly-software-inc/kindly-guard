@@ -1,6 +1,6 @@
 # KindlyGuard CLI Shield Integration
 
-KindlyGuard provides always-on security monitoring directly in your terminal, similar to how Claude integrates into development environments.
+KindlyGuard provides always-on security monitoring directly in your terminal, seamlessly integrating into modern development workflows.
 
 ## Overview
 

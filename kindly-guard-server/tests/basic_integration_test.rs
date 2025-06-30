@@ -137,7 +137,14 @@ async fn test_scan_text_tool() {
     // Should return a scan result
     let content = &response_json["result"]["content"][0];
     assert_eq!(content["type"], "text");
-    assert!(content["text"].as_str().unwrap().contains("No threats detected"));
+    
+    // Parse the JSON response from the text field
+    let scan_result_text = content["text"].as_str().unwrap();
+    let scan_result: serde_json::Value = serde_json::from_str(scan_result_text).unwrap();
+    
+    // Check that it's safe and has no threats
+    assert_eq!(scan_result["safe"], true);
+    assert_eq!(scan_result["threats"].as_array().unwrap().len(), 0);
 }
 
 #[tokio::test]
@@ -184,6 +191,15 @@ async fn test_unicode_threat_detection() {
     
     assert!(response_json["result"].is_object());
     let content_text = response_json["result"]["content"][0]["text"].as_str().unwrap();
-    assert!(content_text.contains("1 threat"));
-    assert!(content_text.contains("BiDi"));
+    
+    // Parse the JSON response from the text field
+    let scan_result: serde_json::Value = serde_json::from_str(content_text).unwrap();
+    
+    // Check that it's not safe and has 1 threat
+    assert_eq!(scan_result["safe"], false);
+    assert_eq!(scan_result["threats"].as_array().unwrap().len(), 1);
+    
+    // Check the threat type
+    let threat = &scan_result["threats"][0];
+    assert_eq!(threat["type"], "unicode_bidi");
 }

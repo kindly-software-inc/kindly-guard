@@ -168,11 +168,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "atomic-event-buffer"
-version = "0.1.0"
-source = "git+https://github.com/SamDuchaine/kindly-guard.git?branch=main#b8442db89c4871858fcba57ce421b533e900c545"
-
-[[package]]
 name = "atomic-waker"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1636,13 +1631,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "kindly-guard-core"
-version = "0.1.0"
-dependencies = [
- "atomic-event-buffer",
-]
-
-[[package]]
 name = "kindly-guard-server"
 version = "0.1.0"
 dependencies = [
@@ -1662,7 +1650,6 @@ dependencies = [
  "jemallocator",
  "jsonrpc-core",
  "jsonrpc-stdio-server",
- "kindly-guard-core",
  "mockall",
  "notify",
  "once_cell",

@@ -61,15 +61,15 @@ axum = { version = "0.7", features = ["tokio"] }
 tower = "0.4"
 tower-http = { version = "0.5", features = ["cors"] }
 
-# Private core dependency (optional for enhanced features)
-kindly-guard-core = { path = "../kindly-guard-core", optional = true }
+# Enhanced features dependency (optional)
+# Private dependencies configured separately
 
 # Testing support
 mockall = { version = "0.13", optional = true }
 
 [features]
 default = []
-enhanced = ["kindly-guard-core"]
+enhanced = []  # Enhanced features configured separately
 test-utils = ["mockall"]
 
 [dev-dependencies]

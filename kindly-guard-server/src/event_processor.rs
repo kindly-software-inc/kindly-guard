@@ -7,9 +7,31 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use anyhow::{Result, Context};
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
-use kindly_guard_core::{
-    AtomicEventBuffer, Priority, EndpointStats
-};
+use crate::traits::EventBufferTrait;
+
+/// Priority levels for events
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Priority {
+    Normal,
+    Urgent,
+}
+
+/// Statistics for an endpoint
+#[derive(Debug, Clone)]
+pub struct EndpointStats {
+    pub success_count: u64,
+    pub failure_count: u64,
+    pub circuit_state: CircuitState,
+    pub available_tokens: u32,
+}
+
+/// Circuit breaker states
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CircuitState {
+    Closed,
+    Open,
+    HalfOpen,
+}
 
 /// Security event types for tracking
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -92,10 +114,10 @@ impl Default for EventProcessorConfig {
     }
 }
 
-/// Security event processor using AtomicEventBuffer
+/// Security event processor using trait-based buffer
 pub struct SecurityEventProcessor {
     config: EventProcessorConfig,
-    buffer: Option<AtomicEventBuffer>,
+    buffer: Option<Box<dyn EventBufferTrait>>,
     endpoint_map: RwLock<HashMap<String, u32>>,
     next_endpoint_id: RwLock<u32>,
     start_time: Instant,
@@ -115,12 +137,7 @@ impl SecurityEventProcessor {
     /// Create a new security event processor
     pub fn new(config: EventProcessorConfig) -> Result<Self> {
         let buffer = if config.enabled {
-            Some(AtomicEventBuffer::new(
-                config.buffer_size_mb,
-                config.max_endpoints as usize,
-                config.rate_limit as f32,
-                config.failure_threshold * 10, // max_tokens = threshold * 10
-            ))
+            crate::create_event_buffer(&config)?
         } else {
             None
         };
@@ -258,7 +275,7 @@ impl SecurityEventProcessor {
                     // Check if endpoint has high failure rate based on stats
                     if let Some(stats) = self.get_endpoint_stats(&endpoint) {
                         // Consider monitored if circuit is open (failure state)
-                        if matches!(stats.circuit_state, kindly_guard_core::CircuitState::Open) {
+                        if matches!(stats.circuit_state, CircuitState::Open) {
                             return true;
                         }
                         // Also check if available tokens are depleted (rate limited)
@@ -366,6 +383,34 @@ impl SecurityEventProcessor {
     /// Check if processor is enabled
     pub fn is_enabled(&self) -> bool {
         self.config.enabled && self.buffer.is_some()
+    }
+}
+
+/// Simple event buffer implementation for standard mode
+pub struct SimpleEventBuffer {
+    // Basic in-memory storage
+}
+
+impl SimpleEventBuffer {
+    pub fn new() -> Self {
+        Self {}
+    }
+}
+
+impl crate::traits::EventBufferTrait for SimpleEventBuffer {
+    fn enqueue_event(&self, _endpoint_id: u32, _data: &[u8], _priority: Priority) -> Result<u64> {
+        // Simple implementation - just return a sequential ID
+        Ok(0) // In production, this would maintain state
+    }
+    
+    fn get_endpoint_stats(&self, _endpoint_id: u32) -> Result<EndpointStats> {
+        // Return default stats for simple implementation
+        Ok(EndpointStats {
+            success_count: 0,
+            failure_count: 0,
+            circuit_state: CircuitState::Closed,
+            available_tokens: 100,
+        })
     }
 }
 

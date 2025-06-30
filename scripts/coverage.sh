@@ -18,7 +18,7 @@ cargo llvm-cov clean --workspace
 # Run tests with coverage
 echo "🧪 Running tests with coverage collection..."
 cargo llvm-cov test --all-features --workspace \
-    --exclude kindly-guard-core \
+    --exclude private-deps \
     --lcov --output-path lcov.info
 
 # Generate HTML report

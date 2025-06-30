@@ -1,5 +1,5 @@
 # Build stage
-FROM rust:1.75-alpine AS builder
+FROM rust:1.84-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache musl-dev
@@ -10,14 +10,13 @@ WORKDIR /app
 COPY Cargo.toml Cargo.lock ./
 COPY kindly-guard-server/Cargo.toml ./kindly-guard-server/
 COPY kindly-guard-cli/Cargo.toml ./kindly-guard-cli/
-COPY kindly-guard-core/Cargo.toml ./kindly-guard-core/
+# Private dependencies handled separately
 
 # Create dummy files to cache dependencies
-RUN mkdir -p kindly-guard-server/src kindly-guard-cli/src kindly-guard-core/src && \
+RUN mkdir -p kindly-guard-server/src kindly-guard-cli/src && \
     echo "fn main() {}" > kindly-guard-server/src/main.rs && \
     echo "" > kindly-guard-server/src/lib.rs && \
-    echo "fn main() {}" > kindly-guard-cli/src/main.rs && \
-    echo "" > kindly-guard-core/src/lib.rs
+    echo "fn main() {}" > kindly-guard-cli/src/main.rs
 
 # Build dependencies
 RUN cargo build --release && \

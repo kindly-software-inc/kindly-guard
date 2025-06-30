@@ -2,8 +2,6 @@
 //! Tests edge cases and error conditions using mockall
 
 use kindly_guard_server::{
-    auth::{AuthManager, AuthConfig, TokenType},
-    signing::{SigningManager, SigningConfig, MessageSignature},
     permissions::*,
     traits::*,
 };

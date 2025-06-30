@@ -5,8 +5,7 @@
 pub mod auth;
 pub mod config;
 pub mod error;
-#[cfg(feature = "enhanced")]
-pub(crate) mod event_processor;
+pub mod event_processor;
 pub mod protocol;
 pub mod rate_limit;
 pub mod scanner;
@@ -42,12 +41,24 @@ pub use traits::{SecurityEventProcessor, EnhancedScanner, CorrelationEngine, Rat
 pub use component_selector::{ComponentSelector, ComponentManager};
 pub use metrics::MetricsRegistry;
 
+use anyhow::Result;
+
+/// Create an event buffer based on configuration
+pub fn create_event_buffer(config: &event_processor::EventProcessorConfig) -> Result<Option<Box<dyn traits::EventBufferTrait>>> {
+    // For now, return a simple stub implementation
+    // Enhanced implementations can be added behind feature flags
+    if config.enabled {
+        Ok(Some(Box::new(event_processor::SimpleEventBuffer::new())))
+    } else {
+        Ok(None)
+    }
+}
+
 /// Mock types for testing
 #[cfg(any(test, feature = "test-utils"))]
 pub mod mocks {
-    pub use crate::traits::{
-        MockSecurityEventProcessor, MockEnhancedScanner,
-        MockCorrelationEngine, MockRateLimiter,
-    };
+    // NOTE: Trait mocks disabled due to mockall compatibility issues with async_trait
+    // Manual test doubles should be created when needed
     pub use crate::permissions::MockToolPermissionManager;
+    pub use crate::traits::{MockEnhancedScanner}; // This one doesn't use async_trait
 }

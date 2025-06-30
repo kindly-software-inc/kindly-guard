@@ -225,12 +225,14 @@ async fn show_status(shield: Arc<Shield>, format: DisplayFormat, color: bool) ->
         Err(e) => {
             eprintln!("Display error: {}. Falling back to minimal format.", e);
             
-            // Try fallback formats
-            let fallback_output = degradation::degrade_display_format(
-                shield,
-                vec![DisplayFormat::Minimal, DisplayFormat::Json],
-            );
-            println!("{}", fallback_output);
+            // Try fallback to JSON format
+            match serde_json::to_string(&shield.get_info()) {
+                Ok(json) => println!("{}", json),
+                Err(_) => {
+                    // Last resort: print basic JSON
+                    println!(r#"{{"status":"display_error","message":"Unable to render display"}}"#);
+                }
+            }
             Ok(())
         }
     }
@@ -264,8 +266,7 @@ async fn scan_command(input: String, is_text: bool, format: DisplayFormat, color
         ).await {
             Ok(Ok(content)) => (content, input.as_str()),
             Ok(Err(e)) => {
-                let ctx = handlers::handle_file_error(&input, e);
-                eprintln!("{}", ctx.user_message());
+                eprintln!("Could not read file '{}': {}. Treating as literal text.", input, e);
                 // If file doesn't exist, treat as text
                 (input.clone(), "input")
             }
@@ -483,7 +484,7 @@ Advanced security features (when enabled):
 • Predictive Threat Analysis - Anticipates attack vectors
 • Zero-day Protection - Detects unknown threats
 
-Note: Implementation details are proprietary"#
+Note: Implementation details vary by configuration"#
         }
         _ => {
             r#"KindlyGuard Security Features

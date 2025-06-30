@@ -51,13 +51,19 @@ enabled = false
 # validation_endpoint = "https://auth.example.com/validate"
 
 # Trusted token issuers
-# trusted_issuers = ["https://auth.example.com"]
+trusted_issuers = []
 
 # Token cache TTL in seconds
 cache_ttl_seconds = 300
 
 # Enable resource indicators validation (RFC 8707)
 validate_resource_indicators = true
+
+# Require JWT signature verification
+require_signature_verification = false
+
+# JWT secret (optional)
+# jwt_secret = "base64_encoded_secret"
 
 # Required scopes for tools
 [auth.required_scopes.tools]
@@ -117,6 +123,10 @@ adaptive = false
 # Penalty multiplier for security threats
 threat_penalty_multiplier = 0.5
 
+# Client-specific limits
+[rate_limit.client_limits]
+# "special-client" = 120  # Override for specific client
+
 # Per-method rate limits
 [rate_limit.method_limits."tools/list"]
 rpm = 60
@@ -137,7 +147,7 @@ burst = 2
 # priority = "premium"
 
 [event_processor]
-# Enable advanced security event processing
+# Enable advanced security event processing (patented technology)
 # WARNING: This uses significant resources when enabled
 enabled = false
 

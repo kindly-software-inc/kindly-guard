@@ -47,6 +47,15 @@ pub enum SigningAlgorithm {
     Ed25519,
 }
 
+impl std::fmt::Display for SigningAlgorithm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            SigningAlgorithm::HmacSha256 => write!(f, "hmac-sha256"),
+            SigningAlgorithm::Ed25519 => write!(f, "ed25519"),
+        }
+    }
+}
+
 impl Default for SigningConfig {
     fn default() -> Self {
         Self {
@@ -370,7 +379,7 @@ mod tests {
         let config = SigningConfig {
             enabled: true,
             algorithm: SigningAlgorithm::HmacSha256,
-            hmac_secret: Some(general_purpose::STANDARD.encode(b"test-secret-key-at-least-32-bytes")),
+            hmac_secret: Some(general_purpose::STANDARD.encode(b"FAKE-TEST-KEY-DO-NOT-USE-IN-PROD-32b")),
             include_timestamp: false,
             require_signatures: true,
             grace_period_seconds: 0, // No grace period

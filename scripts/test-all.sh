@@ -83,7 +83,7 @@ run_test_suite "Clippy Security Lints" "cargo clippy --all-features -- -D warnin
 if command -v cargo-llvm-cov >/dev/null 2>&1; then
     echo -e "${YELLOW}Generating coverage report...${NC}"
     cargo llvm-cov test --all-features --workspace \
-        --exclude kindly-guard-core \
+        --exclude-private \
         --lcov --output-path lcov.info \
         --summary-only
     echo ""

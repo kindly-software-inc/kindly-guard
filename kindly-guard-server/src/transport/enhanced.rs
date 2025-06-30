@@ -1,7 +1,7 @@
 //! Enhanced transport implementations (stub)
 //! 
 //! This module provides stubs for enhanced transport mechanisms that would
-//! integrate with proprietary networking technology.
+//! integrate with advanced networking technology.
 
 use std::sync::Arc;
 use anyhow::Result;
@@ -202,6 +202,6 @@ pub struct TransportMetrics {
     pub cpu_usage: f64,
 }
 
-// Note: The actual enhanced implementations would be in kindly-guard-core
+// Note: The actual enhanced implementations would use optimized features
 // These stubs maintain the trait-based architecture pattern while hiding
-// proprietary networking technology
+// advanced networking technology

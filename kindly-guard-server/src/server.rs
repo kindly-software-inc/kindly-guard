@@ -14,7 +14,7 @@ use crate::component_selector::ComponentManager;
 use crate::protocol::*;
 use crate::scanner::{SecurityScanner, Threat};
 use crate::shield::Shield;
-use crate::signing::{SigningManager, SignedMessage};
+use crate::signing::{SigningManager, SignedMessage, MessageSignature};
 use crate::telemetry::{TelemetryProvider, TelemetryMetric, MetricValue};
 use crate::traits::{SecurityEventProcessor, RateLimiter, SecurityEvent, RateLimitKey};
 use crate::versioning::{ApiRegistry, add_version_metadata};
@@ -373,8 +373,7 @@ impl McpServer {
         }
         
         // Check if it's missing required fields
-        if value.is_object() {
-            let obj = value.as_object().unwrap();
+        if let Some(obj) = value.as_object() {
             if !obj.contains_key("method") {
                 // Missing method field
                 let id = obj.get("id").cloned().unwrap_or(Value::Null);
@@ -1242,16 +1241,36 @@ impl McpServer {
                     .and_then(|v| v.as_str())
                     .ok_or_else(|| ServerError::InvalidParams("Missing 'signature' argument".to_string()))?;
                 
-                // This is a placeholder - in real implementation would verify actual signature
-                let tampered = arguments.get("tampered")
-                    .and_then(|v| v.as_bool())
-                    .unwrap_or(false);
+                // Parse the message JSON
+                let message_value = serde_json::from_str(message)
+                    .unwrap_or_else(|_| serde_json::json!({"raw": message}));
                 
-                let verification_result = serde_json::json!({
-                    "valid": !tampered,
-                    "algorithm": "ed25519",
-                    "message": message,
-                });
+                // Create a signed message for verification
+                let signed_message = SignedMessage {
+                    message: message_value,
+                    signature: MessageSignature {
+                        algorithm: self.config.signing.algorithm.clone(),
+                        signature: signature.to_string(),
+                        timestamp: None,
+                        key_id: None,
+                    },
+                };
+                
+                // Verify the signature using the signing manager
+                let verification_result = match self.signing_manager.verify_message(&signed_message) {
+                    Ok(()) => serde_json::json!({
+                        "valid": true,
+                        "algorithm": self.config.signing.algorithm.to_string(),
+                        "message": message,
+                        "error": null
+                    }),
+                    Err(e) => serde_json::json!({
+                        "valid": false,
+                        "algorithm": self.config.signing.algorithm.to_string(),
+                        "message": message,
+                        "error": e.to_string()
+                    })
+                };
                 
                 // Format response according to MCP protocol
                 Ok(serde_json::json!({

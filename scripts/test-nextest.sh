@@ -14,7 +14,7 @@ fi
 # Run tests with nextest
 echo "🧪 Running all tests..."
 cargo nextest run --all-features --workspace \
-    --exclude kindly-guard-core \
+    --exclude private-deps \
     --status-level all \
     --failure-output immediate \
     --success-output never
@@ -23,7 +23,7 @@ cargo nextest run --all-features --workspace \
 if [ "$CI" == "true" ]; then
     echo "📊 Running tests with JUnit output for CI..."
     cargo nextest run --all-features --workspace \
-        --exclude kindly-guard-core \
+        --exclude private-deps \
         --profile ci \
         --message-format libtest-json-plus \
         --output-path test-results.xml

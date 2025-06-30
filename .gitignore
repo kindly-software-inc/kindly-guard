@@ -67,5 +67,10 @@ package-lock.json
 .env.local
 .env.*.local
 
-# Private dependency (patented technology)
+# Private dependency
 kindly-guard-core/
+
+# Claude-specific configuration (not for public repo)
+CLAUDE.md
+CLAUDE_SETUP.md
+claude_mcp_config.json

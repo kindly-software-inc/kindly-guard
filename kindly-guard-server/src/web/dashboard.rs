@@ -1,5 +1,5 @@
 //! Minimalist web dashboard for KindlyGuard
-//! Inspired by Claude Code's clean interface
+//! Clean, modern interface for security monitoring
 
 use std::sync::Arc;
 use std::net::SocketAddr;

@@ -1,7 +1,7 @@
 # KindlyGuard Development Plan
 
 ## Project Vision
-KindlyGuard is a security-focused MCP (Model Context Protocol) server that provides always-on protection against unicode attacks, injection attempts, and other threats. It integrates seamlessly into CLI workflows, providing persistent security monitoring similar to how Claude integrates into development environments.
+KindlyGuard is a security-focused MCP (Model Context Protocol) server that provides always-on protection against unicode attacks, injection attempts, and other threats. It integrates seamlessly into CLI workflows, providing persistent security monitoring for AI-powered development environments.
 
 ## ✅ Completed Components
 
@@ -235,10 +235,10 @@ cargo build --profile=secure --release
 
 ## 🔐 Private Core Features
 
-The `kindly-guard-core` private repo contains:
-- Atomic Event Buffer for high-performance scanning
-- Patented circuit breaker implementation
-- Advanced pattern matching algorithms
+The enhanced implementation contains:
+- High-performance event processing
+- Advanced circuit breaker implementation
+- Optimized pattern matching algorithms
 - Zero-copy scanning techniques
 
 This keeps the valuable IP separate while providing a useful open-source tool.

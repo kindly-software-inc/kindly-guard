@@ -1,0 +1,127 @@
+name: Security Checks
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  forbidden-terms:
+    name: Check for Forbidden Terms
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for proprietary terms
+        run: |
+          # Check for forbidden terms in code and documentation
+          FORBIDDEN_TERMS="DONOTCOMMIT|PRIVATE|SECRET_KEY"
+          
+          echo "Checking for forbidden terms..."
+          
+          # Exclude .git directory and this workflow file
+          if grep -r -i -E "$FORBIDDEN_TERMS" \
+            --exclude-dir=.git \
+            --exclude-dir=target \
+            --exclude="security-checks.yml" \
+            --exclude="CLAUDE.md" \
+            .; then
+            echo "❌ Found forbidden terms in codebase!"
+            echo "Please remove all references to proprietary technology."
+            exit 1
+          else
+            echo "✅ No forbidden terms found."
+          fi
+
+  unwrap-check:
+    name: Check for unwrap() in Production Code
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Check for unwrap() calls
+        run: |
+          echo "Checking for unwrap() calls in production code..."
+          
+          # Find unwrap() calls excluding tests and examples
+          UNWRAP_COUNT=$(find . -name "*.rs" -type f \
+            -not -path "./target/*" \
+            -not -path "./*/tests/*" \
+            -not -path "./*/examples/*" \
+            -not -name "*test*.rs" \
+            -exec grep -H "\.unwrap()" {} \; | \
+            grep -v "#\[cfg(test)\]" | \
+            grep -v "mod tests" | \
+            wc -l)
+          
+          echo "Found $UNWRAP_COUNT unwrap() calls in production code."
+          
+          if [ "$UNWRAP_COUNT" -gt 100 ]; then
+            echo "❌ Too many unwrap() calls ($UNWRAP_COUNT > 100)."
+            echo "Please replace unwrap() with proper error handling."
+            exit 1
+          else
+            echo "⚠️  Warning: $UNWRAP_COUNT unwrap() calls remain."
+            echo "Consider replacing these with proper error handling."
+          fi
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      
+      - name: Run security audit
+        run: cargo audit
+
+  clippy-security:
+    name: Clippy Security Lints
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      
+      - name: Run Clippy with security lints
+        run: |
+          cargo clippy --all-targets --all-features -- \
+            -W clippy::all \
+            -W clippy::pedantic \
+            -W clippy::unwrap_used \
+            -W clippy::expect_used \
+            -W clippy::panic \
+            -W clippy::unimplemented \
+            -W clippy::todo \
+            -D warnings
+
+  compilation-check:
+    name: Compilation Check
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        features: ["", "--all-features", "--no-default-features"]
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Check compilation
+        run: cargo check ${{ matrix.features }}
+      
+      - name: Check test compilation
+        run: cargo test --no-run ${{ matrix.features }}

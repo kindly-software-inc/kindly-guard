@@ -1,12 +1,12 @@
 //! Enhanced telemetry implementation with advanced features
-//! This module provides optimized telemetry using proprietary techniques
+//! This module provides optimized telemetry using advanced techniques
 
 use super::*;
 use crate::traits::SecurityEventProcessor;
 use std::sync::Arc;
 use tracing::{info, debug};
 
-// Stub for advanced telemetry buffer that would use proprietary tech
+// Stub for advanced telemetry buffer that would use advanced tech
 struct AdvancedTelemetryBuffer;
 
 impl AdvancedTelemetryBuffer {
@@ -71,7 +71,7 @@ impl ExportBatch {
     }
 }
 
-/// Enhanced telemetry provider using proprietary buffering
+/// Enhanced telemetry provider using advanced buffering
 pub struct EnhancedTelemetryProvider {
     config: TelemetryConfig,
     buffer: Arc<AdvancedTelemetryBuffer>,

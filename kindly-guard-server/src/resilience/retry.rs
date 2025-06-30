@@ -57,13 +57,13 @@ impl RetryPolicy for DefaultRetryPolicy {
     }
     
     fn next_delay(&self, attempt: u32, config: &RetryConfig) -> Option<Duration> {
-        if attempt >= config.max_attempts {
+        if attempt > config.max_attempts {
             return None;
         }
         
-        // Calculate exponential backoff
+        // Calculate exponential backoff (use attempt - 1 for 0-based power)
         let base_delay = config.initial_delay.as_millis() as f64
-            * config.multiplier.powi(attempt as i32);
+            * config.multiplier.powi((attempt - 1) as i32);
         
         // Cap at max delay
         let capped_delay = base_delay.min(config.max_delay.as_millis() as f64);
@@ -74,6 +74,17 @@ impl RetryPolicy for DefaultRetryPolicy {
         let final_delay = (capped_delay + jitter).max(0.0) as u64;
         
         Some(Duration::from_millis(final_delay))
+    }
+}
+
+// Implement RetryPolicy for Box<dyn RetryPolicy>
+impl RetryPolicy for Box<dyn RetryPolicy> {
+    fn is_retryable(&self, error: &anyhow::Error) -> bool {
+        self.as_ref().is_retryable(error)
+    }
+    
+    fn next_delay(&self, attempt: u32, config: &RetryConfig) -> Option<Duration> {
+        self.as_ref().next_delay(attempt, config)
     }
 }
 
@@ -146,14 +157,24 @@ where
                     return Err(error);
                 }
                 
-                // Get next delay
-                if let Some(delay) = policy.next_delay(attempt - 1, &config) {
+                // Check if we've exhausted attempts
+                if attempt >= config.max_attempts {
+                    warn!(
+                        "{} failed after {} attempts: {}",
+                        operation_name, attempt, error
+                    );
+                    return Err(error);
+                }
+                
+                // Get delay for next retry
+                if let Some(delay) = policy.next_delay(attempt, &config) {
                     warn!(
                         "{} failed (attempt {}), retrying in {:?}: {}",
                         operation_name, attempt, delay, error
                     );
                     sleep(delay).await;
                 } else {
+                    // This shouldn't happen since we check max_attempts above
                     warn!(
                         "{} failed after {} attempts: {}",
                         operation_name, attempt, error
@@ -317,13 +338,13 @@ mod tests {
         
         let policy = DefaultRetryPolicy;
         
-        // First retry: 100ms * 2^1 = 200ms
+        // First retry: 100ms * 2^0 = 100ms
         let delay1 = policy.next_delay(1, &config).unwrap();
-        assert_eq!(delay1, Duration::from_millis(200));
+        assert_eq!(delay1, Duration::from_millis(100));
         
-        // Second retry: 100ms * 2^2 = 400ms
+        // Second retry: 100ms * 2^1 = 200ms
         let delay2 = policy.next_delay(2, &config).unwrap();
-        assert_eq!(delay2, Duration::from_millis(400));
+        assert_eq!(delay2, Duration::from_millis(200));
     }
     
     #[tokio::test]
@@ -339,7 +360,7 @@ mod tests {
         
         // Get multiple delays and verify they're within jitter range
         for _ in 0..10 {
-            let delay = policy.next_delay(0, &config).unwrap();
+            let delay = policy.next_delay(1, &config).unwrap();
             let millis = delay.as_millis();
             // Should be 1000ms ± 10% (900-1100ms)
             assert!(millis >= 900 && millis <= 1100);

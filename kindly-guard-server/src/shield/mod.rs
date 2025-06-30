@@ -40,11 +40,32 @@ struct TimestampedThreat {
 }
 
 /// Shield information snapshot
+#[derive(serde::Serialize, serde::Deserialize)]
 pub struct ShieldInfo {
     pub active: bool,
+    #[serde(with = "serde_duration")]
     pub uptime: Duration,
     pub threats_blocked: u64,
     pub recent_threat_rate: f64,
+}
+
+// Custom serialization for Duration
+mod serde_duration {
+    use std::time::Duration;
+    use serde::{Serializer, Deserialize, Deserializer};
+    
+    pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
+    where S: Serializer
+    {
+        serializer.serialize_u64(duration.as_secs())
+    }
+    
+    pub fn deserialize<'de, D>(deserializer: D) -> Result<Duration, D::Error>
+    where D: Deserializer<'de>
+    {
+        let secs = u64::deserialize(deserializer)?;
+        Ok(Duration::from_secs(secs))
+    }
 }
 
 /// Shield statistics
@@ -94,8 +115,10 @@ impl Shield {
     
     /// Set event processor reference for correlation data
     pub fn set_event_processor(&self, processor: &Arc<dyn SecurityEventProcessor>) {
-        let mut ep = self.event_processor.lock().unwrap();
-        *ep = Some(Arc::downgrade(processor));
+        match self.event_processor.lock() {
+            Ok(mut ep) => *ep = Some(Arc::downgrade(processor)),
+            Err(e) => error!("Failed to acquire event processor lock: {}", e),
+        }
     }
     
     /// Record detected threats
@@ -108,7 +131,10 @@ impl Shield {
         self.threats_blocked.fetch_add(count, Ordering::Relaxed);
         
         let now = Instant::now();
-        let mut recent = self.recent_threats.lock().unwrap();
+        let Ok(mut recent) = self.recent_threats.lock() else {
+            error!("Failed to acquire recent threats lock");
+            return;
+        };
         
         for threat in threats {
             // Add to recent threats
@@ -130,22 +156,29 @@ impl Shield {
         let uptime = now.duration_since(self.start_time);
         
         // Calculate recent threat rate (threats per minute in last 5 minutes)
-        let recent_rate = {
-            let recent = self.recent_threats.lock().unwrap();
-            let five_mins_ago = now - Duration::from_secs(300);
-            let recent_count = recent.iter()
-                .filter(|t| t.timestamp > five_mins_ago)
-                .count() as f64;
-            recent_count / 5.0 // per minute
+        let recent_rate = match self.recent_threats.lock() {
+            Ok(recent) => {
+                let five_mins_ago = now - Duration::from_secs(300);
+                let recent_count = recent.iter()
+                    .filter(|t| t.timestamp > five_mins_ago)
+                    .count() as f64;
+                recent_count / 5.0 // per minute
+            }
+            Err(e) => {
+                error!("Failed to acquire recent threats lock: {}", e);
+                0.0 // Default to 0 on error
+            }
         };
         
         // Check for attack patterns if processor is available
         if self.is_event_processor_enabled() {
-            if let Some(weak_proc) = self.event_processor.lock().unwrap().as_ref() {
-                if let Some(processor) = weak_proc.upgrade() {
-                    // Check if any client is under monitoring (attack detected)
-                    if processor.is_monitored("any") {
-                        tracing::trace!("Attack pattern correlation active");
+            if let Ok(ep_lock) = self.event_processor.lock() {
+                if let Some(weak_proc) = ep_lock.as_ref() {
+                    if let Some(processor) = weak_proc.upgrade() {
+                        // Check if any client is under monitoring (attack detected)
+                        if processor.is_monitored("any") {
+                            tracing::trace!("Attack pattern correlation active");
+                        }
                     }
                 }
             }
@@ -218,17 +251,46 @@ impl Shield {
     
     /// Get the last threat type if any
     pub fn last_threat_type(&self) -> Option<String> {
-        let recent = self.recent_threats.lock().unwrap();
-        recent.back().map(|t| format!("{}", t.threat.threat_type))
+        match self.recent_threats.lock() {
+            Ok(recent) => recent.back().map(|t| format!("{}", t.threat.threat_type)),
+            Err(e) => {
+                error!("Failed to acquire recent threats lock: {}", e);
+                None
+            }
+        }
     }
     
-    /// Get scanner statistics (placeholder for now)
+    /// Get scanner statistics
     pub fn scanner_stats(&self) -> crate::scanner::ScannerStats {
-        // This will be connected to the actual scanner later
-        crate::scanner::ScannerStats {
-            unicode_threats_detected: 0,
-            injection_threats_detected: 0,
-            total_scans: 0,
+        // Return the threat counts tracked by the shield
+        match self.recent_threats.lock() {
+            Ok(threats) => {
+                let (unicode_count, injection_count) = threats.iter().fold((0u64, 0u64), |(unicode, injection), item| {
+                    match &item.threat.threat_type {
+                        crate::scanner::ThreatType::UnicodeInvisible { .. } | 
+                        crate::scanner::ThreatType::UnicodeBiDi { .. } |
+                        crate::scanner::ThreatType::UnicodeHomograph { .. } => (unicode + 1, injection),
+                        
+                        crate::scanner::ThreatType::SqlInjection { .. } | 
+                        crate::scanner::ThreatType::CommandInjection { .. } |
+                        crate::scanner::ThreatType::PromptInjection { .. } |
+                        crate::scanner::ThreatType::PathTraversal { .. } => (unicode, injection + 1),
+                        
+                        _ => (unicode, injection),
+                    }
+                });
+                
+                crate::scanner::ScannerStats {
+                    unicode_threats_detected: unicode_count,
+                    injection_threats_detected: injection_count,
+                    total_scans: self.threats_blocked.load(Ordering::Relaxed),
+                }
+            }
+            Err(_) => crate::scanner::ScannerStats {
+                unicode_threats_detected: 0,
+                injection_threats_detected: 0,
+                total_scans: 0,
+            }
         }
     }
     

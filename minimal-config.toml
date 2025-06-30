@@ -1,33 +1,18 @@
-# KindlyGuard Test Configuration
+# Minimal KindlyGuard Configuration for Testing
 
 # Server configuration
 [server]
-name = "kindly-guard-test"
-version = "0.1.0"
+stdio = true
 
 # Scanner configuration
 [scanner]
 unicode_detection = true
 injection_detection = true
 path_traversal_detection = true
-max_scan_depth = 10
 
 # Shield display configuration
 [shield]
 enabled = true
-update_interval = 1000
-show_threats = true
-color = true
-
-# Event processor configuration (stub when not using enhanced features)
-[event_processor]
-enabled = false
-
-# Rate limiting configuration
-[rate_limit]
-requests_per_minute = 60
-burst_size = 10
-cleanup_interval = 60
 
 # Authentication configuration
 [auth]
@@ -36,6 +21,36 @@ enabled = false
 # Signing configuration
 [signing]
 enabled = false
+
+# Rate limiting configuration
+[rate_limit]
+enabled = true
+requests_per_minute = 60
+burst_size = 10
+
+# Event processor configuration
+[event_processor]
+enabled = false
+
+# Telemetry configuration
+[telemetry]
+enabled = false
+
+# Storage configuration
+[storage]
+provider = "memory"
+
+# Plugin configuration
+[plugins]
+enabled = false
+
+# Audit configuration
+[audit]
+enabled = false
+
+# Transport configuration
+[transport]
+stdio = true
 
 # Resilience configuration
 [resilience]
@@ -52,8 +67,3 @@ initial_delay = "100ms"
 max_delay = "10s"
 jitter_factor = 0.1
 timeout = "30s"
-
-# Logging configuration
-[logging]
-level = "info"
-format = "pretty"

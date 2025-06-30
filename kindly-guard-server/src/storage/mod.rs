@@ -236,7 +236,7 @@ pub enum StorageType {
     Postgres,
     /// S3-compatible object storage
     S3,
-    /// Enhanced storage with proprietary optimizations
+    /// Enhanced storage with performance optimizations
     #[cfg(feature = "enhanced")]
     Enhanced,
 }

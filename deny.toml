@@ -5,7 +5,7 @@
 multiple-versions = "warn"
 # List of explicitly disallowed crates
 deny = [
-    # Heavy dependencies explicitly forbidden in CLAUDE.md
+    # Heavy dependencies explicitly forbidden in project configuration
     { name = "reqwest", reason = "Too heavy - use hyper/axum instead" },
     { name = "diesel", reason = "Too heavy - use lighter alternatives" },
     { name = "actix-web", reason = "Too heavy - use axum instead" },

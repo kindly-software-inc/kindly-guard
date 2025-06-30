@@ -1,0 +1,118 @@
+# Minimal working configuration for KindlyGuard
+
+[server]
+stdio = true
+
+[scanner]
+unicode_detection = true
+injection_detection = true
+path_traversal_detection = true
+
+[shield]
+enabled = true
+
+[auth]
+enabled = false
+trusted_issuers = []
+cache_ttl_seconds = 300
+validate_resource_indicators = false
+require_signature_verification = false
+
+[auth.required_scopes]
+default = []
+
+[auth.required_scopes.tools]
+
+[auth.required_scopes.resources]
+
+[signing]
+enabled = false
+algorithm = "hmac_sha256"
+hmac_secret = "dGVzdC1zZWNyZXQ="  # base64: "test-secret"
+require_signatures = false
+max_clock_skew_seconds = 300
+grace_period_seconds = 60
+include_timestamp = true
+
+[rate_limit]
+enabled = true
+default_rpm = 60
+burst_capacity = 10
+cleanup_interval_secs = 300
+adaptive = false
+threat_penalty_multiplier = 0.5
+
+[rate_limit.client_limits]
+
+[rate_limit.method_limits]
+
+[event_processor]
+enabled = false
+
+[telemetry]
+enabled = false
+export_interval_seconds = 10
+service_name = "kindly-guard"
+service_version = "0.1.0"
+export_endpoint = "http://localhost:4317"
+tracing_enabled = false
+metrics_enabled = false
+sampling_rate = 0.1
+
+[storage]
+enabled = true
+storage_type = "memory"
+provider = "memory"
+
+[storage.memory]
+max_entries = 10000
+ttl_secs = 3600
+
+[plugins]
+enabled = false
+plugin_dir = "./plugins"
+allowed_plugins = []
+
+[audit]
+enabled = false
+file_path = "./audit.log"
+max_size_mb = 100
+max_files = 10
+include_request_body = false
+include_response_body = false
+
+[transport]
+stdio = true
+
+[resilience]
+enhanced_mode = false
+
+[resilience.circuit_breaker]
+failure_threshold = 5
+failure_window = "60s"
+success_threshold = 3
+recovery_timeout = "30s"
+request_timeout = "10s"
+half_open_max_requests = 3
+
+[resilience.retry]
+max_attempts = 3
+initial_delay = "100ms"
+max_delay = "10s"
+multiplier = 2.0
+jitter_factor = 0.1
+timeout = "30s"
+
+[resilience.health_check]
+interval = "30s"
+timeout = "5s"
+unhealthy_threshold = 3
+healthy_threshold = 2
+predictive_monitoring = false
+
+[resilience.recovery]
+cache_enabled = true
+cache_ttl = "300s"
+max_attempts = 3
+timeout = "30s"
+predictive_recovery = false

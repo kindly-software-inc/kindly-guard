@@ -31,7 +31,7 @@ pub struct CircuitBreakerConfig {
     pub failure_threshold: u32,
     
     /// Time window for counting failures
-    #[serde(with = "humantime_serde", default = "default_failure_window")]
+    #[serde(default = "default_failure_window")]
     pub failure_window: Duration,
     
     /// Number of successes in half-open state before closing
@@ -39,11 +39,11 @@ pub struct CircuitBreakerConfig {
     pub success_threshold: u32,
     
     /// Time to wait before attempting recovery
-    #[serde(with = "humantime_serde", default = "default_recovery_timeout")]
+    #[serde(default = "default_recovery_timeout")]
     pub recovery_timeout: Duration,
     
     /// Timeout for individual requests
-    #[serde(with = "humantime_serde", default = "default_request_timeout")]
+    #[serde(default = "default_request_timeout")]
     pub request_timeout: Duration,
     
     /// Maximum requests allowed in half-open state
@@ -59,11 +59,11 @@ pub struct RetryConfig {
     pub max_attempts: u32,
     
     /// Initial delay before first retry
-    #[serde(with = "humantime_serde", default = "default_initial_delay")]
+    #[serde(default = "default_initial_delay")]
     pub initial_delay: Duration,
     
     /// Maximum delay between retries
-    #[serde(with = "humantime_serde", default = "default_max_delay")]
+    #[serde(default = "default_max_delay")]
     pub max_delay: Duration,
     
     /// Exponential backoff multiplier
@@ -75,7 +75,7 @@ pub struct RetryConfig {
     pub jitter_factor: f64,
     
     /// Overall timeout for all retry attempts
-    #[serde(with = "humantime_serde", default = "default_retry_timeout")]
+    #[serde(default = "default_retry_timeout")]
     pub timeout: Duration,
 }
 
@@ -83,11 +83,11 @@ pub struct RetryConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HealthCheckConfig {
     /// Health check interval
-    #[serde(with = "humantime_serde", default = "default_health_check_interval")]
+    #[serde(default = "default_health_check_interval")]
     pub interval: Duration,
     
     /// Health check timeout
-    #[serde(with = "humantime_serde", default = "default_health_check_timeout")]
+    #[serde(default = "default_health_check_timeout")]
     pub timeout: Duration,
     
     /// Number of consecutive failures before marking unhealthy
@@ -111,7 +111,7 @@ pub struct RecoveryConfig {
     pub cache_enabled: bool,
     
     /// Cache TTL for recovery data
-    #[serde(with = "humantime_serde", default = "default_cache_ttl")]
+    #[serde(default = "default_cache_ttl")]
     pub cache_ttl: Duration,
     
     /// Maximum recovery attempts
@@ -119,7 +119,7 @@ pub struct RecoveryConfig {
     pub max_attempts: u32,
     
     /// Recovery timeout
-    #[serde(with = "humantime_serde", default = "default_recovery_timeout")]
+    #[serde(default = "default_recovery_timeout")]
     pub timeout: Duration,
     
     /// Enable predictive recovery (enhanced mode only)

@@ -89,7 +89,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // Validate enhanced mode is working
     if enhanced_manager.is_enhanced_mode() {
-        println!("\n✅ Enhanced mode (with AtomicEventBuffer) confirmed active");
+        println!("\n✅ Enhanced mode (with EventBuffer) confirmed active");
     }
 
     Ok(())

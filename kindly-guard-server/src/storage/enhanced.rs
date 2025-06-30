@@ -1,12 +1,12 @@
-//! Enhanced storage implementation with proprietary optimizations
+//! Enhanced storage implementation with advanced optimizations
 //! 
 //! This module provides high-performance persistent storage using
-//! proprietary techniques for compression, indexing, and durability.
+//! advanced techniques for compression, indexing, and durability.
 
 use super::*;
 use tracing::{info, debug};
 
-// Stubs for proprietary storage components
+// Stubs for advanced storage components
 struct CompactedEventStore;
 impl CompactedEventStore {
     fn new(_size: usize, _compression: bool, _encryption: bool) -> Result<Self> {
@@ -108,7 +108,7 @@ impl ArchivalSystem {
     }
 }
 
-/// Enhanced storage provider with proprietary optimizations
+/// Enhanced storage provider with advanced optimizations
 pub struct EnhancedStorage {
     /// Configuration
     config: StorageConfig,
@@ -127,9 +127,9 @@ pub struct EnhancedStorage {
 impl EnhancedStorage {
     /// Create new enhanced storage
     pub fn new(config: StorageConfig) -> Result<Self> {
-        info!("Initializing enhanced storage with proprietary optimizations");
+        info!("Initializing enhanced storage with advanced optimizations");
         
-        // Initialize proprietary components
+        // Initialize advanced components
         let event_store = CompactedEventStore::new(
             config.data_dir.as_deref().unwrap_or("/var/lib/kindlyguard"),
             config.compression,
@@ -170,7 +170,7 @@ impl EnhancedStorage {
 #[async_trait]
 impl StorageProvider for EnhancedStorage {
     async fn store_event(&self, event: &SecurityEvent) -> Result<EventId> {
-        // Use proprietary event compression and indexing
+        // Use advanced event compression and indexing
         let id = self.event_store.store_compressed(event).await?;
         
         // Update correlation index for fast pattern detection

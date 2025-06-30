@@ -16,7 +16,7 @@ test:
 ## test-fast: Run tests without enhanced features (faster)
 test-fast:
 	@echo "⚡ Running tests (fast mode)..."
-	@cargo nextest run --workspace --exclude kindly-guard-core
+	@cargo nextest run --workspace --exclude private-deps
 
 ## test-coverage: Run tests with coverage reporting
 test-coverage:
