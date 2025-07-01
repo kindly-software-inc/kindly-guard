@@ -1,13 +1,13 @@
 //! Comprehensive MCP Protocol Test Suite
 //! Tests all MCP methods, error conditions, and edge cases
 
-use kindly_guard_server::{McpServer, Config};
+use base64::{engine::general_purpose, Engine as _};
+use kindly_guard_server::{Config, McpServer};
+use pretty_assertions::assert_eq;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use tokio::sync::mpsc;
 use tokio_test::io::Builder;
-use pretty_assertions::assert_eq;
-use base64::{Engine as _, engine::general_purpose};
 
 mod helpers;
 use helpers::*;
@@ -35,7 +35,7 @@ fn create_auth_server() -> Arc<McpServer> {
 #[tokio::test]
 async fn test_mcp_initialize() {
     let server = create_test_server();
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "initialize",
@@ -54,15 +54,17 @@ async fn test_mcp_initialize() {
         },
         "id": 1
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert_eq!(response_json["jsonrpc"], "2.0");
     assert_eq!(response_json["id"], 1);
     assert!(response_json["result"].is_object());
-    
+
     let result = &response_json["result"];
     assert_eq!(result["protocolVersion"], "2024-11-05");
     assert!(result["capabilities"].is_object());
@@ -73,7 +75,7 @@ async fn test_mcp_initialize() {
 #[tokio::test]
 async fn test_mcp_initialize_wrong_version() {
     let server = create_test_server();
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "initialize",
@@ -87,11 +89,13 @@ async fn test_mcp_initialize_wrong_version() {
         },
         "id": 1
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return error response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["error"].is_object());
     assert_eq!(response_json["error"]["code"], -32602); // Invalid params
 }
@@ -99,11 +103,11 @@ async fn test_mcp_initialize_wrong_version() {
 #[tokio::test]
 async fn test_mcp_tools_list() {
     let server = create_test_server();
-    
+
     // First initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Then list tools
     let request = json!({
         "jsonrpc": "2.0",
@@ -111,19 +115,19 @@ async fn test_mcp_tools_list() {
         "params": {},
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["result"].is_object());
     let tools = response_json["result"]["tools"].as_array().unwrap();
-    
+
     // Verify all expected tools are present
-    let tool_names: Vec<&str> = tools.iter()
-        .map(|t| t["name"].as_str().unwrap())
-        .collect();
-    
+    let tool_names: Vec<&str> = tools.iter().map(|t| t["name"].as_str().unwrap()).collect();
+
     assert!(tool_names.contains(&"scan_text"));
     assert!(tool_names.contains(&"scan_json"));
     assert!(tool_names.contains(&"verify_signature"));
@@ -134,11 +138,11 @@ async fn test_mcp_tools_list() {
 #[tokio::test]
 async fn test_mcp_tool_call_scan_text() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Test clean text
     let request = json!({
         "jsonrpc": "2.0",
@@ -151,13 +155,18 @@ async fn test_mcp_tool_call_scan_text() {
         },
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return response");
     println!("Raw response: {}", response);
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    println!("Parsed response: {}", serde_json::to_string_pretty(&response_json).unwrap());
-    
+    println!(
+        "Parsed response: {}",
+        serde_json::to_string_pretty(&response_json).unwrap()
+    );
+
     let result = &response_json["result"]["content"][0];
     assert_eq!(result["type"], "text");
     let content: Value = serde_json::from_str(result["text"].as_str().unwrap()).unwrap();
@@ -168,11 +177,11 @@ async fn test_mcp_tool_call_scan_text() {
 #[tokio::test]
 async fn test_mcp_tool_call_scan_text_with_threat() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Test SQL injection
     let request = json!({
         "jsonrpc": "2.0",
@@ -185,18 +194,23 @@ async fn test_mcp_tool_call_scan_text_with_threat() {
         },
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return response");
     println!("Raw response: {}", response);
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    println!("Parsed response: {}", serde_json::to_string_pretty(&response_json).unwrap());
-    
+    println!(
+        "Parsed response: {}",
+        serde_json::to_string_pretty(&response_json).unwrap()
+    );
+
     let result = &response_json["result"]["content"][0];
     let content: Value = serde_json::from_str(result["text"].as_str().unwrap()).unwrap();
     assert_eq!(content["safe"], false);
     assert!(!content["threats"].as_array().unwrap().is_empty());
-    
+
     let threat = &content["threats"][0];
     assert_eq!(threat["type"], "sql_injection");
     assert_eq!(threat["severity"], "high");
@@ -205,11 +219,11 @@ async fn test_mcp_tool_call_scan_text_with_threat() {
 #[tokio::test]
 async fn test_mcp_tool_call_invalid_tool() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
@@ -219,25 +233,29 @@ async fn test_mcp_tool_call_invalid_tool() {
         },
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return error response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["error"].is_object());
     assert_eq!(response_json["error"]["code"], -32602); // Invalid params
-    assert!(response_json["error"]["message"].as_str().unwrap()
+    assert!(response_json["error"]["message"]
+        .as_str()
+        .unwrap()
         .contains("Unknown tool"));
 }
 
 #[tokio::test]
 async fn test_mcp_batch_request() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Batch request with multiple operations
     let batch_request = json!([
         {
@@ -262,22 +280,24 @@ async fn test_mcp_batch_request() {
             "id": 4
         }
     ]);
-    
-    let response = server.handle_message(&batch_request.to_string()).await
+
+    let response = server
+        .handle_message(&batch_request.to_string())
+        .await
         .expect("Should return batch response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json.is_array());
     let responses = response_json.as_array().unwrap();
     assert_eq!(responses.len(), 3);
-    
+
     // Verify each response
     assert_eq!(responses[0]["id"], 2);
     assert!(responses[0]["result"]["tools"].is_array());
-    
+
     assert_eq!(responses[1]["id"], 3);
     assert!(responses[1]["result"]["content"].is_array());
-    
+
     assert_eq!(responses[2]["id"], 4);
     assert!(responses[2]["result"]["resources"].is_array());
 }
@@ -285,7 +305,7 @@ async fn test_mcp_batch_request() {
 #[tokio::test]
 async fn test_mcp_notification() {
     let server = create_test_server();
-    
+
     // Notifications don't have an id and shouldn't get a response
     let notification = json!({
         "jsonrpc": "2.0",
@@ -296,7 +316,7 @@ async fn test_mcp_notification() {
             "total": 100
         }
     });
-    
+
     let response = server.handle_message(&notification.to_string()).await;
     assert!(response.is_none()); // No response for notifications
 }
@@ -304,7 +324,7 @@ async fn test_mcp_notification() {
 #[tokio::test]
 async fn test_mcp_auth_required() {
     let server = create_auth_server();
-    
+
     // Try to call tool without auth
     let request = json!({
         "jsonrpc": "2.0",
@@ -317,11 +337,13 @@ async fn test_mcp_auth_required() {
         },
         "id": 1
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return error response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["error"].is_object());
     assert_eq!(response_json["error"]["code"], -32001); // Unauthorized
 }
@@ -329,11 +351,11 @@ async fn test_mcp_auth_required() {
 #[tokio::test]
 async fn test_mcp_auth_with_token() {
     let server = create_auth_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Call tool with valid auth token
     let request = json!({
         "jsonrpc": "2.0",
@@ -349,16 +371,21 @@ async fn test_mcp_auth_with_token() {
         },
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     // Debug output
     if response_json["error"].is_object() {
-        eprintln!("Auth test failed with error: {}", serde_json::to_string_pretty(&response_json["error"]).unwrap());
+        eprintln!(
+            "Auth test failed with error: {}",
+            serde_json::to_string_pretty(&response_json["error"]).unwrap()
+        );
     }
-    
+
     assert!(response_json["result"].is_object());
     assert!(response_json["error"].is_null());
 }
@@ -366,13 +393,15 @@ async fn test_mcp_auth_with_token() {
 #[tokio::test]
 async fn test_mcp_malformed_json() {
     let server = create_test_server();
-    
+
     let malformed = "{ invalid json }";
-    
-    let response = server.handle_message(malformed).await
+
+    let response = server
+        .handle_message(malformed)
+        .await
         .expect("Should return parse error");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["error"].is_object());
     assert_eq!(response_json["error"]["code"], -32700); // Parse error
 }
@@ -380,17 +409,19 @@ async fn test_mcp_malformed_json() {
 #[tokio::test]
 async fn test_mcp_missing_method() {
     let server = create_test_server();
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "params": {},
         "id": 1
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return error");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["error"].is_object());
     assert_eq!(response_json["error"]["code"], -32600); // Invalid request
 }
@@ -398,25 +429,27 @@ async fn test_mcp_missing_method() {
 #[tokio::test]
 async fn test_mcp_resources_list() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "resources/list",
         "params": {},
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["result"].is_object());
     let resources = response_json["result"]["resources"].as_array().unwrap();
-    
+
     // Should have security config and threat db resources
     assert!(resources.iter().any(|r| r["name"] == "security-config"));
     assert!(resources.iter().any(|r| r["name"] == "threat-database"));
@@ -425,25 +458,27 @@ async fn test_mcp_resources_list() {
 #[tokio::test]
 async fn test_mcp_prompts_list() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "prompts/list",
         "params": {},
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["result"].is_object());
     let prompts = response_json["result"]["prompts"].as_array().unwrap();
-    
+
     // Should have security analysis prompts
     assert!(prompts.iter().any(|p| p["name"] == "analyze-security"));
     assert!(prompts.iter().any(|p| p["name"] == "threat-report"));
@@ -452,11 +487,11 @@ async fn test_mcp_prompts_list() {
 #[tokio::test]
 async fn test_mcp_prompts_get() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "prompts/get",
@@ -468,32 +503,37 @@ async fn test_mcp_prompts_get() {
         },
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should return response");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["result"].is_object());
     assert!(response_json["result"]["messages"].is_array());
-    
+
     let messages = response_json["result"]["messages"].as_array().unwrap();
     assert!(!messages.is_empty());
     assert_eq!(messages[0]["role"], "user");
-    assert!(messages[0]["content"]["text"].as_str().unwrap().contains("test input"));
+    assert!(messages[0]["content"]["text"]
+        .as_str()
+        .unwrap()
+        .contains("test input"));
 }
 
 // Performance and edge case tests
 #[tokio::test]
 async fn test_mcp_large_payload() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Create a large text payload (1MB)
     let large_text = "a".repeat(1024 * 1024);
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
@@ -505,11 +545,13 @@ async fn test_mcp_large_payload() {
         },
         "id": 2
     });
-    
-    let response = server.handle_message(&request.to_string()).await
+
+    let response = server
+        .handle_message(&request.to_string())
+        .await
         .expect("Should handle large payload");
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     // Should complete without error
     assert!(response_json["result"].is_object());
 }
@@ -517,11 +559,11 @@ async fn test_mcp_large_payload() {
 #[tokio::test]
 async fn test_mcp_concurrent_requests() {
     let server = create_test_server();
-    
+
     // Initialize first
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Send multiple concurrent requests
     let mut handles = vec![];
     for i in 0..10 {
@@ -538,16 +580,15 @@ async fn test_mcp_concurrent_requests() {
                 },
                 "id": i + 2
             });
-            
+
             server.handle_message(&request.to_string()).await
         });
         handles.push(handle);
     }
-    
+
     // All requests should complete successfully
     for handle in handles {
-        let response = handle.await.unwrap()
-            .expect("Should return response");
+        let response = handle.await.unwrap().expect("Should return response");
         let response_json: Value = serde_json::from_str(&response).unwrap();
         assert!(response_json["result"].is_object());
     }

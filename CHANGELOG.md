@@ -5,6 +5,39 @@ All notable changes to KindlyGuard will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.2.0] - 2025-01-01
+
+### Added
+- **Threat Neutralization System** - Active threat mitigation beyond detection
+  - Multiple neutralization modes: ReportOnly, Interactive, Automatic
+  - Configurable actions per threat type (sanitize, parameterize, escape, etc.)
+  - Full audit trail and telemetry integration
+  - Rollback capabilities for neutralization actions
+- **Production Resilience Features**
+  - Circuit breakers for external service calls
+  - Retry strategies with exponential backoff
+  - Health monitoring and recovery mechanisms
+  - Graceful degradation patterns
+- **OpenTelemetry Integration**
+  - Distributed tracing with W3C TraceContext propagation
+  - Comprehensive metrics and span tracking
+  - Performance monitoring dashboards
+- **Enhanced Storage System**
+  - Event compression and archival
+  - Correlation indexing for pattern detection
+  - Snapshot capabilities for state recovery
+
+### Changed
+- Migrated to trait-based architecture for better extensibility
+- Improved performance with optimized algorithms
+- Enhanced error handling with structured recovery strategies
+- License changed from dual MIT/Apache-2.0 to Apache-2.0 only
+
+### Security
+- Added neutralization validation to prevent bypass attempts
+- Implemented rate limiting for neutralization operations
+- Enhanced audit logging for all security-critical operations
+
 ## [Unreleased]
 
 ### Added
@@ -68,5 +101,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rate limiting to prevent DoS attacks
 - Cryptographic message signing
 
-[Unreleased]: https://github.com/yourusername/kindly-guard/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/yourusername/kindly-guard/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/yourusername/kindly-guard/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yourusername/kindly-guard/releases/tag/v0.1.0

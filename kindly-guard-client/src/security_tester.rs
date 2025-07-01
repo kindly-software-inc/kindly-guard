@@ -1,15 +1,15 @@
 //! Security testing implementation
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tracing::{debug, info};
 
 use crate::traits::{
-    SecurityTester, ThreatType, TestResult, RateLimitTestResult,
-    AuthScenario, AuthTestResult, SigningTestResult, McpClient
+    AuthScenario, AuthTestResult, McpClient, RateLimitTestResult, SecurityTester,
+    SigningTestResult, TestResult, ThreatType,
 };
 
 /// Security test runner implementation
@@ -22,136 +22,138 @@ impl SecurityTestRunner {
     pub fn new(client: Arc<dyn McpClient>) -> Self {
         Self { client }
     }
-    
+
     /// Run all security tests
     pub async fn run_all_tests(&self) -> Result<SecurityTestReport> {
         info!("🔒 Running comprehensive security tests...");
-        
+
         let mut report = SecurityTestReport::default();
-        
+
         // Test threat detection
         info!("Testing threat detection...");
         report.threat_detection = self.test_all_threats().await?;
-        
+
         // Test rate limiting
         info!("Testing rate limiting...");
         report.rate_limiting = self.test_rate_limiting_scenarios().await?;
-        
+
         // Test authentication
         info!("Testing authentication...");
         report.authentication = self.test_auth_scenarios().await?;
-        
+
         Ok(report)
     }
-    
+
     /// Test all threat types
     async fn test_all_threats(&self) -> Result<ThreatDetectionReport> {
         let mut report = ThreatDetectionReport::default();
-        
+
         // SQL Injection
-        let sql_result = self.inject_threat(
-            ThreatType::SqlInjection,
-            "'; DROP TABLE users; --"
-        ).await?;
+        let sql_result = self
+            .inject_threat(ThreatType::SqlInjection, "'; DROP TABLE users; --")
+            .await?;
         report.sql_injection_blocked = sql_result.threat_detected;
-        
+
         // Unicode attacks
-        let unicode_result = self.inject_threat(
-            ThreatType::UnicodeAttack,
-            "Hello\u{202E}World"
-        ).await?;
+        let unicode_result = self
+            .inject_threat(ThreatType::UnicodeAttack, "Hello\u{202E}World")
+            .await?;
         report.unicode_attack_blocked = unicode_result.threat_detected;
-        
+
         // Path traversal
-        let path_result = self.inject_threat(
-            ThreatType::PathTraversal,
-            "../../etc/passwd"
-        ).await?;
+        let path_result = self
+            .inject_threat(ThreatType::PathTraversal, "../../etc/passwd")
+            .await?;
         report.path_traversal_blocked = path_result.threat_detected;
-        
+
         // XSS
-        let xss_result = self.inject_threat(
-            ThreatType::XssAttempt,
-            "<script>alert('xss')</script>"
-        ).await?;
+        let xss_result = self
+            .inject_threat(ThreatType::XssAttempt, "<script>alert('xss')</script>")
+            .await?;
         report.xss_blocked = xss_result.threat_detected;
-        
+
         // Command injection
-        let cmd_result = self.inject_threat(
-            ThreatType::CommandInjection,
-            "test; rm -rf /"
-        ).await?;
+        let cmd_result = self
+            .inject_threat(ThreatType::CommandInjection, "test; rm -rf /")
+            .await?;
         report.command_injection_blocked = cmd_result.threat_detected;
-        
+
         report.all_threats_blocked = report.sql_injection_blocked
             && report.unicode_attack_blocked
             && report.path_traversal_blocked
             && report.xss_blocked
             && report.command_injection_blocked;
-        
+
         Ok(report)
     }
-    
+
     /// Test rate limiting scenarios
     async fn test_rate_limiting_scenarios(&self) -> Result<RateLimitingReport> {
         let mut report = RateLimitingReport::default();
-        
+
         // Test burst requests
         let burst_result = self.test_rate_limits(100).await?;
         report.burst_requests_handled = burst_result.requests_blocked > 0;
         report.rate_limit_headers_present = !burst_result.rate_limit_headers.is_empty();
-        
+
         // Test gradual requests
-        let gradual_result = self.test_gradual_requests(10, Duration::from_millis(100)).await?;
-        report.gradual_requests_allowed = gradual_result.requests_allowed == gradual_result.requests_sent;
-        
+        let gradual_result = self
+            .test_gradual_requests(10, Duration::from_millis(100))
+            .await?;
+        report.gradual_requests_allowed =
+            gradual_result.requests_allowed == gradual_result.requests_sent;
+
         Ok(report)
     }
-    
+
     /// Test authentication scenarios
     async fn test_auth_scenarios(&self) -> Result<AuthenticationReport> {
         let mut report = AuthenticationReport::default();
-        
+
         // Test missing token
         let missing_result = self.test_auth(AuthScenario::MissingToken).await?;
         report.missing_token_rejected = !missing_result.authenticated;
-        
+
         // Test invalid token
         let invalid_result = self.test_auth(AuthScenario::InvalidToken).await?;
         report.invalid_token_rejected = !invalid_result.authenticated;
-        
+
         // Test expired token
         let expired_result = self.test_auth(AuthScenario::ExpiredToken).await?;
         report.expired_token_rejected = !expired_result.authenticated;
-        
+
         Ok(report)
     }
-    
+
     /// Test gradual requests
-    async fn test_gradual_requests(&self, count: u32, delay: Duration) -> Result<RateLimitTestResult> {
+    async fn test_gradual_requests(
+        &self,
+        count: u32,
+        delay: Duration,
+    ) -> Result<RateLimitTestResult> {
         let mut result = RateLimitTestResult {
             requests_sent: 0,
             requests_allowed: 0,
             requests_blocked: 0,
             rate_limit_headers: Vec::new(),
         };
-        
+
         for i in 0..count {
-            let response = self.client.call_tool(
-                "get_security_info",
-                json!({ "request_id": i })
-            ).await;
-            
+            let response = self
+                .client
+                .call_tool("get_security_info", json!({ "request_id": i }))
+                .await;
+
             result.requests_sent += 1;
-            
+
             match response {
                 Ok(_) => result.requests_allowed += 1,
                 Err(_) => result.requests_blocked += 1,
             }
-            
+
             tokio::time::sleep(delay).await;
         }
-        
+
         Ok(result)
     }
 }
@@ -167,20 +169,20 @@ impl SecurityTester for SecurityTestRunner {
             ThreatType::CommandInjection => "command_injection",
             ThreatType::Custom(name) => name,
         };
-        
+
         debug!("Injecting {} threat: {}", threat_name, payload);
-        
+
         // Use scan_text tool to test threat detection
-        let result = self.client.call_tool(
-            "scan_text",
-            json!({ "text": payload })
-        ).await;
-        
+        let result = self
+            .client
+            .call_tool("scan_text", json!({ "text": payload }))
+            .await;
+
         match result {
             Ok(scan_result) => {
                 let safe = scan_result["safe"].as_bool().unwrap_or(true);
                 let _threats = scan_result["threats"].as_array();
-                
+
                 Ok(TestResult {
                     threat_detected: !safe,
                     response_code: 200,
@@ -192,7 +194,7 @@ impl SecurityTester for SecurityTestRunner {
                 // Check if error indicates threat was blocked
                 let error_msg = e.to_string();
                 let threat_detected = error_msg.contains("threat") || error_msg.contains("blocked");
-                
+
                 Ok(TestResult {
                     threat_detected,
                     response_code: 400,
@@ -202,7 +204,7 @@ impl SecurityTester for SecurityTestRunner {
             }
         }
     }
-    
+
     async fn test_rate_limits(&self, requests_per_second: u32) -> Result<RateLimitTestResult> {
         let mut result = RateLimitTestResult {
             requests_sent: 0,
@@ -210,17 +212,17 @@ impl SecurityTester for SecurityTestRunner {
             requests_blocked: 0,
             rate_limit_headers: Vec::new(),
         };
-        
+
         let start = Instant::now();
-        
+
         for i in 0..requests_per_second {
-            let response = self.client.call_tool(
-                "get_security_info",
-                json!({ "request_id": i })
-            ).await;
-            
+            let response = self
+                .client
+                .call_tool("get_security_info", json!({ "request_id": i }))
+                .await;
+
             result.requests_sent += 1;
-            
+
             match response {
                 Ok(_) => result.requests_allowed += 1,
                 Err(e) => {
@@ -229,26 +231,26 @@ impl SecurityTester for SecurityTestRunner {
                     }
                 }
             }
-            
+
             // Try to maintain target rate
             let elapsed = start.elapsed();
-            let expected = Duration::from_secs_f64(i as f64 / requests_per_second as f64);
+            let expected = Duration::from_secs_f64(f64::from(i) / f64::from(requests_per_second));
             if expected > elapsed {
                 tokio::time::sleep(expected - elapsed).await;
             }
         }
-        
+
         Ok(result)
     }
-    
+
     async fn test_auth(&self, _scenario: AuthScenario) -> Result<AuthTestResult> {
         // This would typically modify the client's auth configuration
         // For now, simulate by calling a protected endpoint
-        let result = self.client.call_tool(
-            "get_security_info",
-            json!({ "auth_test": true })
-        ).await;
-        
+        let result = self
+            .client
+            .call_tool("get_security_info", json!({ "auth_test": true }))
+            .await;
+
         match result {
             Ok(_) => Ok(AuthTestResult {
                 authenticated: true,
@@ -264,7 +266,7 @@ impl SecurityTester for SecurityTestRunner {
                 } else {
                     None
                 };
-                
+
                 Ok(AuthTestResult {
                     authenticated: false,
                     error_code,
@@ -273,17 +275,20 @@ impl SecurityTester for SecurityTestRunner {
             }
         }
     }
-    
+
     async fn test_signing(&self, tamper: bool) -> Result<SigningTestResult> {
         // Test message signing by calling an endpoint
-        let result = self.client.call_tool(
-            "verify_signature",
-            json!({ 
-                "message": "test message",
-                "tampered": tamper 
-            })
-        ).await;
-        
+        let result = self
+            .client
+            .call_tool(
+                "verify_signature",
+                json!({
+                    "message": "test message",
+                    "tampered": tamper
+                }),
+            )
+            .await;
+
         match result {
             Ok(verify_result) => Ok(SigningTestResult {
                 signature_valid: verify_result["valid"].as_bool().unwrap_or(false),
@@ -336,38 +341,74 @@ pub struct AuthenticationReport {
 
 impl SecurityTestReport {
     /// Check if all tests passed
-    pub fn all_passed(&self) -> bool {
+    pub const fn all_passed(&self) -> bool {
         self.threat_detection.all_threats_blocked
             && self.rate_limiting.burst_requests_handled
             && self.authentication.missing_token_rejected
     }
-    
+
     /// Print summary
     pub fn print_summary(&self) {
         println!("\n📊 Security Test Summary");
         println!("========================");
-        
+
         println!("\n🛡️ Threat Detection:");
-        println!("  SQL Injection: {}", self.format_result(self.threat_detection.sql_injection_blocked));
-        println!("  Unicode Attack: {}", self.format_result(self.threat_detection.unicode_attack_blocked));
-        println!("  Path Traversal: {}", self.format_result(self.threat_detection.path_traversal_blocked));
-        println!("  XSS: {}", self.format_result(self.threat_detection.xss_blocked));
-        println!("  Command Injection: {}", self.format_result(self.threat_detection.command_injection_blocked));
-        
+        println!(
+            "  SQL Injection: {}",
+            self.format_result(self.threat_detection.sql_injection_blocked)
+        );
+        println!(
+            "  Unicode Attack: {}",
+            self.format_result(self.threat_detection.unicode_attack_blocked)
+        );
+        println!(
+            "  Path Traversal: {}",
+            self.format_result(self.threat_detection.path_traversal_blocked)
+        );
+        println!(
+            "  XSS: {}",
+            self.format_result(self.threat_detection.xss_blocked)
+        );
+        println!(
+            "  Command Injection: {}",
+            self.format_result(self.threat_detection.command_injection_blocked)
+        );
+
         println!("\n⏱️ Rate Limiting:");
-        println!("  Burst Protection: {}", self.format_result(self.rate_limiting.burst_requests_handled));
-        println!("  Headers Present: {}", self.format_result(self.rate_limiting.rate_limit_headers_present));
-        
+        println!(
+            "  Burst Protection: {}",
+            self.format_result(self.rate_limiting.burst_requests_handled)
+        );
+        println!(
+            "  Headers Present: {}",
+            self.format_result(self.rate_limiting.rate_limit_headers_present)
+        );
+
         println!("\n🔐 Authentication:");
-        println!("  Missing Token: {}", self.format_result(self.authentication.missing_token_rejected));
-        println!("  Invalid Token: {}", self.format_result(self.authentication.invalid_token_rejected));
-        
-        println!("\n📋 Overall: {}", 
-            if self.all_passed() { "✅ ALL TESTS PASSED" } else { "❌ SOME TESTS FAILED" }
+        println!(
+            "  Missing Token: {}",
+            self.format_result(self.authentication.missing_token_rejected)
+        );
+        println!(
+            "  Invalid Token: {}",
+            self.format_result(self.authentication.invalid_token_rejected)
+        );
+
+        println!(
+            "\n📋 Overall: {}",
+            if self.all_passed() {
+                "✅ ALL TESTS PASSED"
+            } else {
+                "❌ SOME TESTS FAILED"
+            }
         );
     }
-    
-    fn format_result(&self, passed: bool) -> &'static str {
-        if passed { "✅ PASS" } else { "❌ FAIL" }
+
+    const fn format_result(&self, passed: bool) -> &'static str {
+        if passed {
+            "✅ PASS"
+        } else {
+            "❌ FAIL"
+        }
     }
 }

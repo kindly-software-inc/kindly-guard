@@ -1,13 +1,16 @@
 //! WebSocket transport implementation
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use anyhow::Result;
 use async_trait::async_trait;
-use tokio::sync::{Mutex, mpsc};
-use tracing::{debug, info, warn, error};
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
+use tracing::{debug, info};
 
-use super::*;
+use super::{
+    ConnectionInfo, ConnectionStats, Deserialize, Serialize, Transport, TransportConnection,
+    TransportMessage, TransportStats, TransportType,
+};
 
 /// WebSocket transport configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,7 +63,7 @@ impl WebSocketTransport {
     pub fn new(config: serde_json::Value) -> Result<Self> {
         let config: WebSocketConfig = serde_json::from_value(config)?;
         let (connection_tx, connection_rx) = mpsc::unbounded_channel();
-        
+
         Ok(Self {
             config,
             running: AtomicBool::new(false),
@@ -70,24 +73,24 @@ impl WebSocketTransport {
             shutdown_tx: None,
         })
     }
-    
+
     /// Start WebSocket server (placeholder)
     async fn start_server(&mut self) -> Result<mpsc::Sender<()>> {
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
-        
+
         if let Some(bind_addr) = &self.config.bind_addr {
             let addr = bind_addr.clone();
             let stats = self.stats.clone();
             let connection_tx = self.connection_tx.clone();
-            
+
             tokio::spawn(async move {
                 info!("WebSocket server listening on {}", addr);
-                
+
                 // In real implementation, this would:
                 // 1. Create WebSocket server using tokio-tungstenite
                 // 2. Accept connections and upgrade HTTP to WebSocket
                 // 3. Send connections through the channel
-                
+
                 tokio::select! {
                     _ = shutdown_rx.recv() => {
                         info!("WebSocket server shutting down");
@@ -95,7 +98,7 @@ impl WebSocketTransport {
                 }
             });
         }
-        
+
         Ok(shutdown_tx)
     }
 }
@@ -105,35 +108,35 @@ impl Transport for WebSocketTransport {
     fn transport_type(&self) -> TransportType {
         TransportType::WebSocket
     }
-    
+
     async fn start(&mut self) -> Result<()> {
         if self.running.load(Ordering::Relaxed) {
             return Err(anyhow::anyhow!("Transport already running"));
         }
-        
+
         let shutdown_tx = self.start_server().await?;
         self.shutdown_tx = Some(shutdown_tx);
         self.running.store(true, Ordering::Relaxed);
-        
+
         info!("Started WebSocket transport");
         Ok(())
     }
-    
+
     async fn stop(&mut self) -> Result<()> {
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(()).await;
         }
-        
+
         self.running.store(false, Ordering::Relaxed);
         info!("Stopped WebSocket transport");
         Ok(())
     }
-    
+
     async fn accept(&mut self) -> Result<Box<dyn TransportConnection>> {
         if !self.running.load(Ordering::Relaxed) {
             return Err(anyhow::anyhow!("Transport not running"));
         }
-        
+
         // Wait for incoming connection
         let mut queue = self.connection_queue.lock().await;
         match queue.recv().await {
@@ -142,34 +145,34 @@ impl Transport for WebSocketTransport {
                 stats.connections_accepted += 1;
                 stats.active_connections += 1;
                 drop(stats);
-                
+
                 Ok(Box::new(conn))
             }
             None => Err(anyhow::anyhow!("Connection queue closed")),
         }
     }
-    
+
     async fn connect(&mut self, address: &str) -> Result<Box<dyn TransportConnection>> {
         // Create WebSocket client connection
         let url = if self.config.tls {
-            format!("wss://{}", address)
+            format!("wss://{address}")
         } else {
-            format!("ws://{}", address)
+            format!("ws://{address}")
         };
-        
+
         info!("Connecting to WebSocket server at {}", url);
-        
+
         // In real implementation, this would use tokio-tungstenite to connect
         Ok(Box::new(WebSocketConnection::new(
             address.to_string(),
             self.stats.clone(),
         )))
     }
-    
+
     fn is_running(&self) -> bool {
         self.running.load(Ordering::Relaxed)
     }
-    
+
     fn get_stats(&self) -> TransportStats {
         if let Ok(stats) = self.stats.try_lock() {
             stats.clone()
@@ -177,7 +180,7 @@ impl Transport for WebSocketTransport {
             TransportStats::default()
         }
     }
-    
+
     async fn set_option(&mut self, key: &str, value: serde_json::Value) -> Result<()> {
         match key {
             "compression" => {
@@ -212,7 +215,7 @@ impl WebSocketConnection {
     fn new(remote_addr: String, transport_stats: Arc<Mutex<TransportStats>>) -> Self {
         let (incoming_tx, incoming_rx) = mpsc::unbounded_channel();
         let (outgoing_tx, mut outgoing_rx) = mpsc::unbounded_channel::<TransportMessage>();
-        
+
         let info = ConnectionInfo {
             id: uuid::Uuid::new_v4().to_string(),
             transport_type: TransportType::WebSocket,
@@ -221,12 +224,12 @@ impl WebSocketConnection {
             connected_at: chrono::Utc::now(),
             security_info: None, // Would be populated based on TLS info
         };
-        
+
         // Simulate WebSocket message handling
         let connected = Arc::new(AtomicBool::new(true));
-        let connected_clone = connected.clone();
+        let connected_clone = connected;
         let addr = remote_addr.clone();
-        
+
         tokio::spawn(async move {
             while connected_clone.load(Ordering::Relaxed) {
                 tokio::select! {
@@ -234,13 +237,13 @@ impl WebSocketConnection {
                         debug!("WebSocket {} sending: {}", addr, msg.id);
                         // In real implementation, send over WebSocket
                     }
-                    _ = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {
+                    () = tokio::time::sleep(tokio::time::Duration::from_secs(1)) => {
                         // Heartbeat or other periodic tasks
                     }
                 }
             }
         });
-        
+
         Self {
             info,
             remote_addr,
@@ -252,7 +255,7 @@ impl WebSocketConnection {
             outgoing_messages: Arc::new(Mutex::new(outgoing_tx)),
         }
     }
-    
+
     /// Simulate receiving a message (for testing)
     #[allow(dead_code)]
     pub fn inject_message(&self, message: TransportMessage) {
@@ -265,74 +268,74 @@ impl TransportConnection for WebSocketConnection {
     fn connection_info(&self) -> &ConnectionInfo {
         &self.info
     }
-    
+
     async fn send(&mut self, message: TransportMessage) -> Result<()> {
         if !self.connected.load(Ordering::Relaxed) {
             return Err(anyhow::anyhow!("Connection closed"));
         }
-        
+
         let outgoing = self.outgoing_messages.lock().await;
         outgoing.send(message.clone())?;
         drop(outgoing);
-        
+
         let bytes_sent = serde_json::to_vec(&message.payload)?.len() as u64;
-        
+
         let mut stats = self.stats.lock().await;
         stats.messages_sent += 1;
         stats.bytes_sent += bytes_sent;
         drop(stats);
-        
+
         let mut transport_stats = self.transport_stats.lock().await;
         transport_stats.messages_sent += 1;
         transport_stats.bytes_sent += bytes_sent;
         drop(transport_stats);
-        
+
         debug!("WebSocket sent message: {}", message.id);
         Ok(())
     }
-    
+
     async fn receive(&mut self) -> Result<Option<TransportMessage>> {
         if !self.connected.load(Ordering::Relaxed) {
             return Ok(None);
         }
-        
+
         let mut incoming = self.incoming_messages.lock().await;
         match incoming.recv().await {
             Some(message) => {
                 let bytes_received = serde_json::to_vec(&message.payload)?.len() as u64;
-                
+
                 let mut stats = self.stats.lock().await;
                 stats.messages_received += 1;
                 stats.bytes_received += bytes_received;
                 drop(stats);
-                
+
                 let mut transport_stats = self.transport_stats.lock().await;
                 transport_stats.messages_received += 1;
                 transport_stats.bytes_received += bytes_received;
                 drop(transport_stats);
-                
+
                 debug!("WebSocket received message: {}", message.id);
                 Ok(Some(message))
             }
             None => Ok(None),
         }
     }
-    
+
     async fn close(&mut self) -> Result<()> {
         self.connected.store(false, Ordering::Relaxed);
-        
+
         let mut transport_stats = self.transport_stats.lock().await;
         transport_stats.active_connections = transport_stats.active_connections.saturating_sub(1);
         drop(transport_stats);
-        
+
         info!("Closed WebSocket connection to {}", self.remote_addr);
         Ok(())
     }
-    
+
     fn is_connected(&self) -> bool {
         self.connected.load(Ordering::Relaxed)
     }
-    
+
     fn get_stats(&self) -> ConnectionStats {
         if let Ok(stats) = self.stats.try_lock() {
             stats.clone()
@@ -340,15 +343,12 @@ impl TransportConnection for WebSocketConnection {
             ConnectionStats::default()
         }
     }
-    
+
     async fn set_option(&mut self, key: &str, value: serde_json::Value) -> Result<()> {
-        match key {
-            "client_id" => {
-                if let Some(id) = value.as_str() {
-                    self.info.client_id = Some(id.to_string());
-                }
+        if key == "client_id" {
+            if let Some(id) = value.as_str() {
+                self.info.client_id = Some(id.to_string());
             }
-            _ => {}
         }
         Ok(())
     }

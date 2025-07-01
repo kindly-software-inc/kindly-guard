@@ -1,7 +1,7 @@
-//! API versioning for KindlyGuard
+//! API versioning for `KindlyGuard`
 //! Provides version management and stability guarantees
 
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 
 /// Current API version
 pub const API_VERSION: &str = "v1-beta";
@@ -120,7 +120,6 @@ impl ApiRegistry {
                 deprecated_in: None,
                 removed_in: None,
             },
-            
             // Security extensions (experimental)
             ApiEndpoint {
                 method: "security/status",
@@ -143,7 +142,6 @@ impl ApiRegistry {
                 deprecated_in: None,
                 removed_in: None,
             },
-            
             // Admin methods (experimental)
             ApiEndpoint {
                 method: "admin/update_config",
@@ -154,16 +152,15 @@ impl ApiRegistry {
             },
         ]
     }
-    
+
     /// Check if a method is stable
     pub fn is_stable(method: &str) -> bool {
         Self::endpoints()
             .iter()
             .find(|e| e.method == method)
-            .map(|e| e.stability == ApiStability::Stable)
-            .unwrap_or(false)
+            .is_some_and(|e| e.stability == ApiStability::Stable)
     }
-    
+
     /// Get stability for a method
     pub fn get_stability(method: &str) -> Option<ApiStability> {
         Self::endpoints()
@@ -171,7 +168,7 @@ impl ApiRegistry {
             .find(|e| e.method == method)
             .map(|e| e.stability)
     }
-    
+
     /// Check if experimental features are enabled
     pub fn experimental_enabled() -> bool {
         // Could be controlled by environment variable or config
@@ -191,7 +188,7 @@ pub fn add_version_metadata(response: &mut serde_json::Value) {
                 "api_version": version_info.api_version,
                 "server_version": version_info.server_version,
                 "timestamp": chrono::Utc::now().to_rfc3339(),
-            })
+            }),
         );
     }
 }
@@ -202,19 +199,20 @@ pub struct VersionNegotiator;
 impl VersionNegotiator {
     /// Supported protocol versions in order of preference
     pub const SUPPORTED_PROTOCOLS: &'static [&'static str] = &[
-        "2024-11-05",  // Current
-        "2024-10-01",  // Previous (if we supported it)
+        "2024-11-05", // Current
+        "2024-10-01", // Previous (if we supported it)
     ];
-    
+
     /// Check if a protocol version is supported
     pub fn is_supported(version: &str) -> bool {
         Self::SUPPORTED_PROTOCOLS.contains(&version)
     }
-    
+
     /// Get the best matching version
     pub fn negotiate(requested: &str) -> Option<&'static str> {
         // Find exact match in our supported versions
-        Self::SUPPORTED_PROTOCOLS.iter()
+        Self::SUPPORTED_PROTOCOLS
+            .iter()
             .find(|&&v| v == requested)
             .copied()
     }
@@ -223,38 +221,38 @@ impl VersionNegotiator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_api_registry() {
         assert!(ApiRegistry::is_stable("initialize"));
         assert!(ApiRegistry::is_stable("tools/list"));
         assert!(!ApiRegistry::is_stable("security/status"));
-        
+
         assert_eq!(
             ApiRegistry::get_stability("security/status"),
             Some(ApiStability::Experimental)
         );
     }
-    
+
     #[test]
     fn test_version_negotiation() {
         assert!(VersionNegotiator::is_supported("2024-11-05"));
         assert!(!VersionNegotiator::is_supported("2023-01-01"));
-        
+
         assert_eq!(
             VersionNegotiator::negotiate("2024-11-05"),
             Some("2024-11-05")
         );
     }
-    
+
     #[test]
     fn test_version_metadata() {
         let mut response = serde_json::json!({
             "result": "test"
         });
-        
+
         add_version_metadata(&mut response);
-        
+
         assert!(response.get("_meta").is_some());
         let meta = response.get("_meta").unwrap();
         assert!(meta.get("api_version").is_some());

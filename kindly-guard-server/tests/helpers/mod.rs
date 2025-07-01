@@ -1,12 +1,12 @@
 //! Test helpers for MCP protocol testing
 
+use base64::{engine::general_purpose, Engine as _};
+use hmac::{Hmac, Mac};
 use serde_json::{json, Value};
-use tokio::io::{AsyncRead, AsyncWrite, AsyncReadExt, AsyncWriteExt};
+use sha2::Sha256;
 use std::pin::Pin;
 use std::task::{Context, Poll};
-use base64::{Engine as _, engine::general_purpose};
-use hmac::{Hmac, Mac};
-use sha2::Sha256;
+use tokio::io::{AsyncRead, AsyncWrite};
 
 /// Create a standard initialize request
 pub fn create_init_request(id: u64) -> Value {
@@ -38,23 +38,23 @@ pub struct MockStdio {
 }
 
 impl MockStdio {
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self {
             input: Vec::new(),
             output: Vec::new(),
             read_pos: 0,
         }
     }
-    
+
     pub fn write_input(&mut self, data: &str) {
         self.input.extend_from_slice(data.as_bytes());
         self.input.push(b'\n');
     }
-    
+
     pub fn read_output(&self) -> String {
         String::from_utf8_lossy(&self.output).to_string()
     }
-    
+
     pub fn clear_output(&mut self) {
         self.output.clear();
     }
@@ -70,12 +70,12 @@ impl AsyncRead for MockStdio {
         if remaining == 0 {
             return Poll::Ready(Ok(()));
         }
-        
+
         let to_read = std::cmp::min(remaining, buf.remaining());
         let data = &self.input[self.read_pos..self.read_pos + to_read];
         buf.put_slice(data);
         self.read_pos += to_read;
-        
+
         Poll::Ready(Ok(()))
     }
 }
@@ -89,18 +89,12 @@ impl AsyncWrite for MockStdio {
         self.output.extend_from_slice(buf);
         Poll::Ready(Ok(buf.len()))
     }
-    
-    fn poll_flush(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
+
+    fn poll_flush(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Poll::Ready(Ok(()))
     }
-    
-    fn poll_shutdown(
-        self: Pin<&mut Self>,
-        _cx: &mut Context<'_>,
-    ) -> Poll<std::io::Result<()>> {
+
+    fn poll_shutdown(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<std::io::Result<()>> {
         Poll::Ready(Ok(()))
     }
 }
@@ -110,7 +104,9 @@ pub fn validate_jsonrpc_response(response: &Value, expected_id: u64) {
     assert_eq!(response["jsonrpc"], "2.0", "Missing JSON-RPC version");
     assert_eq!(response["id"], expected_id, "ID mismatch");
     assert!(
-        response["result"].is_object() || response["result"].is_array() || response["error"].is_object(),
+        response["result"].is_object()
+            || response["result"].is_array()
+            || response["error"].is_object(),
         "Response must have either result or error"
     );
 }
@@ -119,12 +115,18 @@ pub fn validate_jsonrpc_response(response: &Value, expected_id: u64) {
 pub fn validate_jsonrpc_error(response: &Value, expected_code: i32) {
     assert!(response["error"].is_object(), "Missing error object");
     assert_eq!(response["error"]["code"], expected_code, "Wrong error code");
-    assert!(response["error"]["message"].is_string(), "Missing error message");
+    assert!(
+        response["error"]["message"].is_string(),
+        "Missing error message"
+    );
 }
 
 /// Create a mock auth token for testing
 pub fn create_test_auth_token() -> String {
-    format!("Bearer {}", create_test_jwt_token("test-secret-key", "test-client", vec!["security:scan"]))
+    format!(
+        "Bearer {}",
+        create_test_jwt_token("test-secret-key", "test-client", vec!["security:scan"])
+    )
 }
 
 /// Create a JWT token for testing
@@ -134,13 +136,13 @@ pub fn create_test_jwt_token(secret: &str, client_id: &str, scopes: Vec<&str>) -
         "alg": "HS256",
         "typ": "JWT"
     });
-    
+
     // Create payload with claims
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
         .as_secs();
-    
+
     let payload = json!({
         "sub": client_id,
         "iat": now,
@@ -148,19 +150,19 @@ pub fn create_test_jwt_token(secret: &str, client_id: &str, scopes: Vec<&str>) -
         "scope": scopes.join(" "),
         "client_id": client_id,
     });
-    
+
     // Encode header and payload
     let header_b64 = general_purpose::URL_SAFE_NO_PAD.encode(header.to_string());
     let payload_b64 = general_purpose::URL_SAFE_NO_PAD.encode(payload.to_string());
-    
+
     // Create signature
-    let message = format!("{}.{}", header_b64, payload_b64);
+    let message = format!("{header_b64}.{payload_b64}");
     let mut mac = Hmac::<Sha256>::new_from_slice(secret.as_bytes()).unwrap();
     mac.update(message.as_bytes());
     let signature = mac.finalize().into_bytes();
-    let signature_b64 = general_purpose::URL_SAFE_NO_PAD.encode(&signature);
-    
-    format!("{}.{}.{}", header_b64, payload_b64, signature_b64)
+    let signature_b64 = general_purpose::URL_SAFE_NO_PAD.encode(signature);
+
+    format!("{header_b64}.{payload_b64}.{signature_b64}")
 }
 
 /// Create a test signature for message signing tests

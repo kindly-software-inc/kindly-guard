@@ -1,14 +1,14 @@
 //! WASM plugin loader for sandboxed plugins
-//! 
+//!
 //! Loads plugins compiled to WebAssembly for strong isolation
 
 use super::*;
-use std::path::Path;
 use anyhow::Result;
-use tracing::{info, debug, warn};
+use std::path::Path;
+use tracing::{debug, info, warn};
 
 /// WASM plugin loader stub
-/// 
+///
 /// In production, this would use wasmtime or wasmer to load and execute
 /// WASM modules in a sandboxed environment
 pub struct WasmPluginLoader {
@@ -31,24 +31,25 @@ impl PluginLoader for WasmPluginLoader {
         // 2. Create a sandboxed runtime
         // 3. Instantiate the plugin
         // 4. Return a wrapper that communicates with the WASM instance
-        
+
         Err(anyhow::anyhow!("WASM plugin loading not implemented"))
     }
-    
+
     async fn validate_plugin(&self, path: &Path) -> Result<PluginMetadata> {
         // Check if it's a WASM file
-        let extension = path.extension()
+        let extension = path
+            .extension()
             .and_then(|e| e.to_str())
             .ok_or_else(|| anyhow::anyhow!("No file extension"))?;
-        
+
         if extension != "wasm" {
             return Err(anyhow::anyhow!("Not a WASM file"));
         }
-        
+
         // In real implementation, would load and validate WASM module
         Err(anyhow::anyhow!("WASM validation not implemented"))
     }
-    
+
     fn loader_type(&self) -> &'static str {
         "wasm"
     }
@@ -67,18 +68,18 @@ impl SecurityPlugin for WasmPluginWrapper {
     fn metadata(&self) -> PluginMetadata {
         self.metadata.clone()
     }
-    
+
     async fn initialize(&mut self, _config: serde_json::Value) -> Result<()> {
         // Call WASM export: plugin_initialize
         Ok(())
     }
-    
+
     async fn scan(&self, _context: ScanContext<'_>) -> Result<Vec<Threat>> {
         // Call WASM export: plugin_scan
         // Marshal data in/out of WASM memory
         Ok(Vec::new())
     }
-    
+
     async fn health_check(&self) -> Result<HealthStatus> {
         // Call WASM export: plugin_health_check
         Ok(HealthStatus {
@@ -88,7 +89,7 @@ impl SecurityPlugin for WasmPluginWrapper {
             metrics: PluginMetrics::default(),
         })
     }
-    
+
     async fn shutdown(&mut self) -> Result<()> {
         // Call WASM export: plugin_shutdown
         Ok(())

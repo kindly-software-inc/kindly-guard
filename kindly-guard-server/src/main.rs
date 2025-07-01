@@ -1,20 +1,20 @@
-//! KindlyGuard MCP Security Server
-//! 
+//! `KindlyGuard` MCP Security Server
+//!
 //! A focused security server for the Model Context Protocol that protects
 //! against unicode attacks, injection attempts, and other threats.
 
-use std::sync::Arc;
 use anyhow::Result;
 use clap::Parser;
-use tracing::{info, error};
+use std::sync::Arc;
+use tracing::{error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 // Use the library crate instead of re-declaring modules
-use kindly_guard_server::*;
+use kindly_guard_server::{cli, config, daemon, server};
 
+use cli::commands::Commands;
 use config::Config;
 use server::McpServer;
-use cli::commands::Commands;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
@@ -24,31 +24,31 @@ struct Args {
     /// Path to configuration file
     #[arg(short, long)]
     config: Option<String>,
-    
+
     /// Run in stdio mode (default)
     #[arg(long, default_value = "true")]
     stdio: bool,
-    
+
     /// Run as daemon
     #[arg(long, conflicts_with = "stdio")]
     daemon: bool,
-    
+
     /// PID file path (for daemon mode)
     #[arg(long, requires = "daemon")]
     pid_file: Option<String>,
-    
+
     /// Enable shield display
     #[arg(long)]
     shield: bool,
-    
+
     /// Run as command interface (e.g., /kindlyguard status)
     #[command(subcommand)]
     command: Option<Commands>,
-    
+
     /// Output format for commands
     #[arg(short = 'f', long, global = true)]
     format: Option<String>,
-    
+
     /// Disable color output
     #[arg(long, global = true)]
     no_color: bool,
@@ -58,7 +58,7 @@ struct Args {
 async fn main() -> Result<()> {
     // Parse command line arguments
     let args = Args::parse();
-    
+
     // Initialize logging
     tracing_subscriber::registry()
         .with(
@@ -87,14 +87,14 @@ async fn main() -> Result<()> {
     } else {
         Config::load()?
     };
-    
+
     // Store telemetry configuration before moving config
     let telemetry_enabled = config.telemetry.export_endpoint.is_some();
     let telemetry_interval = config.telemetry.export_interval_seconds;
-    
+
     // Create the MCP server
     let server = Arc::new(McpServer::new(config)?);
-    
+
     // Optionally start shield display
     let shield_handle = if args.shield {
         let shield = server.shield.clone();
@@ -106,17 +106,17 @@ async fn main() -> Result<()> {
     } else {
         None
     };
-    
+
     // Run the server
     if args.daemon {
         // Daemon mode
         info!("Running in daemon mode");
-        
+
         let daemon_config = daemon::DaemonConfig {
             pid_file: args.pid_file,
             ..Default::default()
         };
-        
+
         daemon::run_with_daemon(daemon_config, |mut shutdown_rx| async move {
             // Start HTTP server in daemon mode
             let server_clone = server.clone();
@@ -125,24 +125,25 @@ async fn main() -> Result<()> {
                     error!("HTTP server error: {}", e);
                 }
             });
-            
+
             // Wait for shutdown signal
             let _ = shutdown_rx.recv().await;
             info!("Received shutdown signal");
-            
+
             // Gracefully shutdown server
             server_handle.abort();
             Ok(())
-        }).await?;
-        
+        })
+        .await?;
     } else if args.stdio {
         info!("Running in stdio mode");
-        
+
         // Start periodic telemetry flush if configured
         let telemetry_flush_handle = if telemetry_enabled {
             let server_clone = server.clone();
             Some(tokio::spawn(async move {
-                let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(telemetry_interval));
+                let mut interval =
+                    tokio::time::interval(tokio::time::Duration::from_secs(telemetry_interval));
                 loop {
                     interval.tick().await;
                     let telemetry = server_clone.component_manager.telemetry_provider();
@@ -154,17 +155,17 @@ async fn main() -> Result<()> {
         } else {
             None
         };
-        
+
         match server.run_stdio().await {
-            Ok(_) => {
+            Ok(()) => {
                 info!("KindlyGuard server shutting down gracefully");
             }
             Err(e) => {
                 error!("Server error: {}", e);
-                return Err(e.into());
+                return Err(e);
             }
         }
-        
+
         // Stop telemetry flush task
         if let Some(handle) = telemetry_flush_handle {
             handle.abort();

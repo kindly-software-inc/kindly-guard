@@ -1,4 +1,4 @@
-//! CLI command interface for KindlyGuard
+//! CLI command interface for `KindlyGuard`
 
 pub mod commands;
 pub mod validation;

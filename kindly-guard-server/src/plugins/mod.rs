@@ -1,21 +1,21 @@
 //! Plugin system for extensible security scanning
-//! 
+//!
 //! This module provides a trait-based plugin architecture that allows
-//! users to extend KindlyGuard with custom security scanners without
+//! users to extend `KindlyGuard` with custom security scanners without
 //! modifying the core code.
 
-use std::sync::Arc;
-use std::path::{Path, PathBuf};
-use std::collections::HashMap;
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 use uuid::Uuid;
 
+pub mod manager;
 pub mod native;
 #[cfg(feature = "wasm")]
 pub mod wasm;
-pub mod manager;
 
 // Re-exports
 pub use manager::DefaultPluginManager;
@@ -23,20 +23,26 @@ pub use native::NativePluginLoader;
 #[cfg(feature = "wasm")]
 pub use wasm::WasmPluginLoader;
 
-use crate::scanner::{Threat, ThreatType, Severity};
+use crate::scanner::{Severity, Threat, ThreatType};
 
 /// Unique plugin identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct PluginId(pub String);
+
+impl Default for PluginId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl PluginId {
     /// Create a new random plugin ID
     pub fn new() -> Self {
         Self(Uuid::new_v4().to_string())
     }
-    
+
     /// Create from a string
-    pub fn from_string(s: String) -> Self {
+    pub const fn from_string(s: String) -> Self {
         Self(s)
     }
 }
@@ -136,26 +142,26 @@ pub struct PluginMetrics {
 pub trait SecurityPlugin: Send + Sync {
     /// Get plugin metadata
     fn metadata(&self) -> PluginMetadata;
-    
+
     /// Initialize plugin with configuration
     async fn initialize(&mut self, config: serde_json::Value) -> Result<()>;
-    
+
     /// Scan data for threats
     async fn scan(&self, context: ScanContext<'_>) -> Result<Vec<Threat>>;
-    
+
     /// Perform health check
     async fn health_check(&self) -> Result<HealthStatus>;
-    
+
     /// Shutdown plugin
     async fn shutdown(&mut self) -> Result<()>;
-    
+
     /// Update plugin configuration
     async fn update_config(&mut self, config: serde_json::Value) -> Result<()> {
         // Default implementation reinitializes
         self.shutdown().await?;
         self.initialize(config).await
     }
-    
+
     /// Get current metrics
     fn get_metrics(&self) -> PluginMetrics {
         PluginMetrics::default()
@@ -167,10 +173,10 @@ pub trait SecurityPlugin: Send + Sync {
 pub trait PluginLoader: Send + Sync {
     /// Load a plugin from path
     async fn load_plugin(&self, path: &Path) -> Result<Box<dyn SecurityPlugin>>;
-    
+
     /// Validate plugin before loading
     async fn validate_plugin(&self, path: &Path) -> Result<PluginMetadata>;
-    
+
     /// Get loader type
     fn loader_type(&self) -> &'static str;
 }
@@ -189,25 +195,25 @@ pub struct PluginInfo {
 pub trait PluginManagerTrait: Send + Sync {
     /// Load plugin from file
     async fn load_plugin(&self, path: &Path) -> Result<PluginId>;
-    
+
     /// Unload a plugin
     async fn unload_plugin(&self, id: &PluginId) -> Result<()>;
-    
+
     /// Get plugin info
     async fn get_plugin(&self, id: &PluginId) -> Result<PluginInfo>;
-    
+
     /// List all plugins
     async fn list_plugins(&self) -> Result<Vec<PluginInfo>>;
-    
+
     /// Scan with specific plugin
     async fn scan(&self, id: &PluginId, context: ScanContext<'_>) -> Result<Vec<Threat>>;
-    
+
     /// Scan with all plugins
     async fn scan_all(&self, context: ScanContext<'_>) -> Result<HashMap<PluginId, Vec<Threat>>>;
-    
+
     /// Reload a plugin
     async fn reload_plugin(&self, id: &PluginId) -> Result<()>;
-    
+
     /// Get plugin health status
     async fn get_health(&self, id: &PluginId) -> Result<HealthStatus>;
 }
@@ -287,15 +293,15 @@ impl PluginManagerFactory for DefaultPluginManagerFactory {
             // Return a no-op manager when plugins are disabled
             return Ok(Arc::new(NoOpPluginManager));
         }
-        
+
         let manager = DefaultPluginManager::new(config.clone())?;
-        
+
         // Note: Plugin auto-loading happens later, not during factory creation
         // to avoid runtime-in-runtime issues
         if config.auto_load {
             tracing::info!("Plugin auto-loading enabled; plugins will be loaded on first use");
         }
-        
+
         Ok(Arc::new(manager))
     }
 }
@@ -308,31 +314,31 @@ impl PluginManagerTrait for NoOpPluginManager {
     async fn load_plugin(&self, _path: &Path) -> Result<PluginId> {
         Err(anyhow::anyhow!("Plugin system disabled"))
     }
-    
+
     async fn unload_plugin(&self, _id: &PluginId) -> Result<()> {
         Ok(())
     }
-    
+
     async fn get_plugin(&self, _id: &PluginId) -> Result<PluginInfo> {
         Err(anyhow::anyhow!("Plugin system disabled"))
     }
-    
+
     async fn list_plugins(&self) -> Result<Vec<PluginInfo>> {
         Ok(Vec::new())
     }
-    
+
     async fn scan(&self, _id: &PluginId, _context: ScanContext<'_>) -> Result<Vec<Threat>> {
         Ok(Vec::new())
     }
-    
+
     async fn scan_all(&self, _context: ScanContext<'_>) -> Result<HashMap<PluginId, Vec<Threat>>> {
         Ok(HashMap::new())
     }
-    
+
     async fn reload_plugin(&self, _id: &PluginId) -> Result<()> {
         Err(anyhow::anyhow!("Plugin system disabled"))
     }
-    
+
     async fn get_health(&self, _id: &PluginId) -> Result<HealthStatus> {
         Err(anyhow::anyhow!("Plugin system disabled"))
     }

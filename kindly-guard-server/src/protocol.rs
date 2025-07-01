@@ -51,7 +51,7 @@ pub struct JsonRpcError {
 }
 
 /// Request ID can be string, number, or null
-#[derive(Debug, Serialize, Deserialize, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, Clone, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum RequestId {
     #[serde(rename = "id")]
@@ -63,7 +63,7 @@ pub enum RequestId {
 }
 
 /// Response ID matches request ID
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum ResponseId {
     #[serde(rename = "id")]
@@ -77,9 +77,9 @@ pub enum ResponseId {
 impl From<RequestId> for ResponseId {
     fn from(req_id: RequestId) -> Self {
         match req_id {
-            RequestId::String { id } => ResponseId::String { id },
-            RequestId::Number { id } => ResponseId::Number { id },
-            RequestId::Null { id } => ResponseId::Null { id },
+            RequestId::String { id } => Self::String { id },
+            RequestId::Number { id } => Self::Number { id },
+            RequestId::Null { id } => Self::Null { id },
         }
     }
 }
@@ -261,7 +261,7 @@ pub mod error_codes {
     pub const METHOD_NOT_FOUND: i32 = -32601;
     pub const INVALID_PARAMS: i32 = -32602;
     pub const INTERNAL_ERROR: i32 = -32603;
-    
+
     // MCP-specific error codes
     pub const THREAT_DETECTED: i32 = -32000;
     pub const UNAUTHORIZED: i32 = -32001;
@@ -269,7 +269,12 @@ pub mod error_codes {
 }
 
 /// Create an error response
-pub fn error_response(code: i32, message: String, id: ResponseId, data: Option<Value>) -> JsonRpcResponse {
+pub fn error_response(
+    code: i32,
+    message: String,
+    id: ResponseId,
+    data: Option<Value>,
+) -> JsonRpcResponse {
     JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
         result: None,
@@ -295,7 +300,7 @@ pub fn success_response(result: Value, id: ResponseId) -> JsonRpcResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_request_serialization() {
         let request = JsonRpcRequest {
@@ -307,14 +312,13 @@ mod tests {
             id: RequestId::Number { id: 1 },
             authorization: None,
         };
-        
-        let json = serde_json::to_string(&request)
-            .expect("Failed to serialize valid request");
+
+        let json = serde_json::to_string(&request).expect("Failed to serialize valid request");
         assert!(json.contains("\"jsonrpc\":\"2.0\""));
         assert!(json.contains("\"method\":\"initialize\""));
         assert!(json.contains("\"id\":1"));
     }
-    
+
     #[test]
     fn test_response_deserialization() {
         let json = r#"{
@@ -322,9 +326,9 @@ mod tests {
             "result": {"success": true},
             "id": "test-123"
         }"#;
-        
-        let response: JsonRpcResponse = serde_json::from_str(json)
-            .expect("Failed to deserialize valid response JSON");
+
+        let response: JsonRpcResponse =
+            serde_json::from_str(json).expect("Failed to deserialize valid response JSON");
         assert_eq!(response.jsonrpc, "2.0");
         assert!(response.result.is_some());
         assert!(response.error.is_none());

@@ -1,4 +1,4 @@
-//! Configuration for KindlyGuard
+//! Configuration for `KindlyGuard`
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
@@ -6,72 +6,70 @@ use std::path::PathBuf;
 
 pub mod reload;
 
+use crate::audit::AuditConfig;
 use crate::auth::AuthConfig;
 #[cfg(feature = "enhanced")]
 use crate::event_processor::EventProcessorConfig;
-use crate::rate_limit::RateLimitConfig;
-use crate::signing::SigningConfig;
-use crate::telemetry::TelemetryConfig;
-use crate::storage::StorageConfig;
+use crate::neutralizer::NeutralizationConfig;
 use crate::plugins::PluginConfig;
-use crate::audit::AuditConfig;
-use crate::transport::TransportConfig;
+use crate::rate_limit::RateLimitConfig;
 use crate::resilience::config::ResilienceConfig;
+use crate::signing::SigningConfig;
+use crate::storage::StorageConfig;
+use crate::telemetry::TelemetryConfig;
+use crate::transport::TransportConfig;
 
 // Stub EventProcessorConfig when enhanced feature is not enabled
 #[cfg(not(feature = "enhanced"))]
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct EventProcessorConfig {
     pub enabled: bool,
 }
 
 #[cfg(not(feature = "enhanced"))]
-impl Default for EventProcessorConfig {
-    fn default() -> Self {
-        Self { enabled: false }
-    }
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Server configuration
     pub server: ServerConfig,
-    
+
     /// Security scanning configuration
     pub scanner: ScannerConfig,
-    
+
     /// Shield display configuration
     pub shield: ShieldConfig,
-    
+
     /// Authentication configuration
     pub auth: AuthConfig,
-    
+
     /// Message signing configuration
     pub signing: SigningConfig,
-    
+
     /// Rate limiting configuration
     pub rate_limit: RateLimitConfig,
-    
+
     /// Enhanced security event processing configuration
     pub event_processor: EventProcessorConfig,
-    
+
     /// Telemetry configuration
     pub telemetry: TelemetryConfig,
-    
+
     /// Storage configuration
     pub storage: StorageConfig,
-    
+
     /// Plugin system configuration
     pub plugins: PluginConfig,
-    
+
     /// Audit logging configuration
     pub audit: AuditConfig,
-    
+
     /// Transport layer configuration
     pub transport: TransportConfig,
-    
+
     /// Resilience configuration for circuit breakers and retry
     pub resilience: ResilienceConfig,
+
+    /// Threat neutralization configuration
+    pub neutralization: NeutralizationConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,15 +77,15 @@ pub struct ServerConfig {
     /// Port to listen on (for HTTP transport)
     #[serde(default = "default_port")]
     pub port: u16,
-    
+
     /// Enable stdio transport (default for MCP)
     #[serde(default = "default_true")]
     pub stdio: bool,
-    
+
     /// Maximum concurrent connections
     #[serde(default = "default_max_connections")]
     pub max_connections: usize,
-    
+
     /// Request timeout in seconds
     #[serde(default = "default_timeout")]
     pub request_timeout_secs: u64,
@@ -98,22 +96,22 @@ pub struct ScannerConfig {
     /// Enable unicode threat detection
     #[serde(default = "default_true")]
     pub unicode_detection: bool,
-    
+
     /// Enable injection detection
     #[serde(default = "default_true")]
     pub injection_detection: bool,
-    
+
     /// Enable path traversal detection
     #[serde(default = "default_true")]
     pub path_traversal_detection: bool,
-    
+
     /// Custom threat patterns file
     pub custom_patterns: Option<PathBuf>,
-    
+
     /// Maximum scan depth for nested structures
     #[serde(default = "default_max_depth")]
     pub max_scan_depth: usize,
-    
+
     /// Enable high-performance event buffer
     #[serde(default = "default_false")]
     pub enable_event_buffer: bool,
@@ -124,15 +122,15 @@ pub struct ShieldConfig {
     /// Enable shield display
     #[serde(default = "default_false")]
     pub enabled: bool,
-    
+
     /// Update interval in milliseconds
     #[serde(default = "default_update_interval")]
     pub update_interval_ms: u64,
-    
+
     /// Show detailed statistics
     #[serde(default = "default_false")]
     pub detailed_stats: bool,
-    
+
     /// Enable color output
     #[serde(default = "default_true")]
     pub color: bool,
@@ -140,20 +138,19 @@ pub struct ShieldConfig {
 
 impl Config {
     /// Check if event processor is enabled
-    pub fn is_event_processor_enabled(&self) -> bool {
+    pub const fn is_event_processor_enabled(&self) -> bool {
         #[cfg(feature = "enhanced")]
         return self.event_processor.enabled;
         #[cfg(not(feature = "enhanced"))]
         return false;
     }
-    
+
     /// Load configuration from environment and files
     pub fn load() -> Result<Self> {
         // First, try to load from config file
         let config_path = std::env::var("KINDLY_GUARD_CONFIG")
-            .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("kindly-guard.toml"));
-        
+            .map_or_else(|_| PathBuf::from("kindly-guard.toml"), PathBuf::from);
+
         if config_path.exists() {
             Self::load_from_file(&config_path.to_string_lossy())
         } else {
@@ -161,11 +158,11 @@ impl Config {
             Ok(Self::default())
         }
     }
-    
+
     /// Load configuration from a specific file
     pub fn load_from_file(path: &str) -> Result<Self> {
         let content = std::fs::read_to_string(path)?;
-        let config: Config = toml::from_str(&content)?;
+        let config: Self = toml::from_str(&content)?;
         Ok(config)
     }
 }
@@ -203,6 +200,7 @@ impl Default for Config {
             audit: AuditConfig::default(),
             transport: TransportConfig::default(),
             resilience: ResilienceConfig::default(),
+            neutralization: NeutralizationConfig::default(),
         }
     }
 }
@@ -219,13 +217,27 @@ impl Default for ShieldConfig {
 }
 
 // Default value functions
-fn default_port() -> u16 { 8080 }
-fn default_true() -> bool { true }
-fn default_false() -> bool { false }
-fn default_max_connections() -> usize { 100 }
-fn default_max_depth() -> usize { 10 }
-fn default_update_interval() -> u64 { 1000 }
-fn default_timeout() -> u64 { 30 }
+const fn default_port() -> u16 {
+    8080
+}
+const fn default_true() -> bool {
+    true
+}
+const fn default_false() -> bool {
+    false
+}
+const fn default_max_connections() -> usize {
+    100
+}
+const fn default_max_depth() -> usize {
+    10
+}
+const fn default_update_interval() -> u64 {
+    1000
+}
+const fn default_timeout() -> u64 {
+    30
+}
 
 #[cfg(test)]
 mod tests {

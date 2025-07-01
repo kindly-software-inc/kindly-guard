@@ -1,7 +1,7 @@
 //! Property-based tests for KindlyGuard security scanners
 
+use kindly_guard_server::{scanner::Location, ScannerConfig, SecurityScanner};
 use proptest::prelude::*;
-use kindly_guard_server::{SecurityScanner, ScannerConfig, scanner::Location};
 
 // Generate arbitrary strings with various Unicode properties
 prop_compose! {
@@ -13,23 +13,23 @@ prop_compose! {
         include_control in prop::bool::ANY,
     ) -> String {
         let mut result = base;
-        
+
         if include_invisible {
             result.push('\u{200B}'); // Zero-width space
         }
-        
+
         if include_bidi {
             result = format!("\u{202E}{}\u{202C}", result); // RLO/PDF
         }
-        
+
         if include_homograph {
             result = result.replace('a', "а"); // Latin 'a' -> Cyrillic 'а'
         }
-        
+
         if include_control {
             result.push('\u{0001}'); // Control character
         }
-        
+
         result
     }
 }
@@ -45,13 +45,13 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             // Should never panic regardless of input
             let _ = scanner.scan_text(&input);
         }
     }
-    
+
     #[test]
     fn threats_have_valid_locations(input in arb_unicode_string()) {
         let config = ScannerConfig {
@@ -62,7 +62,7 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             if let Ok(threats) = scanner.scan_text(&input) {
                 for threat in threats {
@@ -78,7 +78,7 @@ proptest! {
             }
         }
     }
-    
+
     #[test]
     fn scanner_is_deterministic(input in prop::string::string_regex(".*").unwrap()) {
         let config = ScannerConfig {
@@ -89,12 +89,12 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         if let Ok(scanner1) = SecurityScanner::new(config.clone()) {
             if let Ok(scanner2) = SecurityScanner::new(config) {
                 let result1 = scanner1.scan_text(&input);
                 let result2 = scanner2.scan_text(&input);
-                
+
                 // Same input should produce same results
                 match (result1, result2) {
                     (Ok(threats1), Ok(threats2)) => {
@@ -111,7 +111,7 @@ proptest! {
             }
         }
     }
-    
+
     #[test]
     fn json_scanning_depth_limits(
         depth in 0usize..20,
@@ -125,16 +125,16 @@ proptest! {
             max_scan_depth: 5, // Fixed depth limit
             enable_event_buffer: false,
         };
-        
+
         // Create deeply nested JSON
         let mut json = serde_json::json!("test_value");
         for _ in 0..depth {
             json = serde_json::json!({ "nested": json });
         }
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             let result = scanner.scan_json(&json);
-            
+
             if depth > 5 {
                 // Should error on too deep nesting
                 prop_assert!(result.is_err());
@@ -144,7 +144,7 @@ proptest! {
             }
         }
     }
-    
+
     #[test]
     fn threat_severity_ordering_is_correct(
         threats in prop::collection::vec(
@@ -153,7 +153,7 @@ proptest! {
         )
     ) {
         use kindly_guard_server::Severity;
-        
+
         let severities: Vec<Severity> = threats.iter().map(|(s, _)| {
             match s {
                 0 => Severity::Low,
@@ -162,7 +162,7 @@ proptest! {
                 _ => Severity::Critical,
             }
         }).collect();
-        
+
         // Verify ordering
         for window in severities.windows(2) {
             if let [a, b] = window {
@@ -173,7 +173,7 @@ proptest! {
             }
         }
     }
-    
+
     #[test]
     fn unicode_scanner_detects_known_threats(
         prefix in prop::string::string_regex("[a-zA-Z0-9]*").unwrap(),
@@ -187,7 +187,7 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             // Test known threats are detected
             let test_cases = vec![
@@ -196,7 +196,7 @@ proptest! {
                 (format!("{}а{}", prefix, suffix), "homograph"), // Cyrillic 'a'
                 (format!("{}\u{0001}{}", prefix, suffix), "control"),
             ];
-            
+
             for (input, threat_type) in test_cases {
                 let threats = scanner.scan_text(&input).unwrap_or_default();
                 prop_assert!(
@@ -208,7 +208,7 @@ proptest! {
             }
         }
     }
-    
+
     #[test]
     fn injection_scanner_detects_patterns(
         prefix in prop::string::string_regex("[a-zA-Z0-9]*").unwrap(),
@@ -222,7 +222,7 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             // Test known injection patterns
             let test_cases = vec![
@@ -230,7 +230,7 @@ proptest! {
                 (format!("{}../../../etc/passwd{}", prefix, suffix), "path"),
                 (format!("{} && echo pwned{}", prefix, suffix), "command"),
             ];
-            
+
             for (input, injection_type) in test_cases {
                 let threats = scanner.scan_text(&input).unwrap_or_default();
                 prop_assert!(
@@ -256,14 +256,14 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             let result = scanner.scan_text("");
             prop_assert!(result.is_ok());
             prop_assert_eq!(result.unwrap().len(), 0);
         }
     }
-    
+
     #[test]
     fn scanner_handles_very_long_input(
         char_to_repeat in prop::char::range('a', 'z'),
@@ -277,16 +277,16 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         let input: String = std::iter::repeat(char_to_repeat).take(repeat_count).collect();
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             // Should complete without hanging
             let result = scanner.scan_text(&input);
             prop_assert!(result.is_ok());
         }
     }
-    
+
     #[test]
     fn scanner_handles_mixed_threats(
         base in prop::string::string_regex("[a-zA-Z0-9 ]{0,50}").unwrap(),
@@ -301,23 +301,23 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         let mut input = base.clone();
         let mut expected_threat_count = 0;
-        
+
         if include_unicode {
             input.push_str("\u{202E}hidden\u{202C}");
             expected_threat_count += 1;
         }
-        
+
         if include_injection {
             input.push_str(" OR 1=1--");
             expected_threat_count += 1;
         }
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             let threats = scanner.scan_text(&input).unwrap_or_default();
-            
+
             if expected_threat_count > 0 {
                 prop_assert!(threats.len() >= expected_threat_count);
             }

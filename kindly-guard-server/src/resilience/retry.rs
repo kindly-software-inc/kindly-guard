@@ -1,11 +1,11 @@
 //! Retry logic with exponential backoff and jitter
-//! 
+//!
 //! Provides configurable retry policies for handling transient failures.
 
-use std::time::Duration;
 use anyhow::Result;
 use rand::{thread_rng, Rng};
 use serde::{Deserialize, Serialize};
+use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{debug, warn};
 
@@ -43,7 +43,7 @@ impl Default for RetryConfig {
 pub trait RetryPolicy: Send + Sync {
     /// Determine if an error is retryable
     fn is_retryable(&self, error: &anyhow::Error) -> bool;
-    
+
     /// Get delay for next retry attempt
     fn next_delay(&self, attempt: u32, config: &RetryConfig) -> Option<Duration>;
 }
@@ -55,24 +55,24 @@ impl RetryPolicy for DefaultRetryPolicy {
     fn is_retryable(&self, _error: &anyhow::Error) -> bool {
         true
     }
-    
+
     fn next_delay(&self, attempt: u32, config: &RetryConfig) -> Option<Duration> {
         if attempt > config.max_attempts {
             return None;
         }
-        
+
         // Calculate exponential backoff (use attempt - 1 for 0-based power)
-        let base_delay = config.initial_delay.as_millis() as f64
-            * config.multiplier.powi((attempt - 1) as i32);
-        
+        let base_delay =
+            config.initial_delay.as_millis() as f64 * config.multiplier.powi((attempt - 1) as i32);
+
         // Cap at max delay
         let capped_delay = base_delay.min(config.max_delay.as_millis() as f64);
-        
+
         // Add jitter
         let jitter_range = capped_delay * config.jitter_factor;
         let jitter = thread_rng().gen_range(-jitter_range..=jitter_range);
         let final_delay = (capped_delay + jitter).max(0.0) as u64;
-        
+
         Some(Duration::from_millis(final_delay))
     }
 }
@@ -82,7 +82,7 @@ impl RetryPolicy for Box<dyn RetryPolicy> {
     fn is_retryable(&self, error: &anyhow::Error) -> bool {
         self.as_ref().is_retryable(error)
     }
-    
+
     fn next_delay(&self, attempt: u32, config: &RetryConfig) -> Option<Duration> {
         self.as_ref().next_delay(attempt, config)
     }
@@ -111,7 +111,7 @@ impl RetryPolicy for HttpRetryPolicy {
             is_network_error(error)
         }
     }
-    
+
     fn next_delay(&self, attempt: u32, config: &RetryConfig) -> Option<Duration> {
         DefaultRetryPolicy.next_delay(attempt, config)
     }
@@ -130,11 +130,11 @@ where
 {
     let start_time = std::time::Instant::now();
     let mut attempt = 0;
-    
+
     loop {
         attempt += 1;
         debug!("Attempting {} (attempt {})", operation_name, attempt);
-        
+
         // Check total timeout
         if let Some(timeout) = config.timeout {
             if start_time.elapsed() > timeout {
@@ -142,7 +142,7 @@ where
                 return Err(anyhow::anyhow!("Retry timeout exceeded"));
             }
         }
-        
+
         match f().await {
             Ok(result) => {
                 if attempt > 1 {
@@ -153,10 +153,13 @@ where
             Err(error) => {
                 // Check if error is retryable
                 if !policy.is_retryable(&error) {
-                    warn!("{} failed with non-retryable error: {}", operation_name, error);
+                    warn!(
+                        "{} failed with non-retryable error: {}",
+                        operation_name, error
+                    );
                     return Err(error);
                 }
-                
+
                 // Check if we've exhausted attempts
                 if attempt >= config.max_attempts {
                     warn!(
@@ -165,7 +168,7 @@ where
                     );
                     return Err(error);
                 }
-                
+
                 // Get delay for next retry
                 if let Some(delay) = policy.next_delay(attempt, &config) {
                     warn!(
@@ -200,55 +203,51 @@ impl RetryBuilder {
             policy: Box::new(DefaultRetryPolicy),
         }
     }
-    
+
     /// Set maximum attempts
-    pub fn max_attempts(mut self, attempts: u32) -> Self {
+    pub const fn max_attempts(mut self, attempts: u32) -> Self {
         self.config.max_attempts = attempts;
         self
     }
-    
+
     /// Set initial delay
-    pub fn initial_delay(mut self, delay: Duration) -> Self {
+    pub const fn initial_delay(mut self, delay: Duration) -> Self {
         self.config.initial_delay = delay;
         self
     }
-    
+
     /// Set maximum delay
-    pub fn max_delay(mut self, delay: Duration) -> Self {
+    pub const fn max_delay(mut self, delay: Duration) -> Self {
         self.config.max_delay = delay;
         self
     }
-    
+
     /// Set backoff multiplier
-    pub fn multiplier(mut self, multiplier: f64) -> Self {
+    pub const fn multiplier(mut self, multiplier: f64) -> Self {
         self.config.multiplier = multiplier;
         self
     }
-    
+
     /// Set jitter factor
-    pub fn jitter(mut self, factor: f64) -> Self {
+    pub const fn jitter(mut self, factor: f64) -> Self {
         self.config.jitter_factor = factor.clamp(0.0, 1.0);
         self
     }
-    
+
     /// Set total timeout
-    pub fn timeout(mut self, timeout: Duration) -> Self {
+    pub const fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = Some(timeout);
         self
     }
-    
+
     /// Set retry policy
     pub fn policy(mut self, policy: impl RetryPolicy + 'static) -> Self {
         self.policy = Box::new(policy);
         self
     }
-    
+
     /// Execute with retry
-    pub async fn run<F, T, Fut>(
-        self,
-        operation_name: &str,
-        f: F,
-    ) -> Result<T>
+    pub async fn run<F, T, Fut>(self, operation_name: &str, f: F) -> Result<T>
     where
         F: Fn() -> Fut,
         Fut: std::future::Future<Output = Result<T>>,
@@ -259,7 +258,7 @@ impl RetryBuilder {
 
 // Helper functions
 
-fn extract_status_code(error: &anyhow::Error) -> Option<u16> {
+const fn extract_status_code(error: &anyhow::Error) -> Option<u16> {
     // This would need to be implemented based on your HTTP client
     // For now, return None
     None
@@ -268,10 +267,10 @@ fn extract_status_code(error: &anyhow::Error) -> Option<u16> {
 fn is_network_error(error: &anyhow::Error) -> bool {
     // Check if error is related to network issues
     let error_str = error.to_string().to_lowercase();
-    error_str.contains("connection") ||
-    error_str.contains("timeout") ||
-    error_str.contains("network") ||
-    error_str.contains("dns")
+    error_str.contains("connection")
+        || error_str.contains("timeout")
+        || error_str.contains("network")
+        || error_str.contains("dns")
 }
 
 #[cfg(test)]
@@ -279,12 +278,12 @@ mod tests {
     use super::*;
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
-    
+
     #[tokio::test]
     async fn test_retry_success_on_second_attempt() {
         let attempts = Arc::new(AtomicU32::new(0));
         let attempts_clone = attempts.clone();
-        
+
         let result = RetryBuilder::new()
             .max_attempts(3)
             .initial_delay(Duration::from_millis(10))
@@ -300,17 +299,17 @@ mod tests {
                 }
             })
             .await;
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "Success");
         assert_eq!(attempts.load(Ordering::SeqCst), 2);
     }
-    
+
     #[tokio::test]
     async fn test_retry_exhausts_attempts() {
         let attempts = Arc::new(AtomicU32::new(0));
         let attempts_clone = attempts.clone();
-        
+
         let result = RetryBuilder::new()
             .max_attempts(3)
             .initial_delay(Duration::from_millis(10))
@@ -322,11 +321,11 @@ mod tests {
                 }
             })
             .await;
-        
+
         assert!(result.is_err());
         assert_eq!(attempts.load(Ordering::SeqCst), 3);
     }
-    
+
     #[tokio::test]
     async fn test_exponential_backoff() {
         let config = RetryConfig {
@@ -335,29 +334,29 @@ mod tests {
             jitter_factor: 0.0, // No jitter for predictable test
             ..Default::default()
         };
-        
+
         let policy = DefaultRetryPolicy;
-        
+
         // First retry: 100ms * 2^0 = 100ms
         let delay1 = policy.next_delay(1, &config).unwrap();
         assert_eq!(delay1, Duration::from_millis(100));
-        
+
         // Second retry: 100ms * 2^1 = 200ms
         let delay2 = policy.next_delay(2, &config).unwrap();
         assert_eq!(delay2, Duration::from_millis(200));
     }
-    
+
     #[tokio::test]
     async fn test_jitter() {
         let config = RetryConfig {
             initial_delay: Duration::from_millis(1000),
-            multiplier: 1.0, // No exponential growth
+            multiplier: 1.0,    // No exponential growth
             jitter_factor: 0.1, // 10% jitter
             ..Default::default()
         };
-        
+
         let policy = DefaultRetryPolicy;
-        
+
         // Get multiple delays and verify they're within jitter range
         for _ in 0..10 {
             let delay = policy.next_delay(1, &config).unwrap();

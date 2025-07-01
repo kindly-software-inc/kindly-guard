@@ -1,13 +1,13 @@
 //! Core trait abstractions for security components
 //! Enables clean separation between standard and enhanced implementations
 
+use crate::event_processor::{EndpointStats, Priority};
+use crate::scanner::Threat;
+use anyhow::Result;
 use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use anyhow::Result;
-use serde::{Serialize, Deserialize};
-use crate::scanner::Threat;
-use crate::event_processor::{Priority, EndpointStats};
 
 #[cfg(any(test, feature = "test-utils"))]
 use mockall::{automock, predicate::*};
@@ -16,7 +16,7 @@ use mockall::{automock, predicate::*};
 pub trait EventBufferTrait: Send + Sync {
     /// Enqueue an event in the buffer
     fn enqueue_event(&self, endpoint_id: u32, data: &[u8], priority: Priority) -> Result<u64>;
-    
+
     /// Get statistics for an endpoint
     fn get_endpoint_stats(&self, endpoint_id: u32) -> Result<EndpointStats>;
 }
@@ -27,16 +27,16 @@ pub trait EventBufferTrait: Send + Sync {
 pub trait SecurityEventProcessor: Send + Sync {
     /// Process a security event
     async fn process_event(&self, event: SecurityEvent) -> Result<EventHandle>;
-    
+
     /// Get processor statistics
     fn get_stats(&self) -> ProcessorStats;
-    
+
     /// Check if an endpoint is under monitoring
     fn is_monitored(&self, endpoint: &str) -> bool;
-    
+
     /// Get correlation insights for a client
     async fn get_insights(&self, client_id: &str) -> Result<SecurityInsights>;
-    
+
     /// Perform cleanup of old events
     async fn cleanup(&self) -> Result<()>;
 }
@@ -46,10 +46,10 @@ pub trait SecurityEventProcessor: Send + Sync {
 pub trait EnhancedScanner: Send + Sync {
     /// Scan with enhanced capabilities
     fn enhanced_scan(&self, data: &[u8]) -> Result<Vec<Threat>>;
-    
+
     /// Get scanner performance metrics
     fn get_metrics(&self) -> ScannerMetrics;
-    
+
     /// Preload patterns for optimization
     fn preload_patterns(&self, patterns: &[String]) -> Result<()>;
 }
@@ -60,10 +60,10 @@ pub trait EnhancedScanner: Send + Sync {
 pub trait CorrelationEngine: Send + Sync {
     /// Correlate events to detect patterns
     async fn correlate(&self, events: &[SecurityEvent]) -> Result<Vec<ThreatPattern>>;
-    
+
     /// Update correlation rules
     async fn update_rules(&self, rules: CorrelationRules) -> Result<()>;
-    
+
     /// Get correlation statistics
     fn get_correlation_stats(&self) -> CorrelationStats;
 }
@@ -74,13 +74,13 @@ pub trait CorrelationEngine: Send + Sync {
 pub trait RateLimiter: Send + Sync {
     /// Check if request is allowed
     async fn check_rate_limit(&self, key: &RateLimitKey) -> Result<RateLimitDecision>;
-    
+
     /// Record request for rate limiting
     async fn record_request(&self, key: &RateLimitKey) -> Result<()>;
-    
+
     /// Apply penalty for threats
     async fn apply_penalty(&self, client_id: &str, factor: f32) -> Result<()>;
-    
+
     /// Get rate limit stats
     fn get_stats(&self) -> RateLimiterStats;
 }
@@ -186,19 +186,34 @@ pub struct RateLimiterStats {
 /// Factory trait for creating security components
 pub trait SecurityComponentFactory: Send + Sync {
     /// Create event processor
-    fn create_event_processor(&self, config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn SecurityEventProcessor>>;
-    
+    fn create_event_processor(
+        &self,
+        config: &crate::config::Config,
+        storage: Arc<dyn crate::storage::StorageProvider>,
+    ) -> Result<Arc<dyn SecurityEventProcessor>>;
+
     /// Create enhanced scanner
     fn create_scanner(&self, config: &crate::config::Config) -> Result<Arc<dyn EnhancedScanner>>;
-    
+
     /// Create correlation engine
-    fn create_correlation_engine(&self, config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn CorrelationEngine>>;
-    
+    fn create_correlation_engine(
+        &self,
+        config: &crate::config::Config,
+        storage: Arc<dyn crate::storage::StorageProvider>,
+    ) -> Result<Arc<dyn CorrelationEngine>>;
+
     /// Create rate limiter
-    fn create_rate_limiter(&self, config: &crate::config::Config, storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn RateLimiter>>;
-    
+    fn create_rate_limiter(
+        &self,
+        config: &crate::config::Config,
+        storage: Arc<dyn crate::storage::StorageProvider>,
+    ) -> Result<Arc<dyn RateLimiter>>;
+
     /// Create security scanner
-    fn create_security_scanner(&self, config: &crate::config::Config) -> Result<Arc<dyn SecurityScannerTrait>>;
+    fn create_security_scanner(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn SecurityScannerTrait>>;
 }
 
 /// Circuit breaker trait for failure protection
@@ -212,13 +227,13 @@ pub trait CircuitBreakerTrait: Send + Sync {
         F: FnOnce() -> Fut + Send,
         Fut: std::future::Future<Output = Result<T>> + Send,
         T: Send;
-    
+
     /// Get circuit state
     fn state(&self, name: &str) -> CircuitState;
-    
+
     /// Get statistics
     fn stats(&self, name: &str) -> CircuitStats;
-    
+
     /// Manual circuit control
     async fn trip(&self, name: &str, reason: &str);
     async fn reset(&self, name: &str);
@@ -235,10 +250,10 @@ pub trait RetryStrategyTrait: Send + Sync {
         F: Fn() -> Fut + Send + Sync,
         Fut: std::future::Future<Output = Result<T>> + Send,
         T: Send;
-    
+
     /// Analyze error for retry decision
     fn should_retry(&self, error: &anyhow::Error, context: &RetryContext) -> RetryDecision;
-    
+
     /// Get retry statistics
     fn stats(&self) -> RetryStats;
 }
@@ -246,16 +261,28 @@ pub trait RetryStrategyTrait: Send + Sync {
 /// Factory trait for resilience components
 pub trait ResilienceFactory: Send + Sync {
     /// Create circuit breaker (returns dyn-compatible wrapper)
-    fn create_circuit_breaker(&self, config: &crate::config::Config) -> Result<Arc<dyn DynCircuitBreaker>>;
-    
+    fn create_circuit_breaker(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn DynCircuitBreaker>>;
+
     /// Create retry strategy (returns dyn-compatible wrapper)
-    fn create_retry_strategy(&self, config: &crate::config::Config) -> Result<Arc<dyn DynRetryStrategy>>;
-    
+    fn create_retry_strategy(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn DynRetryStrategy>>;
+
     /// Create health checker
-    fn create_health_checker(&self, config: &crate::config::Config) -> Result<Arc<dyn HealthCheckTrait>>;
-    
+    fn create_health_checker(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn HealthCheckTrait>>;
+
     /// Create recovery strategy
-    fn create_recovery_strategy(&self, config: &crate::config::Config) -> Result<Arc<dyn RecoveryStrategyTrait>>;
+    fn create_recovery_strategy(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn RecoveryStrategyTrait>>;
 }
 
 /// Circuit breaker error types
@@ -263,13 +290,13 @@ pub trait ResilienceFactory: Send + Sync {
 pub enum CircuitBreakerError {
     #[error("Circuit breaker is open")]
     CircuitOpen,
-    
+
     #[error("Circuit breaker is throttled")]
     Throttled,
-    
+
     #[error("Service call failed: {0}")]
     ServiceError(String),
-    
+
     #[error("Timeout after {0:?}")]
     Timeout(Duration),
 }
@@ -349,13 +376,13 @@ pub struct RetryStats {
 pub trait HealthCheckTrait: Send + Sync {
     /// Perform health check
     async fn check(&self) -> Result<HealthStatus>;
-    
+
     /// Get detailed health report
     async fn detailed_check(&self) -> Result<HealthReport>;
-    
+
     /// Register dependency health check
     fn register_dependency(&self, name: String, checker: Arc<dyn HealthCheckTrait>);
-    
+
     /// Get health check metadata
     fn metadata(&self) -> HealthCheckMetadata;
 }
@@ -366,14 +393,18 @@ pub trait HealthCheckTrait: Send + Sync {
 // #[cfg_attr(any(test, feature = "test-utils"), automock)]
 pub trait RecoveryStrategyTrait: Send + Sync {
     /// Execute recovery strategy with a JSON value result
-    async fn recover(&self, context: &RecoveryContext, operation_name: &str) -> Result<serde_json::Value>;
-    
+    async fn recover(
+        &self,
+        context: &RecoveryContext,
+        operation_name: &str,
+    ) -> Result<serde_json::Value>;
+
     /// Check if recovery is possible
     fn can_recover(&self, error: &anyhow::Error) -> bool;
-    
+
     /// Get recovery statistics
     fn stats(&self) -> RecoveryStats;
-    
+
     /// Update recovery state
     async fn update_state(&self, state: RecoveryState);
 }
@@ -461,16 +492,16 @@ pub struct RecoveryStats {
 pub trait SecurityScannerTrait: Send + Sync {
     /// Scan text for threats
     fn scan_text(&self, text: &str) -> Vec<crate::scanner::Threat>;
-    
+
     /// Scan JSON value for threats
     fn scan_json(&self, value: &serde_json::Value) -> Vec<crate::scanner::Threat>;
-    
+
     /// Scan with depth limit
     fn scan_with_depth(&self, text: &str, max_depth: usize) -> Vec<crate::scanner::Threat>;
-    
+
     /// Get scanner statistics
     fn get_stats(&self) -> ScannerStats;
-    
+
     /// Reset scanner statistics
     fn reset_stats(&self);
 }
@@ -490,14 +521,18 @@ pub struct ScannerStats {
 #[async_trait]
 pub trait DynCircuitBreaker: Send + Sync {
     /// Execute a JSON-RPC call with circuit protection
-    async fn call_json(&self, name: &str, request: serde_json::Value) -> Result<serde_json::Value, CircuitBreakerError>;
-    
+    async fn call_json(
+        &self,
+        name: &str,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value, CircuitBreakerError>;
+
     /// Get circuit state
     fn state(&self, name: &str) -> CircuitState;
-    
+
     /// Get statistics
     fn stats(&self, name: &str) -> CircuitStats;
-    
+
     /// Manual circuit control
     async fn trip(&self, name: &str, reason: &str);
     async fn reset(&self, name: &str);
@@ -507,84 +542,99 @@ pub trait DynCircuitBreaker: Send + Sync {
 #[async_trait]
 pub trait DynRetryStrategy: Send + Sync {
     /// Execute a JSON-RPC operation with retry logic
-    async fn execute_json(&self, operation: &str, request: serde_json::Value) -> Result<serde_json::Value>;
-    
+    async fn execute_json(
+        &self,
+        operation: &str,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value>;
+
     /// Analyze error for retry decision
     fn should_retry(&self, error: &anyhow::Error, context: &RetryContext) -> RetryDecision;
-    
+
     /// Get retry statistics
     fn stats(&self) -> RetryStats;
 }
 
-/// Wrapper to adapt CircuitBreakerTrait to DynCircuitBreaker
+/// Wrapper to adapt `CircuitBreakerTrait` to `DynCircuitBreaker`
 pub struct CircuitBreakerWrapper<T: CircuitBreakerTrait> {
     inner: T,
 }
 
 impl<T: CircuitBreakerTrait> CircuitBreakerWrapper<T> {
-    pub fn new(inner: T) -> Self {
+    pub const fn new(inner: T) -> Self {
         Self { inner }
     }
 }
 
 #[async_trait]
 impl<T: CircuitBreakerTrait> DynCircuitBreaker for CircuitBreakerWrapper<T> {
-    async fn call_json(&self, name: &str, request: serde_json::Value) -> Result<serde_json::Value, CircuitBreakerError> {
-        self.inner.call(name, || async {
-            // Simulate JSON-RPC processing
-            Ok(serde_json::json!({
-                "result": "processed",
-                "request": request
-            }))
-        }).await
+    async fn call_json(
+        &self,
+        name: &str,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value, CircuitBreakerError> {
+        self.inner
+            .call(name, || async {
+                // Simulate JSON-RPC processing
+                Ok(serde_json::json!({
+                    "result": "processed",
+                    "request": request
+                }))
+            })
+            .await
     }
-    
+
     fn state(&self, name: &str) -> CircuitState {
         self.inner.state(name)
     }
-    
+
     fn stats(&self, name: &str) -> CircuitStats {
         self.inner.stats(name)
     }
-    
+
     async fn trip(&self, name: &str, reason: &str) {
-        self.inner.trip(name, reason).await
+        self.inner.trip(name, reason).await;
     }
-    
+
     async fn reset(&self, name: &str) {
-        self.inner.reset(name).await
+        self.inner.reset(name).await;
     }
 }
 
-/// Wrapper to adapt RetryStrategyTrait to DynRetryStrategy
+/// Wrapper to adapt `RetryStrategyTrait` to `DynRetryStrategy`
 pub struct RetryStrategyWrapper<T: RetryStrategyTrait> {
     inner: T,
 }
 
 impl<T: RetryStrategyTrait> RetryStrategyWrapper<T> {
-    pub fn new(inner: T) -> Self {
+    pub const fn new(inner: T) -> Self {
         Self { inner }
     }
 }
 
 #[async_trait]
 impl<T: RetryStrategyTrait> DynRetryStrategy for RetryStrategyWrapper<T> {
-    async fn execute_json(&self, operation: &str, request: serde_json::Value) -> Result<serde_json::Value> {
-        self.inner.execute(operation, || async {
-            // Simulate JSON-RPC processing
-            Ok(serde_json::json!({
-                "result": "processed",
-                "request": request
-            }))
-        }).await
+    async fn execute_json(
+        &self,
+        operation: &str,
+        request: serde_json::Value,
+    ) -> Result<serde_json::Value> {
+        self.inner
+            .execute(operation, || async {
+                // Simulate JSON-RPC processing
+                Ok(serde_json::json!({
+                    "result": "processed",
+                    "request": request
+                }))
+            })
+            .await
     }
-    
+
     fn should_retry(&self, error: &anyhow::Error, context: &RetryContext) -> RetryDecision {
         self.inner.should_retry(error, context)
     }
-    
+
     fn stats(&self) -> RetryStats {
         self.inner.stats()
     }
 }
-

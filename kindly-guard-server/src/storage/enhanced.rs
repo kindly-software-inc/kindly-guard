@@ -1,10 +1,10 @@
 //! Enhanced storage implementation with advanced optimizations
-//! 
+//!
 //! This module provides high-performance persistent storage using
 //! advanced techniques for compression, indexing, and durability.
 
 use super::*;
-use tracing::{info, debug};
+use tracing::{debug, info};
 
 // Stubs for advanced storage components
 struct EventStore;
@@ -128,34 +128,30 @@ impl EnhancedStorage {
     /// Create new enhanced storage
     pub fn new(config: StorageConfig) -> Result<Self> {
         info!("Initializing enhanced storage with advanced optimizations");
-        
+
         // Initialize advanced components
         let event_store = EventStore::new(
-            config.data_dir.as_deref().unwrap_or("/var/lib/kindlyguard"),
+            (config.max_storage_mb.unwrap_or(1024) * 1024 * 1024)
+                .try_into()
+                .unwrap(), // Convert to bytes
             config.compression,
             config.encryption_at_rest,
         )?;
-        
+
         let rate_limiter = RateLimiterImpl::new(
             config.max_storage_mb.unwrap_or(1024) * 1024 * 1024, // Convert to bytes
         )?;
-        
+
         let correlation_index = CorrelationIndex::with_capacity(10_000)?;
-        
-        let snapshot_engine = SnapshotEngine::new(
-            &event_store,
-            config.retention_days,
-        )?;
-        
+
+        let snapshot_engine = SnapshotEngine::new(&event_store, config.retention_days)?;
+
         let archival = if let Some(archive_days) = config.archive_after_days {
-            ArchivalSystem::new(
-                config.connection_string.as_deref(),
-                archive_days,
-            )?
+            ArchivalSystem::new(config.connection_string.as_deref(), archive_days)?
         } else {
             ArchivalSystem::disabled()
         };
-        
+
         Ok(Self {
             config,
             event_store: Arc::new(event_store),
@@ -170,12 +166,15 @@ impl EnhancedStorage {
 #[async_trait]
 impl StorageProvider for EnhancedStorage {
     async fn store_event(&self, event: &SecurityEvent) -> Result<EventId> {
+        // Generate unique event ID
+        let id = EventId(format!("evt_{}", uuid::Uuid::new_v4()));
+
         // Use advanced event compression and indexing
-        let id = self.event_store.store_compressed(event).await?;
-        
+        self.event_store.store_compressed(&id, event).await?;
+
         // Update correlation index for fast pattern detection
         self.correlation_index.index_event(&id, event).await?;
-        
+
         // Trigger archival if needed
         if self.archival.should_archive(event.timestamp) {
             tokio::spawn({
@@ -188,29 +187,29 @@ impl StorageProvider for EnhancedStorage {
                 }
             });
         }
-        
+
         debug!("Stored event {} with enhanced compression", id.0);
         Ok(id)
     }
-    
+
     async fn get_event(&self, id: &EventId) -> Result<Option<SecurityEvent>> {
         // Try hot storage first
         if let Some(event) = self.event_store.get_decompressed(id).await? {
             return Ok(Some(event));
         }
-        
+
         // Check archive if not found
         if self.archival.is_enabled() {
             return self.archival.retrieve_event(id).await;
         }
-        
+
         Ok(None)
     }
-    
+
     async fn query_events(&self, filter: EventFilter) -> Result<Vec<SecurityEvent>> {
         // Use optimized query engine
         let results = self.event_store.query_optimized(&filter).await?;
-        
+
         // If we need more results, check archive
         if results.len() < filter.limit.unwrap_or(100) && self.archival.is_enabled() {
             let archived = self.archival.query_archived(&filter).await?;
@@ -222,66 +221,76 @@ impl StorageProvider for EnhancedStorage {
             }
             return Ok(combined);
         }
-        
+
         Ok(results)
     }
-    
-    async fn store_rate_limit_state(&self, key: &RateLimitKey, state: &RateLimitState) -> Result<()> {
+
+    async fn store_rate_limit_state(
+        &self,
+        key: &RateLimitKey,
+        state: &RateLimitState,
+    ) -> Result<()> {
         // Use optimized storage
         self.rate_limiter.store_atomic(key, state).await
     }
-    
+
     async fn get_rate_limit_state(&self, key: &RateLimitKey) -> Result<Option<RateLimitState>> {
         self.rate_limiter.get_atomic(key).await
     }
-    
+
     async fn cleanup_rate_limit_states(&self, older_than: Duration) -> Result<u64> {
         self.rate_limiter.cleanup_expired(older_than).await
     }
-    
-    async fn store_correlation_state(&self, client_id: &str, state: &CorrelationState) -> Result<()> {
+
+    async fn store_correlation_state(
+        &self,
+        client_id: &str,
+        state: &CorrelationState,
+    ) -> Result<()> {
         self.correlation_index.update_state(client_id, state).await
     }
-    
+
     async fn get_correlation_state(&self, client_id: &str) -> Result<Option<CorrelationState>> {
         self.correlation_index.get_state(client_id).await
     }
-    
+
     async fn create_snapshot(&self) -> Result<SnapshotId> {
         // Use incremental snapshot engine
         let id = self.snapshot_engine.create_incremental().await?;
         info!("Created incremental snapshot {}", id.0);
         Ok(id)
     }
-    
+
     async fn list_snapshots(&self) -> Result<Vec<(SnapshotId, DateTime<Utc>)>> {
         self.snapshot_engine.list_all().await
     }
-    
+
     async fn restore_snapshot(&self, id: &SnapshotId) -> Result<()> {
         // Atomic restore with rollback support
         self.snapshot_engine.restore_atomic(id).await?;
-        
+
         // Rebuild indexes
         self.correlation_index.rebuild().await?;
-        
+
         info!("Restored from snapshot {} with zero downtime", id.0);
         Ok(())
     }
-    
+
     async fn delete_snapshot(&self, id: &SnapshotId) -> Result<()> {
         self.snapshot_engine.delete(id).await
     }
-    
+
     async fn get_stats(&self) -> Result<StorageStats> {
         let event_stats = self.event_store.get_stats().await?;
         let rate_limit_stats = self.rate_limiter.get_stats().await?;
         let correlation_stats = self.correlation_index.get_stats().await?;
         let archive_stats = self.archival.get_stats().await?;
-        
+
         Ok(StorageStats {
             event_count: event_stats.total_events,
-            total_size: event_stats.compressed_size + rate_limit_stats.size + correlation_stats.index_size,
+            total_size: event_stats.compressed_size
+                + rate_limit_stats.size
+                + correlation_stats.index_size,
             rate_limit_entries: rate_limit_stats.active_entries,
             correlation_states: correlation_stats.active_states,
             storage_type: "enhanced".to_string(),
@@ -299,24 +308,24 @@ impl StorageProvider for EnhancedStorage {
             }),
         })
     }
-    
+
     async fn compact(&self) -> Result<()> {
         info!("Starting enhanced storage compaction");
-        
+
         // Run compaction in parallel
         let (events, rates, correlations) = tokio::join!(
             self.event_store.compact(),
             self.rate_limiter.optimize(),
             self.correlation_index.rebalance()
         );
-        
+
         events?;
         rates?;
         correlations?;
-        
+
         // Defragment snapshot storage
         self.snapshot_engine.defragment().await?;
-        
+
         info!("Enhanced storage compaction complete");
         Ok(())
     }
@@ -328,36 +337,42 @@ impl ArchivalStorage for EnhancedStorage {
         if !self.archival.is_enabled() {
             return Ok(0);
         }
-        
+
         let cutoff = Utc::now() - chrono::Duration::from_std(older_than)?;
-        let archived = self.archival.archive_before(&self.event_store, cutoff).await?;
-        
+        let archived = self
+            .archival
+            .archive_before(&self.event_store, cutoff)
+            .await?;
+
         info!("Archived {} events to cold storage", archived);
         Ok(archived)
     }
-    
+
     async fn query_archived_events(&self, filter: EventFilter) -> Result<Vec<SecurityEvent>> {
         if !self.archival.is_enabled() {
             return Ok(Vec::new());
         }
-        
+
         self.archival.query_archived(&filter).await
     }
-    
+
     async fn restore_from_archive(&self, filter: EventFilter) -> Result<u64> {
         if !self.archival.is_enabled() {
             return Ok(0);
         }
-        
-        let restored = self.archival.restore_to_hot(&self.event_store, &filter).await?;
-        
+
+        let restored = self
+            .archival
+            .restore_to_hot(&self.event_store, &filter)
+            .await?;
+
         // Rebuild indexes for restored events
         self.correlation_index.reindex_restored().await?;
-        
+
         info!("Restored {} events from archive", restored);
         Ok(restored)
     }
-    
+
     async fn get_archive_stats(&self) -> Result<ArchiveStats> {
         if !self.archival.is_enabled() {
             return Ok(ArchiveStats {
@@ -367,7 +382,7 @@ impl ArchivalStorage for EnhancedStorage {
                 newest_event: None,
             });
         }
-        
+
         self.archival.get_detailed_stats().await
     }
 }

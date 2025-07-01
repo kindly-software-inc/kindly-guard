@@ -1,9 +1,9 @@
-//! Security modules for KindlyGuard
+//! Security modules for `KindlyGuard`
 
-pub mod hardening;
 pub mod boundaries;
+pub mod hardening;
 
 pub use hardening::{
-    CommandRateLimiter, ResourceMonitor, SecurityContext, 
-    SecurityAuditLogger, FileSandbox, CommandSource
+    CommandRateLimiter, CommandSource, FileSandbox, NeutralizationContext, NeutralizationMode,
+    ResourceMonitor, SecurityAuditLogger, SecurityContext,
 };

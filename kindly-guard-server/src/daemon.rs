@@ -2,13 +2,12 @@
 //! Provides proper daemon functionality including signal handling,
 //! PID file management, and graceful shutdown
 
-use std::sync::Arc;
+use anyhow::{Context, Result};
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::path::Path;
-use anyhow::{Result, Context};
+use std::sync::Arc;
 use tokio::signal;
 use tokio::sync::broadcast;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Daemon configuration
 #[derive(Debug, Clone)]
@@ -52,48 +51,47 @@ impl DaemonHandle {
     pub fn new(config: DaemonConfig) -> Result<Self> {
         let (shutdown_tx, _) = broadcast::channel(1);
         let running = Arc::new(AtomicBool::new(true));
-        
+
         // Write PID file if configured
         if let Some(ref pid_path) = config.pid_file {
             write_pid_file(pid_path)?;
         }
-        
+
         // Change working directory if specified
         if let Some(ref dir) = config.working_dir {
-            std::env::set_current_dir(dir)
-                .context("Failed to change working directory")?;
+            std::env::set_current_dir(dir).context("Failed to change working directory")?;
         }
-        
+
         // Drop privileges if configured (Unix only)
         #[cfg(unix)]
         if config.user.is_some() || config.group.is_some() {
             drop_privileges(config.user.as_deref(), config.group.as_deref())?;
         }
-        
+
         Ok(Self {
             shutdown_tx,
             running,
             pid_file: config.pid_file,
         })
     }
-    
+
     /// Get a shutdown receiver
     pub fn shutdown_receiver(&self) -> broadcast::Receiver<()> {
         self.shutdown_tx.subscribe()
     }
-    
+
     /// Check if daemon is running
     pub fn is_running(&self) -> bool {
         self.running.load(Ordering::Relaxed)
     }
-    
+
     /// Trigger shutdown
     pub fn shutdown(&self) {
         info!("Daemon shutdown requested");
         self.running.store(false, Ordering::Relaxed);
         let _ = self.shutdown_tx.send(());
     }
-    
+
     /// Setup signal handlers
     pub async fn setup_signal_handlers(self: Arc<Self>) {
         // Handle SIGTERM and SIGINT
@@ -109,7 +107,7 @@ impl DaemonHandle {
                 }
             }
         });
-        
+
         // Handle SIGTERM on Unix
         #[cfg(unix)]
         {
@@ -122,7 +120,7 @@ impl DaemonHandle {
                         return;
                     }
                 };
-                
+
                 loop {
                     stream.recv().await;
                     info!("Received SIGTERM, shutting down gracefully");
@@ -130,9 +128,9 @@ impl DaemonHandle {
                     break;
                 }
             });
-            
+
             // Handle SIGHUP for reload (optional)
-            let handle3 = self.clone();
+            let handle3 = self;
             tokio::spawn(async move {
                 let mut stream = match signal::unix::signal(signal::unix::SignalKind::hangup()) {
                     Ok(s) => s,
@@ -141,7 +139,7 @@ impl DaemonHandle {
                         return;
                     }
                 };
-                
+
                 loop {
                     stream.recv().await;
                     info!("Received SIGHUP, reloading configuration");
@@ -168,7 +166,7 @@ impl Drop for DaemonHandle {
 fn write_pid_file(path: &str) -> Result<()> {
     let pid = std::process::id();
     std::fs::write(path, pid.to_string())
-        .with_context(|| format!("Failed to write PID file: {}", path))?;
+        .with_context(|| format!("Failed to write PID file: {path}"))?;
     info!("Wrote PID {} to {}", pid, path);
     Ok(())
 }
@@ -178,32 +176,32 @@ fn write_pid_file(path: &str) -> Result<()> {
 fn drop_privileges(user: Option<&str>, group: Option<&str>) -> Result<()> {
     // TODO: Implement privilege dropping when nix crate is added
     if user.is_some() || group.is_some() {
-        warn!("Privilege dropping not yet implemented - would drop to user: {:?}, group: {:?}", user, group);
+        warn!(
+            "Privilege dropping not yet implemented - would drop to user: {:?}, group: {:?}",
+            user, group
+        );
     }
     Ok(())
 }
 
 /// Run function with daemon support
-pub async fn run_with_daemon<F, Fut>(
-    config: DaemonConfig,
-    run_fn: F,
-) -> Result<()>
+pub async fn run_with_daemon<F, Fut>(config: DaemonConfig, run_fn: F) -> Result<()>
 where
     F: FnOnce(broadcast::Receiver<()>) -> Fut,
     Fut: std::future::Future<Output = Result<()>>,
 {
     // Create daemon handle
     let daemon = Arc::new(DaemonHandle::new(config)?);
-    
+
     // Setup signal handlers
     daemon.clone().setup_signal_handlers().await;
-    
+
     // Get shutdown receiver
     let shutdown_rx = daemon.shutdown_receiver();
-    
+
     // Run the main function
     info!("Daemon started successfully");
-    
+
     // Run with shutdown signal
     tokio::select! {
         result = run_fn(shutdown_rx) => {
@@ -216,7 +214,7 @@ where
             info!("Received interrupt signal");
         }
     }
-    
+
     info!("Daemon shutting down");
     Ok(())
 }
@@ -225,57 +223,57 @@ where
 mod tests {
     use super::*;
     use tempfile::tempdir;
-    
+
     #[tokio::test]
     async fn test_daemon_handle_creation() {
         let config = DaemonConfig {
             pid_file: None,
             ..Default::default()
         };
-        
+
         let handle = DaemonHandle::new(config).unwrap();
         assert!(handle.is_running());
-        
+
         handle.shutdown();
         assert!(!handle.is_running());
     }
-    
+
     #[tokio::test]
     async fn test_pid_file_creation() {
         let dir = tempdir().unwrap();
         let pid_path = dir.path().join("test.pid");
-        
+
         let config = DaemonConfig {
             pid_file: Some(pid_path.to_str().unwrap().to_string()),
             ..Default::default()
         };
-        
+
         {
             let _handle = DaemonHandle::new(config).unwrap();
             assert!(pid_path.exists());
-            
+
             let content = std::fs::read_to_string(&pid_path).unwrap();
             let pid: u32 = content.trim().parse().unwrap();
             assert_eq!(pid, std::process::id());
         }
-        
+
         // PID file should be cleaned up after drop
         assert!(!pid_path.exists());
     }
-    
+
     #[tokio::test]
     async fn test_shutdown_signal() {
         let config = DaemonConfig {
             pid_file: None,
             ..Default::default()
         };
-        
+
         let handle = Arc::new(DaemonHandle::new(config).unwrap());
         let mut rx = handle.shutdown_receiver();
-        
+
         // Send shutdown signal
         handle.shutdown();
-        
+
         // Receiver should get the signal
         assert!(rx.recv().await.is_ok());
     }

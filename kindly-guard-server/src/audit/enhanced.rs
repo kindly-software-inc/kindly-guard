@@ -1,19 +1,19 @@
 //! Enhanced audit logger implementation (stub)
-//! 
+//!
 //! This module provides a stub for the enhanced audit logger that would
 //! integrate with advanced audit systems.
 
-use std::sync::Arc;
-use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use std::sync::Arc;
+use std::time::Duration;
 use tracing::info;
 
 use super::*;
 
 /// Enhanced audit logger with advanced features
-/// 
+///
 /// This implementation would integrate with:
 /// - Cryptographic signing for tamper-proof logs
 /// - Distributed storage for high availability
@@ -32,16 +32,14 @@ impl EnhancedAuditLogger {
     /// Create new enhanced audit logger
     pub fn new(config: AuditConfig) -> Result<Self> {
         info!("Initializing enhanced audit logger with advanced features");
-        
+
         // In real implementation:
         // - Initialize cryptographic signing
         // - Connect to distributed storage
         // - Set up alert channels
         // - Initialize analytics engine
-        
-        Ok(Self {
-            config,
-        })
+
+        Ok(Self { config })
     }
 }
 
@@ -53,46 +51,46 @@ impl AuditLogger for EnhancedAuditLogger {
         // 2. Store in distributed system
         // 3. Check for alert conditions
         // 4. Update analytics metrics
-        
+
         info!("Enhanced audit logging for event: {:?}", event.event_type);
         Ok(event.id)
     }
-    
+
     async fn log_batch(&self, events: Vec<AuditEvent>) -> Result<Vec<AuditEventId>> {
         // Batch processing with optimizations
         info!("Enhanced batch audit logging for {} events", events.len());
         Ok(events.into_iter().map(|e| e.id).collect())
     }
-    
+
     async fn query(&self, filter: AuditFilter) -> Result<Vec<AuditEvent>> {
         // Query from distributed storage with caching
         info!("Enhanced audit query with filter: {:?}", filter);
         Ok(Vec::new())
     }
-    
+
     async fn get_event(&self, id: &AuditEventId) -> Result<Option<AuditEvent>> {
         // Retrieve with signature verification
         info!("Enhanced audit event retrieval: {}", id.0);
         Ok(None)
     }
-    
+
     async fn delete_before(&self, timestamp: DateTime<Utc>) -> Result<u64> {
         // Secure deletion with audit trail
         info!("Enhanced audit deletion before: {}", timestamp);
         Ok(0)
     }
-    
+
     async fn get_stats(&self) -> Result<AuditStats> {
         // Real-time statistics from analytics engine
         Ok(AuditStats::default())
     }
-    
+
     async fn export(&self, filter: AuditFilter, format: ExportFormat) -> Result<Vec<u8>> {
         // Export with signature and encryption
         info!("Enhanced audit export in format: {:?}", format);
         Ok(Vec::new())
     }
-    
+
     async fn verify_integrity(&self) -> Result<IntegrityReport> {
         // Cryptographic verification of audit trail
         Ok(IntegrityReport {

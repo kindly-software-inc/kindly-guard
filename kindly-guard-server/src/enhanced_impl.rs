@@ -1,18 +1,18 @@
 //! Enhanced implementations with optimized event processing
 //! These provide advanced capabilities when enabled
 
-use async_trait::async_trait;
-use std::sync::Arc;
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::collections::HashMap;
-use std::time::{Duration, Instant};
 use anyhow::Result;
+use async_trait::async_trait;
 use parking_lot::RwLock;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
+use std::time::{Duration, Instant};
 // Use internal types for enhanced implementation
+use crate::event_processor::{CircuitState, Priority};
 use crate::resilience::stubs::EventBuffer;
-use crate::event_processor::{Priority, CircuitState};
-use crate::traits::*;
 use crate::scanner::Threat;
+use crate::traits::*;
 
 /// Enhanced event processor with optimized buffer management
 pub struct EnhancedEventProcessor {
@@ -28,7 +28,7 @@ impl EnhancedEventProcessor {
         let buffer = Arc::new(EventBuffer::new(
             config.event_processor.buffer_size_mb * 1024 * 1024, // Convert MB to bytes
         ));
-        
+
         Ok(Self {
             buffer,
             endpoint_map: RwLock::new(HashMap::new()),
@@ -37,13 +37,13 @@ impl EnhancedEventProcessor {
             events_processed: AtomicU64::new(0),
         })
     }
-    
+
     fn get_or_create_endpoint_id(&self, endpoint: &str) -> u32 {
         let mut map = self.endpoint_map.write();
         if let Some(&id) = map.get(endpoint) {
             return id;
         }
-        
+
         let mut next_id = self.next_endpoint_id.write();
         let id = *next_id;
         *next_id += 1;
@@ -56,29 +56,30 @@ impl EnhancedEventProcessor {
 impl SecurityEventProcessor for EnhancedEventProcessor {
     async fn process_event(&self, event: SecurityEvent) -> Result<EventHandle> {
         let endpoint_id = self.get_or_create_endpoint_id(&event.client_id);
-        
+
         // Determine priority based on event type
-        let priority = if event.event_type.contains("threat") || event.event_type.contains("failure") {
-            Priority::Urgent
-        } else {
-            Priority::Normal
-        };
-        
+        let priority =
+            if event.event_type.contains("threat") || event.event_type.contains("failure") {
+                Priority::Urgent
+            } else {
+                Priority::Normal
+            };
+
         // Since EventBuffer is a stub, simulate processing
         let event_id = self.events_processed.fetch_add(1, Ordering::Relaxed);
-        
+
         tracing::trace!("Event processing optimized");
-        
+
         Ok(EventHandle {
             event_id,
             processed: true,
         })
     }
-    
+
     fn get_stats(&self) -> ProcessorStats {
         let elapsed = self.start_time.elapsed().as_secs_f64();
         let events = self.events_processed.load(Ordering::Relaxed);
-        
+
         ProcessorStats {
             events_processed: events,
             events_per_second: events as f64 / elapsed.max(1.0),
@@ -86,27 +87,27 @@ impl SecurityEventProcessor for EnhancedEventProcessor {
             correlation_hits: 0,
         }
     }
-    
+
     fn is_monitored(&self, endpoint: &str) -> bool {
         self.endpoint_map.read().contains_key(endpoint)
     }
-    
+
     async fn get_insights(&self, client_id: &str) -> Result<SecurityInsights> {
         let endpoint_id = self.get_or_create_endpoint_id(client_id);
-        
+
         // Simulate risk scoring
         let risk_score = 0.3;
-        
+
         let detected_patterns = vec![];
         let recommendations = vec![];
-        
+
         Ok(SecurityInsights {
             risk_score,
             detected_patterns,
             recommendations,
         })
     }
-    
+
     async fn cleanup(&self) -> Result<()> {
         // EventBuffer handles its own cleanup
         tracing::trace!("Cleanup optimized");
@@ -124,7 +125,7 @@ pub struct EnhancedScannerImpl {
 impl EnhancedScannerImpl {
     pub fn new(_config: &crate::config::Config) -> Result<Self> {
         let buffer = Arc::new(EventBuffer::new(1024 * 1024)); // 1MB buffer
-        
+
         Ok(Self {
             buffer,
             scans_performed: AtomicU64::new(0),
@@ -136,12 +137,12 @@ impl EnhancedScannerImpl {
 impl EnhancedScanner for EnhancedScannerImpl {
     fn enhanced_scan(&self, data: &[u8]) -> Result<Vec<Threat>> {
         self.scans_performed.fetch_add(1, Ordering::Relaxed);
-        
+
         // For now, return empty threats
         // Real implementation would use optimized scanning
         Ok(vec![])
     }
-    
+
     fn get_metrics(&self) -> ScannerMetrics {
         ScannerMetrics {
             scans_performed: self.scans_performed.load(Ordering::Relaxed),
@@ -150,7 +151,7 @@ impl EnhancedScanner for EnhancedScannerImpl {
             pattern_cache_hits: 0,
         }
     }
-    
+
     fn preload_patterns(&self, _patterns: &[String]) -> Result<()> {
         // Pattern preloading for optimization
         Ok(())
@@ -168,7 +169,7 @@ impl EnhancedCorrelationEngine {
         let buffer = Arc::new(EventBuffer::new(
             config.event_processor.buffer_size_mb * 1024 * 1024, // Convert MB to bytes
         ));
-        
+
         Ok(Self {
             buffer,
             correlations_found: AtomicU64::new(0),
@@ -183,11 +184,11 @@ impl CorrelationEngine for EnhancedCorrelationEngine {
         // For now, return empty patterns
         Ok(vec![])
     }
-    
+
     async fn update_rules(&self, _rules: CorrelationRules) -> Result<()> {
         Ok(())
     }
-    
+
     fn get_correlation_stats(&self) -> CorrelationStats {
         CorrelationStats {
             patterns_detected: self.correlations_found.load(Ordering::Relaxed),
@@ -224,17 +225,17 @@ impl RateLimiter for EnhancedRateLimiter {
     async fn check_rate_limit(&self, key: &RateLimitKey) -> Result<RateLimitDecision> {
         let mut buckets = self.buckets.write();
         let now = Instant::now();
-        
+
         let bucket = buckets.entry(key.clone()).or_insert_with(|| TokenBucket {
             tokens: 10.0,
             last_update: now,
         });
-        
+
         // Refill tokens
         let elapsed = now.duration_since(bucket.last_update).as_secs_f64();
         bucket.tokens = (bucket.tokens + elapsed).min(10.0);
         bucket.last_update = now;
-        
+
         if bucket.tokens >= 1.0 {
             bucket.tokens -= 1.0;
             self.requests_allowed.fetch_add(1, Ordering::Relaxed);
@@ -252,26 +253,26 @@ impl RateLimiter for EnhancedRateLimiter {
             })
         }
     }
-    
+
     async fn record_request(&self, _key: &RateLimitKey) -> Result<()> {
         // Already recorded in check_rate_limit
         Ok(())
     }
-    
+
     async fn apply_penalty(&self, client_id: &str, factor: f32) -> Result<()> {
         let key = RateLimitKey {
             client_id: client_id.to_string(),
             method: None,
         };
-        
+
         let mut buckets = self.buckets.write();
         if let Some(bucket) = buckets.get_mut(&key) {
-            bucket.tokens = (bucket.tokens / factor).max(0.0);
+            bucket.tokens = (bucket.tokens / factor as f64).max(0.0);
         }
-        
+
         Ok(())
     }
-    
+
     fn get_stats(&self) -> RateLimiterStats {
         RateLimiterStats {
             requests_allowed: self.requests_allowed.load(Ordering::Relaxed),
@@ -285,24 +286,41 @@ impl RateLimiter for EnhancedRateLimiter {
 pub struct EnhancedComponentFactory;
 
 impl SecurityComponentFactory for EnhancedComponentFactory {
-    fn create_event_processor(&self, config: &crate::config::Config, _storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn SecurityEventProcessor>> {
+    fn create_event_processor(
+        &self,
+        config: &crate::config::Config,
+        _storage: Arc<dyn crate::storage::StorageProvider>,
+    ) -> Result<Arc<dyn SecurityEventProcessor>> {
         Ok(Arc::new(EnhancedEventProcessor::new(config)?))
     }
-    
+
     fn create_scanner(&self, config: &crate::config::Config) -> Result<Arc<dyn EnhancedScanner>> {
         Ok(Arc::new(EnhancedScannerImpl::new(config)?))
     }
-    
-    fn create_correlation_engine(&self, config: &crate::config::Config, _storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn CorrelationEngine>> {
+
+    fn create_correlation_engine(
+        &self,
+        config: &crate::config::Config,
+        _storage: Arc<dyn crate::storage::StorageProvider>,
+    ) -> Result<Arc<dyn CorrelationEngine>> {
         Ok(Arc::new(EnhancedCorrelationEngine::new(config)?))
     }
-    
-    fn create_rate_limiter(&self, config: &crate::config::Config, _storage: Arc<dyn crate::storage::StorageProvider>) -> Result<Arc<dyn RateLimiter>> {
+
+    fn create_rate_limiter(
+        &self,
+        config: &crate::config::Config,
+        _storage: Arc<dyn crate::storage::StorageProvider>,
+    ) -> Result<Arc<dyn RateLimiter>> {
         Ok(Arc::new(EnhancedRateLimiter::new(config)?))
     }
-    
-    fn create_security_scanner(&self, _config: &crate::config::Config) -> Result<Arc<dyn SecurityScannerTrait>> {
+
+    fn create_security_scanner(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn SecurityScannerTrait>> {
         // Return standard scanner as enhanced scanner has different interface
-        Ok(Arc::new(crate::scanner::SecurityScanner::new()))
+        Ok(Arc::new(crate::scanner::SecurityScanner::new(
+            config.scanner.clone(),
+        )?))
     }
 }

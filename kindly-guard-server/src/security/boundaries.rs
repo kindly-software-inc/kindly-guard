@@ -1,6 +1,5 @@
 //! Security boundaries and limits for safe operation
 
-use once_cell::sync::Lazy;
 use std::time::Duration;
 
 /// Maximum sizes for various inputs
@@ -33,12 +32,13 @@ impl Default for SecurityLimits {
 }
 
 /// Global security limits
-pub static LIMITS: Lazy<SecurityLimits> = Lazy::new(SecurityLimits::default);
+pub static LIMITS: std::sync::LazyLock<SecurityLimits> =
+    std::sync::LazyLock::new(SecurityLimits::default);
 
 /// Validate size constraints
 pub fn check_size_limit(size: usize, limit: usize, name: &str) -> Result<(), String> {
     if size > limit {
-        Err(format!("{} exceeds maximum size: {} > {}", name, size, limit))
+        Err(format!("{name} exceeds maximum size: {size} > {limit}"))
     } else {
         Ok(())
     }
@@ -46,11 +46,15 @@ pub fn check_size_limit(size: usize, limit: usize, name: &str) -> Result<(), Str
 
 /// Validate JSON depth to prevent stack overflow
 pub fn check_json_depth(value: &serde_json::Value, max_depth: usize) -> Result<(), String> {
-    fn measure_depth(value: &serde_json::Value, current: usize, max: usize) -> Result<usize, String> {
+    fn measure_depth(
+        value: &serde_json::Value,
+        current: usize,
+        max: usize,
+    ) -> Result<usize, String> {
         if current > max {
-            return Err(format!("JSON depth exceeds maximum: {} > {}", current, max));
+            return Err(format!("JSON depth exceeds maximum: {current} > {max}"));
         }
-        
+
         match value {
             serde_json::Value::Object(map) => {
                 let mut max_child = current;
@@ -69,7 +73,7 @@ pub fn check_json_depth(value: &serde_json::Value, max_depth: usize) -> Result<(
             _ => Ok(current),
         }
     }
-    
+
     measure_depth(value, 0, max_depth).map(|_| ())
 }
 
@@ -84,9 +88,11 @@ impl ConcurrencyLimiter {
             semaphore: tokio::sync::Semaphore::new(max_concurrent),
         }
     }
-    
+
     pub async fn acquire(&self) -> Result<tokio::sync::SemaphorePermit<'_>, String> {
-        self.semaphore.acquire().await
+        self.semaphore
+            .acquire()
+            .await
             .map_err(|_| "Failed to acquire concurrency permit".to_string())
     }
 }
@@ -94,13 +100,13 @@ impl ConcurrencyLimiter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_size_limits() {
         assert!(check_size_limit(100, 1000, "test").is_ok());
         assert!(check_size_limit(2000, 1000, "test").is_err());
     }
-    
+
     #[test]
     fn test_json_depth_check() {
         // Shallow JSON
@@ -110,36 +116,37 @@ mod tests {
             "c": {"d": 4}
         });
         assert!(check_json_depth(&shallow, 10).is_ok());
-        
+
         // Deep JSON
         let mut deep = serde_json::json!({});
         let mut current = &mut deep;
         for i in 0..20 {
-            *current = serde_json::json!({ 
-                format!("level{}", i): {} 
+            *current = serde_json::json!({
+                format!("level{}", i): {}
             });
-            current = current.as_object_mut().unwrap()
-                .values_mut().next().unwrap();
+            current = current
+                .as_object_mut()
+                .unwrap()
+                .values_mut()
+                .next()
+                .unwrap();
         }
-        
+
         assert!(check_json_depth(&deep, 10).is_err());
         assert!(check_json_depth(&deep, 25).is_ok());
     }
-    
+
     #[tokio::test]
     async fn test_concurrency_limiter() {
         let limiter = ConcurrencyLimiter::new(2);
-        
+
         // Acquire two permits
         let _p1 = limiter.acquire().await.unwrap();
         let _p2 = limiter.acquire().await.unwrap();
-        
+
         // Third should wait (we'll timeout to test)
-        let result = tokio::time::timeout(
-            Duration::from_millis(100),
-            limiter.acquire()
-        ).await;
-        
+        let result = tokio::time::timeout(Duration::from_millis(100), limiter.acquire()).await;
+
         assert!(result.is_err()); // Timed out waiting
     }
 }

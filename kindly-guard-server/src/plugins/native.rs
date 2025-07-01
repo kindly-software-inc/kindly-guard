@@ -1,20 +1,29 @@
 //! Native plugin loader for Rust-based plugins
-//! 
+//!
 //! Loads plugins compiled as dynamic libraries (.so, .dll, .dylib)
 
-use super::*;
-use std::path::Path;
+use super::{
+    async_trait, HealthStatus, PluginCapabilities, PluginLoader, PluginMetadata, ScanContext,
+    SecurityPlugin, Severity, Threat, ThreatType,
+};
 use anyhow::Result;
-use tracing::{info, debug};
+use std::path::Path;
+use tracing::{debug, info};
 
 /// Native plugin loader
 pub struct NativePluginLoader {
     _private: (),
 }
 
+impl Default for NativePluginLoader {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl NativePluginLoader {
     /// Create a new native plugin loader
-    pub fn new() -> Self {
+    pub const fn new() -> Self {
         Self { _private: () }
     }
 }
@@ -24,45 +33,46 @@ impl PluginLoader for NativePluginLoader {
     async fn load_plugin(&self, path: &Path) -> Result<Box<dyn SecurityPlugin>> {
         // For now, we'll create example plugins
         // In a real implementation, this would use libloading to load .so/.dll files
-        
-        let filename = path.file_name()
+
+        let filename = path
+            .file_name()
             .and_then(|n| n.to_str())
             .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
-        
+
         // Example: Create different plugins based on filename
         match filename {
             "sql_injection_plugin.so" | "sql_injection_plugin.dll" => {
                 Ok(Box::new(SqlInjectionPlugin::new()))
             }
-            "xss_plugin.so" | "xss_plugin.dll" => {
-                Ok(Box::new(XssPlugin::new()))
-            }
+            "xss_plugin.so" | "xss_plugin.dll" => Ok(Box::new(XssPlugin::new())),
             "custom_pattern_plugin.so" | "custom_pattern_plugin.dll" => {
                 Ok(Box::new(CustomPatternPlugin::new()))
             }
             _ => Err(anyhow::anyhow!("Unknown plugin type: {}", filename)),
         }
     }
-    
+
     async fn validate_plugin(&self, path: &Path) -> Result<PluginMetadata> {
         // Check if it's a valid plugin file
-        let extension = path.extension()
+        let extension = path
+            .extension()
             .and_then(|e| e.to_str())
             .ok_or_else(|| anyhow::anyhow!("No file extension"))?;
-        
+
         match extension {
             "so" | "dll" | "dylib" => {
                 // In real implementation, would load and check plugin interface
                 // For now, return mock metadata based on filename
-                let filename = path.file_stem()
+                let filename = path
+                    .file_stem()
                     .and_then(|n| n.to_str())
                     .ok_or_else(|| anyhow::anyhow!("Invalid filename"))?;
-                
+
                 Ok(PluginMetadata {
                     name: filename.to_string(),
                     version: "1.0.0".to_string(),
                     author: "Plugin Author".to_string(),
-                    description: format!("Native plugin: {}", filename),
+                    description: format!("Native plugin: {filename}"),
                     homepage: None,
                     threat_types: vec!["custom".to_string()],
                     capabilities: PluginCapabilities {
@@ -78,7 +88,7 @@ impl PluginLoader for NativePluginLoader {
             _ => Err(anyhow::anyhow!("Not a native plugin file")),
         }
     }
-    
+
     fn loader_type(&self) -> &'static str {
         "native"
     }
@@ -95,9 +105,9 @@ impl SqlInjectionPlugin {
         let patterns = vec![
             regex::Regex::new(r"(?i)(\b(union|select|insert|update|delete|drop|create|alter|exec|execute)\b.*\b(from|where|table|database)\b)").unwrap(),
             regex::Regex::new(r#"(?i)('|"|;|--|xp_|sp_)"#).unwrap(),
-            regex::Regex::new(r#"(?i)(admin'|'or'|'=')"#).unwrap(),
+            regex::Regex::new(r"(?i)(admin'|'or'|'=')").unwrap(),
         ];
-        
+
         Self {
             patterns,
             config: serde_json::Value::Null,
@@ -125,17 +135,17 @@ impl SecurityPlugin for SqlInjectionPlugin {
             },
         }
     }
-    
+
     async fn initialize(&mut self, config: serde_json::Value) -> Result<()> {
         self.config = config;
         info!("SQL Injection plugin initialized");
         Ok(())
     }
-    
+
     async fn scan(&self, context: ScanContext<'_>) -> Result<Vec<Threat>> {
         let text = String::from_utf8_lossy(context.data);
         let mut threats = Vec::new();
-        
+
         for (i, pattern) in self.patterns.iter().enumerate() {
             if let Some(m) = pattern.find(&text) {
                 threats.push(Threat {
@@ -150,10 +160,10 @@ impl SecurityPlugin for SqlInjectionPlugin {
                 });
             }
         }
-        
+
         Ok(threats)
     }
-    
+
     async fn health_check(&self) -> Result<HealthStatus> {
         Ok(HealthStatus {
             healthy: true,
@@ -162,7 +172,7 @@ impl SecurityPlugin for SqlInjectionPlugin {
             metrics: self.get_metrics(),
         })
     }
-    
+
     async fn shutdown(&mut self) -> Result<()> {
         info!("SQL Injection plugin shutting down");
         Ok(())
@@ -181,7 +191,7 @@ impl XssPlugin {
             regex::Regex::new(r"javascript:").unwrap(),
             regex::Regex::new(r"on\w+\s*=").unwrap(),
         ];
-        
+
         Self { patterns }
     }
 }
@@ -206,16 +216,16 @@ impl SecurityPlugin for XssPlugin {
             },
         }
     }
-    
+
     async fn initialize(&mut self, _config: serde_json::Value) -> Result<()> {
         info!("XSS plugin initialized");
         Ok(())
     }
-    
+
     async fn scan(&self, context: ScanContext<'_>) -> Result<Vec<Threat>> {
         let text = String::from_utf8_lossy(context.data);
         let mut threats = Vec::new();
-        
+
         for pattern in &self.patterns {
             if let Some(m) = pattern.find(&text) {
                 threats.push(Threat {
@@ -230,10 +240,10 @@ impl SecurityPlugin for XssPlugin {
                 });
             }
         }
-        
+
         Ok(threats)
     }
-    
+
     async fn health_check(&self) -> Result<HealthStatus> {
         Ok(HealthStatus {
             healthy: true,
@@ -242,7 +252,7 @@ impl SecurityPlugin for XssPlugin {
             metrics: self.get_metrics(),
         })
     }
-    
+
     async fn shutdown(&mut self) -> Result<()> {
         info!("XSS plugin shutting down");
         Ok(())
@@ -255,7 +265,7 @@ struct CustomPatternPlugin {
 }
 
 impl CustomPatternPlugin {
-    fn new() -> Self {
+    const fn new() -> Self {
         Self {
             patterns: Vec::new(),
         }
@@ -282,7 +292,7 @@ impl SecurityPlugin for CustomPatternPlugin {
             },
         }
     }
-    
+
     async fn initialize(&mut self, config: serde_json::Value) -> Result<()> {
         // Load patterns from config
         if let Some(patterns) = config.get("patterns").and_then(|p| p.as_array()) {
@@ -299,7 +309,7 @@ impl SecurityPlugin for CustomPatternPlugin {
                         "critical" => Severity::Critical,
                         _ => Severity::Medium,
                     };
-                    
+
                     if let Ok(re) = regex::Regex::new(regex) {
                         self.patterns.push((name.to_string(), re, severity));
                         debug!("Added custom pattern: {}", name);
@@ -307,15 +317,18 @@ impl SecurityPlugin for CustomPatternPlugin {
                 }
             }
         }
-        
-        info!("Custom pattern plugin initialized with {} patterns", self.patterns.len());
+
+        info!(
+            "Custom pattern plugin initialized with {} patterns",
+            self.patterns.len()
+        );
         Ok(())
     }
-    
+
     async fn scan(&self, context: ScanContext<'_>) -> Result<Vec<Threat>> {
         let text = String::from_utf8_lossy(context.data);
         let mut threats = Vec::new();
-        
+
         for (name, pattern, severity) in &self.patterns {
             if let Some(m) = pattern.find(&text) {
                 threats.push(Threat {
@@ -325,24 +338,27 @@ impl SecurityPlugin for CustomPatternPlugin {
                         offset: m.start(),
                         length: m.len(),
                     },
-                    description: format!("Custom pattern '{}' detected", name),
+                    description: format!("Custom pattern '{name}' detected"),
                     remediation: None,
                 });
             }
         }
-        
+
         Ok(threats)
     }
-    
+
     async fn health_check(&self) -> Result<HealthStatus> {
         Ok(HealthStatus {
             healthy: true,
-            message: format!("Custom pattern plugin with {} patterns", self.patterns.len()),
+            message: format!(
+                "Custom pattern plugin with {} patterns",
+                self.patterns.len()
+            ),
             last_check: chrono::Utc::now(),
             metrics: self.get_metrics(),
         })
     }
-    
+
     async fn shutdown(&mut self) -> Result<()> {
         info!("Custom pattern plugin shutting down");
         self.patterns.clear();

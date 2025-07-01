@@ -1,16 +1,14 @@
 //! Universal shield display that works in any environment
 //! No terminal control sequences, just plain ASCII text
 
-use std::sync::Arc;
-use std::time::Duration;
-use std::io::{self, Write};
-use std::fs;
-use std::path::Path;
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::fs;
+use std::io::{self, Write};
+use std::sync::Arc;
 
-use super::{Shield, ShieldInfo};
-use crate::scanner::{ThreatType, Severity};
+use super::Shield;
+use crate::scanner::ThreatType;
 
 /// Universal display options
 #[derive(Debug, Clone)]
@@ -26,7 +24,7 @@ pub struct UniversalDisplayConfig {
 }
 
 /// Display format for universal output
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DisplayFormat {
     /// Single line status
     Minimal,
@@ -68,47 +66,59 @@ pub struct UniversalDisplay {
 
 impl UniversalDisplay {
     /// Create new universal display
-    pub fn new(shield: Arc<Shield>, config: UniversalDisplayConfig) -> Self {
+    pub const fn new(shield: Arc<Shield>, config: UniversalDisplayConfig) -> Self {
         Self { shield, config }
     }
-    
+
     /// Get current status as structured data
     pub fn get_status(&self) -> UniversalShieldStatus {
         let info = self.shield.get_info();
         let stats = self.shield.get_threat_stats();
         let enhanced = self.shield.is_event_processor_enabled();
-        
+
         // Count threats by category
-        let unicode_count: u64 = stats.iter()
-            .filter(|(k, _)| matches!(k, 
-                ThreatType::UnicodeInvisible | 
-                ThreatType::UnicodeBiDi | 
-                ThreatType::UnicodeHomograph | 
-                ThreatType::UnicodeControl
-            ))
+        let unicode_count: u64 = stats
+            .iter()
+            .filter(|(k, _)| {
+                matches!(
+                    k,
+                    ThreatType::UnicodeInvisible
+                        | ThreatType::UnicodeBiDi
+                        | ThreatType::UnicodeHomograph
+                        | ThreatType::UnicodeControl
+                )
+            })
             .map(|(_, v)| v)
             .sum();
-            
-        let injection_count: u64 = stats.iter()
-            .filter(|(k, _)| matches!(k, 
-                ThreatType::PromptInjection | 
-                ThreatType::CommandInjection | 
-                ThreatType::SqlInjection
-            ))
+
+        let injection_count: u64 = stats
+            .iter()
+            .filter(|(k, _)| {
+                matches!(
+                    k,
+                    ThreatType::PromptInjection
+                        | ThreatType::CommandInjection
+                        | ThreatType::SqlInjection
+                )
+            })
             .map(|(_, v)| v)
             .sum();
-            
+
         let traversal_count = stats.get(&ThreatType::PathTraversal).copied().unwrap_or(0);
-        
-        let mcp_count: u64 = stats.iter()
-            .filter(|(k, _)| matches!(k, 
-                ThreatType::SessionIdExposure | 
-                ThreatType::ToolPoisoning | 
-                ThreatType::TokenTheft
-            ))
+
+        let mcp_count: u64 = stats
+            .iter()
+            .filter(|(k, _)| {
+                matches!(
+                    k,
+                    ThreatType::SessionIdExposure
+                        | ThreatType::ToolPoisoning
+                        | ThreatType::TokenTheft
+                )
+            })
             .map(|(_, v)| v)
             .sum();
-        
+
         UniversalShieldStatus {
             active: info.active,
             enhanced_mode: enhanced,
@@ -122,15 +132,23 @@ impl UniversalDisplay {
                 path_traversal: traversal_count,
                 mcp_threats: mcp_count,
             },
-            mode_name: if enhanced { "Enhanced".to_string() } else { "Standard".to_string() },
-            status_emoji: if info.active { "🛡️".to_string() } else { "🔓".to_string() },
+            mode_name: if enhanced {
+                "Enhanced".to_string()
+            } else {
+                "Standard".to_string()
+            },
+            status_emoji: if info.active {
+                "🛡️".to_string()
+            } else {
+                "🔓".to_string()
+            },
         }
     }
-    
+
     /// Render the display
     pub fn render(&self) -> String {
         let status = self.get_status();
-        
+
         match self.config.format {
             DisplayFormat::Minimal => self.render_minimal(&status),
             DisplayFormat::Compact => self.render_compact(&status),
@@ -138,13 +156,13 @@ impl UniversalDisplay {
             DisplayFormat::Json => serde_json::to_string_pretty(&status).unwrap_or_default(),
         }
     }
-    
+
     /// Render minimal single-line format
     fn render_minimal(&self, status: &UniversalShieldStatus) -> String {
         let shield_icon = &status.status_emoji;
         let status_text = if status.active { "Active" } else { "Inactive" };
         let mode_indicator = if status.enhanced_mode { " ⚡" } else { "" };
-        
+
         if self.config.color && status.enhanced_mode {
             // Purple color for enhanced mode
             format!(
@@ -176,51 +194,55 @@ impl UniversalDisplay {
             )
         }
     }
-    
+
     /// Render compact multi-line format
     fn render_compact(&self, status: &UniversalShieldStatus) -> String {
         let mut output = String::new();
-        
+
         // Header with mode indication
         if status.enhanced_mode {
             if self.config.color {
-                output.push_str(&format!("\x1b[35mKindlyGuard Security Status [Enhanced]\x1b[0m\n"));
+                output.push_str("\x1b[35mKindlyGuard Security Status [Enhanced]\x1b[0m\n");
                 output.push_str("\x1b[35m─────────────────────────────────────\x1b[0m\n");
             } else {
                 output.push_str("KindlyGuard Security Status [Enhanced]\n");
                 output.push_str("─────────────────────────────────────\n");
             }
+        } else if self.config.color {
+            output.push_str("\x1b[34mKindlyGuard Security Status\x1b[0m\n");
+            output.push_str("\x1b[34m─────────────────────────\x1b[0m\n");
         } else {
-            if self.config.color {
-                output.push_str("\x1b[34mKindlyGuard Security Status\x1b[0m\n");
-                output.push_str("\x1b[34m─────────────────────────\x1b[0m\n");
-            } else {
-                output.push_str("KindlyGuard Security Status\n");
-                output.push_str("─────────────────────────\n");
-            }
+            output.push_str("KindlyGuard Security Status\n");
+            output.push_str("─────────────────────────\n");
         }
-        
+
         // Status line
         let status_symbol = if status.active { "●" } else { "○" };
         let status_text = if status.active { "Active" } else { "Inactive" };
         let mode_indicator = if status.enhanced_mode { " ⚡" } else { "" };
-        
+
         if self.config.color && status.active {
-            output.push_str(&format!("{} Protection: \x1b[32m{}{}\x1b[0m\n", 
-                status_symbol, status_text, mode_indicator));
+            output.push_str(&format!(
+                "{status_symbol} Protection: \x1b[32m{status_text}{mode_indicator}\x1b[0m\n"
+            ));
         } else if self.config.color {
-            output.push_str(&format!("{} Protection: \x1b[31m{}\x1b[0m\n", 
-                status_symbol, status_text));
+            output.push_str(&format!(
+                "{status_symbol} Protection: \x1b[31m{status_text}\x1b[0m\n"
+            ));
         } else {
-            output.push_str(&format!("{} Protection: {}{}\n", 
-                status_symbol, status_text, mode_indicator));
+            output.push_str(&format!(
+                "{status_symbol} Protection: {status_text}{mode_indicator}\n"
+            ));
         }
-        
+
         // Stats
         output.push_str(&format!("● Threats Blocked: {}\n", status.threats_blocked));
-        output.push_str(&format!("● Uptime: {}\n", format_duration(status.uptime_seconds)));
+        output.push_str(&format!(
+            "● Uptime: {}\n",
+            format_duration(status.uptime_seconds)
+        ));
         output.push_str(&format!("● Mode: {}\n", status.mode_name));
-        
+
         // Recent activity for enhanced mode
         if status.enhanced_mode {
             output.push_str("\nRecent Activity:\n");
@@ -238,14 +260,14 @@ impl UniversalDisplay {
             output.push_str("• System initialized\n");
             output.push_str("• Monitoring active\n");
         }
-        
+
         output
     }
-    
+
     /// Render full dashboard format
     fn render_dashboard(&self, status: &UniversalShieldStatus) -> String {
         let mut output = String::new();
-        
+
         // Title
         if status.enhanced_mode && self.config.color {
             output.push_str("\x1b[35m╔═══════════════════════════════════════════════╗\x1b[0m\n");
@@ -260,23 +282,37 @@ impl UniversalDisplay {
             output.push_str("║       🛡️  KindlyGuard Security Shield         ║\n");
             output.push_str("╠═══════════════════════════════════════════════╣\n");
         }
-        
+
         // Status section
         let status_line = format!(
             "║ Status: {:37} ║",
-            format!("{} {} {}", 
-                if status.active { "✅ ACTIVE" } else { "❌ INACTIVE" },
-                if status.enhanced_mode { "[Enhanced Mode]" } else { "" },
+            format!(
+                "{} {} {}",
+                if status.active {
+                    "✅ ACTIVE"
+                } else {
+                    "❌ INACTIVE"
+                },
+                if status.enhanced_mode {
+                    "[Enhanced Mode]"
+                } else {
+                    ""
+                },
                 format_duration(status.uptime_seconds)
             )
         );
         output.push_str(&status_line);
-        output.push_str("\n");
-        
-        output.push_str(&format!("║ Threats Blocked: {:28} ║\n", status.threats_blocked));
-        output.push_str(&format!("║ Threat Rate: {:32} ║\n", 
-            format!("{:.1}/min", status.recent_threat_rate)));
-        
+        output.push('\n');
+
+        output.push_str(&format!(
+            "║ Threats Blocked: {:28} ║\n",
+            status.threats_blocked
+        ));
+        output.push_str(&format!(
+            "║ Threat Rate: {:32} ║\n",
+            format!("{:.1}/min", status.recent_threat_rate)
+        ));
+
         // Separator
         if self.config.color && status.enhanced_mode {
             output.push_str("\x1b[35m╠═══════════════════════════════════════════════╣\x1b[0m\n");
@@ -285,18 +321,26 @@ impl UniversalDisplay {
         } else {
             output.push_str("╠═══════════════════════════════════════════════╣\n");
         }
-        
+
         // Threat breakdown
         output.push_str("║ Threat Breakdown:                             ║\n");
-        output.push_str(&format!("║   • Unicode Attacks:     {:20} ║\n", 
-            status.threat_breakdown.unicode_attacks));
-        output.push_str(&format!("║   • Injection Attempts:  {:20} ║\n", 
-            status.threat_breakdown.injection_attempts));
-        output.push_str(&format!("║   • Path Traversal:      {:20} ║\n", 
-            status.threat_breakdown.path_traversal));
-        output.push_str(&format!("║   • MCP Threats:         {:20} ║\n", 
-            status.threat_breakdown.mcp_threats));
-        
+        output.push_str(&format!(
+            "║   • Unicode Attacks:     {:20} ║\n",
+            status.threat_breakdown.unicode_attacks
+        ));
+        output.push_str(&format!(
+            "║   • Injection Attempts:  {:20} ║\n",
+            status.threat_breakdown.injection_attempts
+        ));
+        output.push_str(&format!(
+            "║   • Path Traversal:      {:20} ║\n",
+            status.threat_breakdown.path_traversal
+        ));
+        output.push_str(&format!(
+            "║   • MCP Threats:         {:20} ║\n",
+            status.threat_breakdown.mcp_threats
+        ));
+
         // Footer
         if self.config.color && status.enhanced_mode {
             output.push_str("\x1b[35m╚═══════════════════════════════════════════════╝\x1b[0m\n");
@@ -305,10 +349,10 @@ impl UniversalDisplay {
         } else {
             output.push_str("╚═══════════════════════════════════════════════╝\n");
         }
-        
+
         output
     }
-    
+
     /// Write status to file if configured
     pub fn write_status_file(&self) -> io::Result<()> {
         if let Some(ref path) = self.config.status_file {
@@ -318,13 +362,13 @@ impl UniversalDisplay {
         }
         Ok(())
     }
-    
+
     /// Print to stdout
     pub fn print(&self) -> io::Result<()> {
         let output = self.render();
-        print!("{}", output);
+        print!("{output}");
         io::stdout().flush()?;
-        
+
         // Also write to status file if configured
         self.write_status_file()
     }
@@ -335,13 +379,13 @@ fn format_duration(seconds: u64) -> String {
     let hours = seconds / 3600;
     let minutes = (seconds % 3600) / 60;
     let secs = seconds % 60;
-    
+
     if hours > 0 {
-        format!("{}h{}m", hours, minutes)
+        format!("{hours}h{minutes}m")
     } else if minutes > 0 {
-        format!("{}m{}s", minutes, secs)
+        format!("{minutes}m{secs}s")
     } else {
-        format!("{}s", secs)
+        format!("{secs}s")
     }
 }
 
@@ -353,7 +397,7 @@ pub fn create_universal_display(shield: Arc<Shield>) -> UniversalDisplay {
         format: DisplayFormat::Compact,
         status_file: Some("/tmp/kindlyguard-status.json".to_string()),
     };
-    
+
     UniversalDisplay::new(shield, config)
 }
 
@@ -363,22 +407,21 @@ fn supports_color() -> bool {
     if std::env::var("NO_COLOR").is_ok() {
         return false;
     }
-    
+
     if let Ok(term) = std::env::var("TERM") {
         if term == "dumb" {
             return false;
         }
     }
-    
+
     // Default to true for most environments
     true
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_universal_display_formats() {
         let shield = Arc::new(Shield::new());
@@ -388,14 +431,14 @@ mod tests {
             format: DisplayFormat::Minimal,
             status_file: None,
         };
-        
+
         let display = UniversalDisplay::new(shield, config);
         let output = display.render();
-        
+
         assert!(output.contains("KindlyGuard"));
         assert!(output.contains("Status:"));
     }
-    
+
     #[test]
     fn test_json_output() {
         let shield = Arc::new(Shield::new());
@@ -405,10 +448,10 @@ mod tests {
             format: DisplayFormat::Json,
             status_file: None,
         };
-        
+
         let display = UniversalDisplay::new(shield, config);
         let output = display.render();
-        
+
         // Should be valid JSON
         let parsed: Result<UniversalShieldStatus, _> = serde_json::from_str(&output);
         assert!(parsed.is_ok());

@@ -1,25 +1,23 @@
 //! Transport layer abstraction for multiple communication protocols
-//! 
-//! This module provides a trait-based architecture that allows KindlyGuard
+//!
+//! This module provides a trait-based architecture that allows `KindlyGuard`
 //! to communicate over different transport mechanisms while maintaining
 //! security and protocol compliance.
 
-use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
-use tokio::sync::mpsc;
-use std::collections::HashMap;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
 
-pub mod stdio;
-pub mod http;
-pub mod websocket;
 #[cfg(feature = "enhanced")]
 pub mod enhanced;
+pub mod http;
+pub mod stdio;
+pub mod websocket;
 
 // Re-exports
-pub use stdio::StdioTransport;
 pub use http::HttpTransport;
+pub use stdio::StdioTransport;
 pub use websocket::WebSocketTransport;
 
 /// Transport message envelope
@@ -107,25 +105,25 @@ pub enum TransportType {
 pub trait Transport: Send + Sync {
     /// Get transport type
     fn transport_type(&self) -> TransportType;
-    
+
     /// Start the transport
     async fn start(&mut self) -> Result<()>;
-    
+
     /// Stop the transport
     async fn stop(&mut self) -> Result<()>;
-    
+
     /// Accept new connections (for server transports)
     async fn accept(&mut self) -> Result<Box<dyn TransportConnection>>;
-    
+
     /// Connect to a server (for client transports)
     async fn connect(&mut self, address: &str) -> Result<Box<dyn TransportConnection>>;
-    
+
     /// Check if transport is running
     fn is_running(&self) -> bool;
-    
+
     /// Get transport statistics
     fn get_stats(&self) -> TransportStats;
-    
+
     /// Set transport options
     async fn set_option(&mut self, key: &str, value: serde_json::Value) -> Result<()>;
 }
@@ -135,22 +133,22 @@ pub trait Transport: Send + Sync {
 pub trait TransportConnection: Send + Sync {
     /// Get connection info
     fn connection_info(&self) -> &ConnectionInfo;
-    
+
     /// Send a message
     async fn send(&mut self, message: TransportMessage) -> Result<()>;
-    
+
     /// Receive a message
     async fn receive(&mut self) -> Result<Option<TransportMessage>>;
-    
+
     /// Close the connection
     async fn close(&mut self) -> Result<()>;
-    
+
     /// Check if connection is alive
     fn is_connected(&self) -> bool;
-    
+
     /// Get connection statistics
     fn get_stats(&self) -> ConnectionStats;
-    
+
     /// Set connection-specific options
     async fn set_option(&mut self, key: &str, value: serde_json::Value) -> Result<()>;
 }
@@ -210,13 +208,11 @@ impl Default for TransportConfig {
     fn default() -> Self {
         Self {
             multiplexing: false,
-            transports: vec![
-                TransportTypeConfig {
-                    transport_type: TransportType::Stdio,
-                    enabled: true,
-                    config: serde_json::json!({}),
-                },
-            ],
+            transports: vec![TransportTypeConfig {
+                transport_type: TransportType::Stdio,
+                enabled: true,
+                config: serde_json::json!({}),
+            }],
             timeouts: TimeoutConfig::default(),
             security: SecurityConfig::default(),
             buffers: BufferConfig::default(),
@@ -340,11 +336,15 @@ pub struct TransportManager {
 #[async_trait]
 pub trait MessageHandler: Send + Sync {
     /// Handle incoming message
-    async fn handle_message(&self, message: TransportMessage, connection: &dyn TransportConnection) -> Result<Option<TransportMessage>>;
-    
+    async fn handle_message(
+        &self,
+        message: TransportMessage,
+        connection: &dyn TransportConnection,
+    ) -> Result<Option<TransportMessage>>;
+
     /// Handle connection established
     async fn on_connect(&self, connection: &dyn TransportConnection) -> Result<()>;
-    
+
     /// Handle connection closed
     async fn on_disconnect(&self, connection: &dyn TransportConnection) -> Result<()>;
 }
@@ -359,13 +359,13 @@ impl TransportManager {
             message_handler: handler,
         })
     }
-    
+
     /// Add a transport
     pub fn add_transport(&mut self, transport: Box<dyn Transport>) -> Result<()> {
         self.transports.push(transport);
         Ok(())
     }
-    
+
     /// Start all transports
     pub async fn start(&mut self) -> Result<()> {
         for transport in &mut self.transports {
@@ -373,7 +373,7 @@ impl TransportManager {
         }
         Ok(())
     }
-    
+
     /// Stop all transports
     pub async fn stop(&mut self) -> Result<()> {
         // Close all connections
@@ -382,17 +382,18 @@ impl TransportManager {
             let _ = conn.close().await;
         }
         connections.clear();
-        
+
         // Stop all transports
         for transport in &mut self.transports {
             transport.stop().await?;
         }
         Ok(())
     }
-    
+
     /// Get statistics for all transports
     pub fn get_stats(&self) -> Vec<(TransportType, TransportStats)> {
-        self.transports.iter()
+        self.transports
+            .iter()
             .map(|t| (t.transport_type(), t.get_stats()))
             .collect()
     }
@@ -410,20 +411,19 @@ pub struct DefaultTransportFactory;
 impl TransportFactory for DefaultTransportFactory {
     fn create(&self, config: &TransportTypeConfig) -> Result<Box<dyn Transport>> {
         match config.transport_type {
-            TransportType::Stdio => {
-                Ok(Box::new(StdioTransport::new(config.config.clone())?))
-            }
-            TransportType::Http => {
-                Ok(Box::new(HttpTransport::new(config.config.clone())?))
-            }
+            TransportType::Stdio => Ok(Box::new(StdioTransport::new(config.config.clone())?)),
+            TransportType::Http => Ok(Box::new(HttpTransport::new(config.config.clone())?)),
             TransportType::WebSocket => {
                 Ok(Box::new(WebSocketTransport::new(config.config.clone())?))
             }
             #[cfg(feature = "enhanced")]
-            TransportType::Grpc => {
-                Ok(Box::new(enhanced::GrpcTransport::new(config.config.clone())?))
-            }
-            _ => Err(anyhow::anyhow!("Unsupported transport type: {:?}", config.transport_type))
+            TransportType::Grpc => Ok(Box::new(enhanced::GrpcTransport::new(
+                config.config.clone(),
+            )?)),
+            _ => Err(anyhow::anyhow!(
+                "Unsupported transport type: {:?}",
+                config.transport_type
+            )),
         }
     }
 }
@@ -443,22 +443,22 @@ impl TransportMessageBuilder {
             },
         }
     }
-    
+
     pub fn with_client_id(mut self, client_id: String) -> Self {
         self.message.metadata.client_id = Some(client_id);
         self
     }
-    
+
     pub fn with_trace_id(mut self, trace_id: String) -> Self {
         self.message.metadata.trace_id = Some(trace_id);
         self
     }
-    
+
     pub fn with_header(mut self, key: String, value: String) -> Self {
         self.message.metadata.headers.insert(key, value);
         self
     }
-    
+
     pub fn build(mut self) -> TransportMessage {
         self.message.metadata.timestamp = Some(chrono::Utc::now());
         self.message

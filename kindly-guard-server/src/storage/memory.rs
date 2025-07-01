@@ -1,13 +1,16 @@
 //! In-memory storage implementation
-//! 
+//!
 //! This provides non-persistent storage for development and testing.
 //! All data is lost when the process restarts.
 
-use super::*;
+use super::{
+    async_trait, Arc, CorrelationState, DateTime, Duration, EventFilter, EventId, RateLimitKey,
+    RateLimitState, Result, SecurityEvent, SnapshotId, StorageProvider, StorageStats, Utc,
+};
 use std::collections::{HashMap, VecDeque};
 use tokio::sync::RwLock;
+use tracing::{debug, info};
 use uuid::Uuid;
-use tracing::{info, debug};
 
 /// In-memory storage provider
 pub struct InMemoryStorage {
@@ -36,15 +39,24 @@ struct Snapshot {
     correlations: HashMap<String, CorrelationState>,
 }
 
+impl Default for InMemoryStorage {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InMemoryStorage {
     /// Create new in-memory storage
     pub fn new() -> Self {
         Self::with_capacity(100_000) // 100k events default
     }
-    
+
     /// Create with specified capacity
     pub fn with_capacity(max_events: usize) -> Self {
-        info!("Initializing in-memory storage with capacity: {}", max_events);
+        info!(
+            "Initializing in-memory storage with capacity: {}",
+            max_events
+        );
         Self {
             events: Arc::new(RwLock::new(HashMap::new())),
             events_by_client: Arc::new(RwLock::new(HashMap::new())),
@@ -55,12 +67,12 @@ impl InMemoryStorage {
             max_events,
         }
     }
-    
+
     /// Evict oldest events when at capacity
     async fn evict_if_needed(&self) {
         let mut order = self.event_order.write().await;
         let mut events = self.events.write().await;
-        
+
         while order.len() >= self.max_events {
             if let Some(old_id) = order.pop_front() {
                 if let Some(old_event) = events.remove(&old_id) {
@@ -80,15 +92,15 @@ impl StorageProvider for InMemoryStorage {
     async fn store_event(&self, event: &SecurityEvent) -> Result<EventId> {
         // Evict old events if needed
         self.evict_if_needed().await;
-        
+
         let id = EventId(Uuid::new_v4().to_string());
-        
+
         // Store event
         {
             let mut events = self.events.write().await;
             events.insert(id.clone(), event.clone());
         }
-        
+
         // Update client index
         {
             let mut by_client = self.events_by_client.write().await;
@@ -97,28 +109,28 @@ impl StorageProvider for InMemoryStorage {
                 .or_insert_with(Vec::new)
                 .push(id.clone());
         }
-        
+
         // Track order
         {
             let mut order = self.event_order.write().await;
             order.push_back(id.clone());
         }
-        
+
         debug!("Stored event {} for client {}", id.0, event.client_id);
         Ok(id)
     }
-    
+
     async fn get_event(&self, id: &EventId) -> Result<Option<SecurityEvent>> {
         let events = self.events.read().await;
         Ok(events.get(id).cloned())
     }
-    
+
     async fn query_events(&self, filter: EventFilter) -> Result<Vec<SecurityEvent>> {
         let events = self.events.read().await;
         let by_client = self.events_by_client.read().await;
-        
+
         let mut results = Vec::new();
-        
+
         // If filtering by client, use index
         if let Some(client_id) = &filter.client_id {
             if let Some(event_ids) = by_client.get(client_id) {
@@ -138,57 +150,65 @@ impl StorageProvider for InMemoryStorage {
                 }
             }
         }
-        
+
         // Sort by timestamp descending
         results.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
-        
+
         // Apply limit
         if let Some(limit) = filter.limit {
             results.truncate(limit);
         }
-        
+
         Ok(results)
     }
-    
-    async fn store_rate_limit_state(&self, key: &RateLimitKey, state: &RateLimitState) -> Result<()> {
+
+    async fn store_rate_limit_state(
+        &self,
+        key: &RateLimitKey,
+        state: &RateLimitState,
+    ) -> Result<()> {
         let mut rate_limits = self.rate_limits.write().await;
         let key_str = format!("{}:{}", key.client_id, key.method.as_deref().unwrap_or("*"));
         rate_limits.insert(key_str, state.clone());
         Ok(())
     }
-    
+
     async fn get_rate_limit_state(&self, key: &RateLimitKey) -> Result<Option<RateLimitState>> {
         let rate_limits = self.rate_limits.read().await;
         let key_str = format!("{}:{}", key.client_id, key.method.as_deref().unwrap_or("*"));
         Ok(rate_limits.get(&key_str).cloned())
     }
-    
+
     async fn cleanup_rate_limit_states(&self, older_than: Duration) -> Result<u64> {
         let mut rate_limits = self.rate_limits.write().await;
         let cutoff = Utc::now() - chrono::Duration::from_std(older_than)?;
         let initial_count = rate_limits.len();
-        
+
         rate_limits.retain(|_, state| state.last_refill > cutoff);
-        
+
         let removed = initial_count - rate_limits.len();
         debug!("Cleaned up {} old rate limit states", removed);
         Ok(removed as u64)
     }
-    
-    async fn store_correlation_state(&self, client_id: &str, state: &CorrelationState) -> Result<()> {
+
+    async fn store_correlation_state(
+        &self,
+        client_id: &str,
+        state: &CorrelationState,
+    ) -> Result<()> {
         let mut correlations = self.correlations.write().await;
         correlations.insert(client_id.to_string(), state.clone());
         Ok(())
     }
-    
+
     async fn get_correlation_state(&self, client_id: &str) -> Result<Option<CorrelationState>> {
         let correlations = self.correlations.read().await;
         Ok(correlations.get(client_id).cloned())
     }
-    
+
     async fn create_snapshot(&self) -> Result<SnapshotId> {
         let id = SnapshotId(Uuid::new_v4().to_string());
-        
+
         let snapshot = Snapshot {
             id: id.clone(),
             created_at: Utc::now(),
@@ -196,14 +216,14 @@ impl StorageProvider for InMemoryStorage {
             rate_limits: self.rate_limits.read().await.clone(),
             correlations: self.correlations.read().await.clone(),
         };
-        
+
         let mut snapshots = self.snapshots.write().await;
         snapshots.insert(id.clone(), snapshot);
-        
+
         info!("Created snapshot {}", id.0);
         Ok(id)
     }
-    
+
     async fn list_snapshots(&self) -> Result<Vec<(SnapshotId, DateTime<Utc>)>> {
         let snapshots = self.snapshots.read().await;
         let mut list: Vec<_> = snapshots
@@ -213,7 +233,7 @@ impl StorageProvider for InMemoryStorage {
         list.sort_by(|a, b| b.1.cmp(&a.1)); // Newest first
         Ok(list)
     }
-    
+
     async fn restore_snapshot(&self, id: &SnapshotId) -> Result<()> {
         let snapshots = self.snapshots.read().await;
         let snapshot = snapshots
@@ -221,23 +241,23 @@ impl StorageProvider for InMemoryStorage {
             .ok_or_else(|| anyhow::anyhow!("Snapshot not found"))?
             .clone();
         drop(snapshots);
-        
+
         // Restore all data
         *self.events.write().await = snapshot.events;
         *self.rate_limits.write().await = snapshot.rate_limits;
         *self.correlations.write().await = snapshot.correlations;
-        
+
         // Rebuild event order and client index
         let mut order = self.event_order.write().await;
         let mut by_client = self.events_by_client.write().await;
-        
+
         order.clear();
         by_client.clear();
-        
+
         let events = self.events.read().await;
         let mut event_list: Vec<_> = events.iter().collect();
         event_list.sort_by_key(|(_, event)| event.timestamp);
-        
+
         for (id, event) in event_list {
             order.push_back(id.clone());
             by_client
@@ -245,11 +265,11 @@ impl StorageProvider for InMemoryStorage {
                 .or_insert_with(Vec::new)
                 .push(id.clone());
         }
-        
+
         info!("Restored from snapshot {}", id.0);
         Ok(())
     }
-    
+
     async fn delete_snapshot(&self, id: &SnapshotId) -> Result<()> {
         let mut snapshots = self.snapshots.write().await;
         snapshots
@@ -257,17 +277,18 @@ impl StorageProvider for InMemoryStorage {
             .ok_or_else(|| anyhow::anyhow!("Snapshot not found"))?;
         Ok(())
     }
-    
+
     async fn get_stats(&self) -> Result<StorageStats> {
         let events = self.events.read().await;
         let rate_limits = self.rate_limits.read().await;
         let correlations = self.correlations.read().await;
-        
+
         // Estimate memory usage
         let event_size = events.len() * std::mem::size_of::<(EventId, SecurityEvent)>();
         let rate_limit_size = rate_limits.len() * std::mem::size_of::<(String, RateLimitState)>();
-        let correlation_size = correlations.len() * std::mem::size_of::<(String, CorrelationState)>();
-        
+        let correlation_size =
+            correlations.len() * std::mem::size_of::<(String, CorrelationState)>();
+
         Ok(StorageStats {
             event_count: events.len() as u64,
             total_size: (event_size + rate_limit_size + correlation_size) as u64,
@@ -280,7 +301,7 @@ impl StorageProvider for InMemoryStorage {
             }),
         })
     }
-    
+
     async fn compact(&self) -> Result<()> {
         // For in-memory storage, compaction just shrinks hashmaps
         self.events.write().await.shrink_to_fit();
@@ -301,23 +322,23 @@ impl InMemoryStorage {
                 return false;
             }
         }
-        
+
         // Time range filter
-        let event_time = DateTime::<Utc>::from_timestamp(event.timestamp as i64, 0)
-            .unwrap_or_else(Utc::now);
-            
+        let event_time =
+            DateTime::<Utc>::from_timestamp(event.timestamp as i64, 0).unwrap_or_else(Utc::now);
+
         if let Some(from) = filter.from_time {
             if event_time < from {
                 return false;
             }
         }
-        
+
         if let Some(to) = filter.to_time {
             if event_time > to {
                 return false;
             }
         }
-        
+
         // Severity filter (if present in metadata)
         if let Some(min_severity) = &filter.min_severity {
             if let Some(severity) = event.metadata.get("severity").and_then(|v| v.as_str()) {
@@ -341,7 +362,7 @@ impl InMemoryStorage {
                 }
             }
         }
-        
+
         true
     }
 }

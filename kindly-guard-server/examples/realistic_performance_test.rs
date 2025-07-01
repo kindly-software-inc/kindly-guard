@@ -1,11 +1,11 @@
 //! Realistic performance test with warm-up phase
 
-use std::time::Instant;
 use kindly_guard_server::{
-    config::Config,
     component_selector::ComponentManager,
-    traits::{SecurityEvent, RateLimitKey},
+    config::Config,
+    traits::{RateLimitKey, SecurityEvent},
 };
+use std::time::Instant;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -21,24 +21,24 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing STANDARD mode...");
     let standard_config = create_config(false);
     let standard_manager = ComponentManager::new(&standard_config)?;
-    
+
     // Warm up
     println!("  Warming up...");
     warmup(&standard_manager, warmup_iterations, test_clients).await?;
-    
+
     // Run test
     println!("  Running test...");
     let standard_results = run_test(&standard_manager, test_iterations, test_clients).await?;
-    
-    // Test Enhanced Mode  
+
+    // Test Enhanced Mode
     println!("\nTesting ENHANCED mode...");
     let enhanced_config = create_config(true);
     let enhanced_manager = ComponentManager::new(&enhanced_config)?;
-    
+
     // Warm up
     println!("  Warming up...");
     warmup(&enhanced_manager, warmup_iterations, test_clients).await?;
-    
+
     // Run test
     println!("  Running test...");
     let enhanced_results = run_test(&enhanced_manager, test_iterations, test_clients).await?;
@@ -49,44 +49,69 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Test iterations: {}", test_iterations);
     println!("Test clients: {}", test_clients);
     println!();
-    
+
     println!("STANDARD mode:");
-    println!("  Event Processing: {:.3} ms/op ({:.0} ops/sec)", 
-        standard_results.event_time_ms, 
-        1000.0 / standard_results.event_time_ms);
-    println!("  Rate Limiting: {:.3} ms/op ({:.0} ops/sec)", 
+    println!(
+        "  Event Processing: {:.3} ms/op ({:.0} ops/sec)",
+        standard_results.event_time_ms,
+        1000.0 / standard_results.event_time_ms
+    );
+    println!(
+        "  Rate Limiting: {:.3} ms/op ({:.0} ops/sec)",
         standard_results.rate_limit_time_ms,
-        1000.0 / standard_results.rate_limit_time_ms);
-    println!("  Scanner: {:.3} ms/op ({:.0} ops/sec)", 
+        1000.0 / standard_results.rate_limit_time_ms
+    );
+    println!(
+        "  Scanner: {:.3} ms/op ({:.0} ops/sec)",
         standard_results.scanner_time_ms,
-        1000.0 / standard_results.scanner_time_ms);
+        1000.0 / standard_results.scanner_time_ms
+    );
     println!("  Total time: {:.2}s", standard_results.total_time_s);
     println!();
-    
+
     println!("ENHANCED mode:");
-    println!("  Event Processing: {:.3} ms/op ({:.0} ops/sec)", 
+    println!(
+        "  Event Processing: {:.3} ms/op ({:.0} ops/sec)",
         enhanced_results.event_time_ms,
-        1000.0 / enhanced_results.event_time_ms);
-    println!("  Rate Limiting: {:.3} ms/op ({:.0} ops/sec)", 
+        1000.0 / enhanced_results.event_time_ms
+    );
+    println!(
+        "  Rate Limiting: {:.3} ms/op ({:.0} ops/sec)",
         enhanced_results.rate_limit_time_ms,
-        1000.0 / enhanced_results.rate_limit_time_ms);
-    println!("  Scanner: {:.3} ms/op ({:.0} ops/sec)", 
+        1000.0 / enhanced_results.rate_limit_time_ms
+    );
+    println!(
+        "  Scanner: {:.3} ms/op ({:.0} ops/sec)",
         enhanced_results.scanner_time_ms,
-        1000.0 / enhanced_results.scanner_time_ms);
+        1000.0 / enhanced_results.scanner_time_ms
+    );
     println!("  Total time: {:.2}s", enhanced_results.total_time_s);
     println!();
-    
+
     println!("Performance Improvement (Enhanced vs Standard):");
-    let event_improvement = calculate_improvement(standard_results.event_time_ms, enhanced_results.event_time_ms);
-    let rate_improvement = calculate_improvement(standard_results.rate_limit_time_ms, enhanced_results.rate_limit_time_ms);
-    let scanner_improvement = calculate_improvement(standard_results.scanner_time_ms, enhanced_results.scanner_time_ms);
-    let total_improvement = calculate_improvement(standard_results.total_time_s, enhanced_results.total_time_s);
-    
-    println!("  Event Processing: {}", format_improvement(event_improvement));
+    let event_improvement = calculate_improvement(
+        standard_results.event_time_ms,
+        enhanced_results.event_time_ms,
+    );
+    let rate_improvement = calculate_improvement(
+        standard_results.rate_limit_time_ms,
+        enhanced_results.rate_limit_time_ms,
+    );
+    let scanner_improvement = calculate_improvement(
+        standard_results.scanner_time_ms,
+        enhanced_results.scanner_time_ms,
+    );
+    let total_improvement =
+        calculate_improvement(standard_results.total_time_s, enhanced_results.total_time_s);
+
+    println!(
+        "  Event Processing: {}",
+        format_improvement(event_improvement)
+    );
     println!("  Rate Limiting: {}", format_improvement(rate_improvement));
     println!("  Scanner: {}", format_improvement(scanner_improvement));
     println!("  Overall: {}", format_improvement(total_improvement));
-    
+
     // Validate enhanced mode is working
     if enhanced_manager.is_enhanced_mode() {
         println!("\n✅ Enhanced mode (with EventBuffer) confirmed active");
@@ -129,11 +154,15 @@ fn create_config(enhanced: bool) -> Config {
     config
 }
 
-async fn warmup(manager: &ComponentManager, iterations: usize, clients: usize) -> Result<(), Box<dyn std::error::Error>> {
+async fn warmup(
+    manager: &ComponentManager,
+    iterations: usize,
+    clients: usize,
+) -> Result<(), Box<dyn std::error::Error>> {
     let processor = manager.event_processor();
     let rate_limiter = manager.rate_limiter();
     let scanner = manager.scanner();
-    
+
     // Warm up all components
     for i in 0..iterations {
         // Event processing
@@ -144,30 +173,39 @@ async fn warmup(manager: &ComponentManager, iterations: usize, clients: usize) -
             metadata: serde_json::json!({}),
         };
         processor.process_event(event).await?;
-        
+
         // Rate limiting
         let key = RateLimitKey {
             client_id: format!("warmup_client_{}", i % clients),
             method: Some("warmup".to_string()),
         };
         rate_limiter.check_rate_limit(&key).await?;
-        
+
         // Scanner
         scanner.enhanced_scan(b"warmup data")?;
     }
-    
+
     Ok(())
 }
 
-async fn run_test(manager: &ComponentManager, iterations: usize, clients: usize) -> Result<TestResults, Box<dyn std::error::Error>> {
+async fn run_test(
+    manager: &ComponentManager,
+    iterations: usize,
+    clients: usize,
+) -> Result<TestResults, Box<dyn std::error::Error>> {
     let total_start = Instant::now();
-    
+
     // Test event processing
     let start = Instant::now();
     let processor = manager.event_processor();
     for i in 0..iterations {
         let event = SecurityEvent {
-            event_type: if i % 10 == 0 { "auth_failure" } else { "request" }.to_string(),
+            event_type: if i % 10 == 0 {
+                "auth_failure"
+            } else {
+                "request"
+            }
+            .to_string(),
             client_id: format!("client_{}", i % clients),
             timestamp: i as u64,
             metadata: serde_json::json!({
@@ -179,7 +217,7 @@ async fn run_test(manager: &ComponentManager, iterations: usize, clients: usize)
         processor.process_event(event).await?;
     }
     let event_time_ms = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-    
+
     // Test rate limiting
     let start = Instant::now();
     let rate_limiter = manager.rate_limiter();
@@ -191,7 +229,7 @@ async fn run_test(manager: &ComponentManager, iterations: usize, clients: usize)
         rate_limiter.check_rate_limit(&key).await?;
     }
     let rate_limit_time_ms = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-    
+
     // Test scanner with various payloads
     let start = Instant::now();
     let scanner = manager.scanner();
@@ -202,15 +240,15 @@ async fn run_test(manager: &ComponentManager, iterations: usize, clients: usize)
         b"'; DROP TABLE users; --",
         b"../../etc/passwd",
     ];
-    
+
     for i in 0..iterations {
         let payload = test_payloads[i % test_payloads.len()];
         scanner.enhanced_scan(payload)?;
     }
     let scanner_time_ms = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-    
+
     let total_time_s = total_start.elapsed().as_secs_f64();
-    
+
     Ok(TestResults {
         event_time_ms,
         rate_limit_time_ms,

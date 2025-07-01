@@ -1,15 +1,14 @@
 //! Metrics endpoints for monitoring
 
+use crate::metrics::MetricsRegistry;
 use axum::{
-    Router,
-    routing::get,
-    response::{Response, IntoResponse},
     extract::State,
     http::StatusCode,
+    response::{IntoResponse, Response},
+    routing::get,
+    Router,
 };
 use std::sync::Arc;
-use crate::metrics::MetricsRegistry;
-
 
 /// Metrics server state
 #[derive(Clone)]
@@ -28,7 +27,7 @@ pub fn metrics_routes(state: MetricsState) -> Router {
 /// Prometheus metrics endpoint
 async fn prometheus_metrics(State(state): State<MetricsState>) -> impl IntoResponse {
     let metrics = state.registry.export_prometheus();
-    
+
     Response::builder()
         .status(StatusCode::OK)
         .header("Content-Type", "text/plain; version=0.0.4")
@@ -39,6 +38,6 @@ async fn prometheus_metrics(State(state): State<MetricsState>) -> impl IntoRespo
 /// JSON metrics endpoint
 async fn json_metrics(State(state): State<MetricsState>) -> impl IntoResponse {
     let metrics = state.registry.export_json();
-    
+
     (StatusCode::OK, axum::Json(metrics))
 }

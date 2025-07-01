@@ -1,27 +1,34 @@
 //! Audit logging system for compliance and security monitoring
-//! 
+//!
 //! This module provides a trait-based audit architecture that allows
 //! different audit backends while maintaining compliance requirements.
 
-use std::sync::Arc;
-use std::collections::HashMap;
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
 
-pub mod memory;
-pub mod file;
 #[cfg(feature = "enhanced")]
 pub mod enhanced;
+pub mod file;
+pub mod memory;
+pub mod neutralization;
 
 // Re-exports
-pub use memory::InMemoryAuditLogger;
 pub use file::FileAuditLogger;
+pub use memory::InMemoryAuditLogger;
 
 /// Audit event identifier
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct AuditEventId(pub String);
+
+impl Default for AuditEventId {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl AuditEventId {
     pub fn new() -> Self {
@@ -44,36 +51,110 @@ pub enum AuditSeverity {
 #[serde(rename_all = "snake_case")]
 pub enum AuditEventType {
     /// Authentication events
-    AuthSuccess { user_id: String },
-    AuthFailure { user_id: Option<String>, reason: String },
-    
+    AuthSuccess {
+        user_id: String,
+    },
+    AuthFailure {
+        user_id: Option<String>,
+        reason: String,
+    },
+
     /// Authorization events
-    AccessGranted { user_id: String, resource: String },
-    AccessDenied { user_id: String, resource: String, reason: String },
-    
+    AccessGranted {
+        user_id: String,
+        resource: String,
+    },
+    AccessDenied {
+        user_id: String,
+        resource: String,
+        reason: String,
+    },
+
     /// Security events
-    ThreatDetected { client_id: String, threat_count: u32 },
-    ThreatBlocked { client_id: String, threat_type: String },
-    
+    ThreatDetected {
+        client_id: String,
+        threat_count: u32,
+    },
+    ThreatBlocked {
+        client_id: String,
+        threat_type: String,
+    },
+
+    /// Neutralization events
+    NeutralizationStarted {
+        client_id: String,
+        threat_id: String,
+        threat_type: String,
+    },
+    NeutralizationCompleted {
+        client_id: String,
+        threat_id: String,
+        action: String,
+        duration_ms: u64,
+    },
+    NeutralizationFailed {
+        client_id: String,
+        threat_id: String,
+        error: String,
+    },
+    NeutralizationSkipped {
+        client_id: String,
+        threat_id: String,
+        reason: String,
+    },
+    NeutralizationRolledBack {
+        client_id: String,
+        threat_id: String,
+        reason: String,
+    },
+
     /// Rate limiting events
-    RateLimitTriggered { client_id: String, limit_type: String },
-    
+    RateLimitTriggered {
+        client_id: String,
+        limit_type: String,
+    },
+
     /// Configuration events
-    ConfigChanged { changed_by: String, changes: HashMap<String, String> },
-    ConfigReloaded { success: bool, error: Option<String> },
-    
+    ConfigChanged {
+        changed_by: String,
+        changes: HashMap<String, String>,
+    },
+    ConfigReloaded {
+        success: bool,
+        error: Option<String>,
+    },
+
     /// Plugin events
-    PluginLoaded { plugin_id: String, plugin_name: String },
-    PluginUnloaded { plugin_id: String, reason: String },
-    PluginError { plugin_id: String, error: String },
-    
+    PluginLoaded {
+        plugin_id: String,
+        plugin_name: String,
+    },
+    PluginUnloaded {
+        plugin_id: String,
+        reason: String,
+    },
+    PluginError {
+        plugin_id: String,
+        error: String,
+    },
+
     /// System events
-    ServerStarted { version: String },
-    ServerStopped { reason: String },
-    SystemError { component: String, error: String },
-    
+    ServerStarted {
+        version: String,
+    },
+    ServerStopped {
+        reason: String,
+    },
+    SystemError {
+        component: String,
+        error: String,
+    },
+
     /// Custom events
-    Custom { event_type: String, data: serde_json::Value },
+    Custom {
+        event_type: String,
+        data: serde_json::Value,
+    },
 }
 
 /// Audit event
@@ -114,25 +195,25 @@ impl AuditEvent {
             tags: Vec::new(),
         }
     }
-    
+
     /// Set client ID
     pub fn with_client_id(mut self, client_id: String) -> Self {
         self.client_id = Some(client_id);
         self
     }
-    
+
     /// Set IP address
     pub fn with_ip_address(mut self, ip: String) -> Self {
         self.ip_address = Some(ip);
         self
     }
-    
+
     /// Add context data
     pub fn with_context(mut self, key: String, value: serde_json::Value) -> Self {
         self.context.insert(key, value);
         self
     }
-    
+
     /// Add tags
     pub fn with_tags(mut self, tags: Vec<String>) -> Self {
         self.tags = tags;
@@ -185,25 +266,25 @@ pub struct AuditStats {
 pub trait AuditLogger: Send + Sync {
     /// Log an audit event
     async fn log(&self, event: AuditEvent) -> Result<AuditEventId>;
-    
+
     /// Log multiple events in batch
     async fn log_batch(&self, events: Vec<AuditEvent>) -> Result<Vec<AuditEventId>>;
-    
+
     /// Query audit events
     async fn query(&self, filter: AuditFilter) -> Result<Vec<AuditEvent>>;
-    
+
     /// Get a specific event by ID
     async fn get_event(&self, id: &AuditEventId) -> Result<Option<AuditEvent>>;
-    
+
     /// Delete old events (for compliance with retention policies)
     async fn delete_before(&self, timestamp: DateTime<Utc>) -> Result<u64>;
-    
+
     /// Get audit statistics
     async fn get_stats(&self) -> Result<AuditStats>;
-    
+
     /// Export events to a specific format
     async fn export(&self, filter: AuditFilter, format: ExportFormat) -> Result<Vec<u8>>;
-    
+
     /// Verify audit log integrity (for compliance)
     async fn verify_integrity(&self) -> Result<IntegrityReport>;
 }
@@ -332,21 +413,18 @@ impl AuditLoggerFactory for DefaultAuditLoggerFactory {
             // Return a no-op logger when disabled
             return Ok(Arc::new(NoOpAuditLogger));
         }
-        
+
         match &config.backend {
-            AuditBackend::Memory => {
-                Ok(Arc::new(InMemoryAuditLogger::new(config.clone())?))
-            }
-            AuditBackend::File => {
-                Ok(Arc::new(FileAuditLogger::new(config.clone())?))
-            }
+            AuditBackend::Memory => Ok(Arc::new(InMemoryAuditLogger::new(config.clone())?)),
+            AuditBackend::File => Ok(Arc::new(FileAuditLogger::new(config.clone())?)),
             #[cfg(feature = "enhanced")]
-            AuditBackend::Enhanced => {
-                Ok(Arc::new(enhanced::EnhancedAuditLogger::new(config.clone())?))
-            }
-            AuditBackend::Custom(name) => {
-                Err(anyhow::anyhow!("Custom audit backend '{}' not implemented", name))
-            }
+            AuditBackend::Enhanced => Ok(Arc::new(enhanced::EnhancedAuditLogger::new(
+                config.clone(),
+            )?)),
+            AuditBackend::Custom(name) => Err(anyhow::anyhow!(
+                "Custom audit backend '{}' not implemented",
+                name
+            )),
         }
     }
 }
@@ -359,31 +437,31 @@ impl AuditLogger for NoOpAuditLogger {
     async fn log(&self, _event: AuditEvent) -> Result<AuditEventId> {
         Ok(AuditEventId::new())
     }
-    
+
     async fn log_batch(&self, events: Vec<AuditEvent>) -> Result<Vec<AuditEventId>> {
         Ok(events.into_iter().map(|_| AuditEventId::new()).collect())
     }
-    
+
     async fn query(&self, _filter: AuditFilter) -> Result<Vec<AuditEvent>> {
         Ok(Vec::new())
     }
-    
+
     async fn get_event(&self, _id: &AuditEventId) -> Result<Option<AuditEvent>> {
         Ok(None)
     }
-    
+
     async fn delete_before(&self, _timestamp: DateTime<Utc>) -> Result<u64> {
         Ok(0)
     }
-    
+
     async fn get_stats(&self) -> Result<AuditStats> {
         Ok(AuditStats::default())
     }
-    
+
     async fn export(&self, _filter: AuditFilter, _format: ExportFormat) -> Result<Vec<u8>> {
         Ok(Vec::new())
     }
-    
+
     async fn verify_integrity(&self) -> Result<IntegrityReport> {
         Ok(IntegrityReport {
             intact: true,
@@ -405,32 +483,32 @@ impl AuditEventBuilder {
             event: AuditEvent::new(event_type, severity),
         }
     }
-    
+
     pub fn client_id(mut self, id: String) -> Self {
         self.event.client_id = Some(id);
         self
     }
-    
+
     pub fn ip_address(mut self, ip: String) -> Self {
         self.event.ip_address = Some(ip);
         self
     }
-    
+
     pub fn user_agent(mut self, ua: String) -> Self {
         self.event.user_agent = Some(ua);
         self
     }
-    
+
     pub fn context(mut self, key: String, value: serde_json::Value) -> Self {
         self.event.context.insert(key, value);
         self
     }
-    
+
     pub fn tag(mut self, tag: String) -> Self {
         self.event.tags.push(tag);
         self
     }
-    
+
     pub fn build(self) -> AuditEvent {
         self.event
     }

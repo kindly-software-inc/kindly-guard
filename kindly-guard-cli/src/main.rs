@@ -1,22 +1,19 @@
-//! KindlyGuard CLI tool for security scanning
+//! `KindlyGuard` CLI tool for security scanning
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use colored::*;
+use colored::Colorize;
 use indicatif::{ProgressBar, ProgressStyle};
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 use walkdir::WalkDir;
 
-use kindly_guard_server::{
-    Config as ServerConfig, SecurityScanner, ScannerConfig, 
-    Threat, ThreatType, Severity
-};
+use kindly_guard_server::{Config as ServerConfig, ScannerConfig, SecurityScanner, Threat};
 
 mod output;
-use output::{OutputFormat, print_scan_results};
+use output::{print_scan_results, OutputFormat};
 
-/// KindlyGuard CLI - Security scanner and monitoring tool
+/// `KindlyGuard` CLI - Security scanner and monitoring tool
 #[derive(Parser, Debug)]
 #[command(name = "kindly-guard-cli")]
 #[command(about = "Security scanner for detecting unicode attacks and injection threats", long_about = None)]
@@ -24,7 +21,7 @@ struct Cli {
     /// Verbose output
     #[arg(short, long)]
     verbose: bool,
-    
+
     #[command(subcommand)]
     command: Commands,
 }
@@ -35,45 +32,45 @@ enum Commands {
     Scan {
         /// Path to scan (file or directory)
         path: String,
-        
+
         /// Output format (json, table, brief)
         #[arg(short, long, default_value = "table")]
         format: String,
-        
+
         /// Recursively scan directories
         #[arg(short, long)]
         recursive: bool,
-        
+
         /// File extensions to include (e.g., json,txt,md)
         #[arg(short, long)]
         extensions: Option<String>,
-        
+
         /// Maximum file size in MB
         #[arg(long, default_value = "10")]
         max_size_mb: u64,
-        
+
         /// Configuration file to use
         #[arg(short, long)]
         config: Option<String>,
     },
-    
-    /// Monitor KindlyGuard server status
+
+    /// Monitor `KindlyGuard` server status
     Monitor {
         /// Server URL
         #[arg(short, long, default_value = "http://localhost:8080")]
         url: String,
-        
+
         /// Update interval in seconds
         #[arg(short, long, default_value = "5")]
         interval: u64,
     },
-    
+
     /// Shield commands for CLI integration
     Shield {
         #[command(subcommand)]
         command: ShieldCommands,
     },
-    
+
     /// Generate shell initialization script
     ShellInit {
         /// Shell type (bash, zsh, fish)
@@ -89,20 +86,20 @@ enum ShieldCommands {
         #[arg(short, long, default_value = "compact")]
         format: String,
     },
-    
+
     /// Start shield protection
     Start {
         /// Run in background
         #[arg(short, long)]
         background: bool,
     },
-    
+
     /// Stop shield protection
     Stop,
-    
+
     /// Pre-command hook (for shell integration)
     PreCommand,
-    
+
     /// Post-command hook (for shell integration)
     PostCommand,
 }
@@ -110,26 +107,25 @@ enum ShieldCommands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let cli = Cli::parse();
-    
+
     // Initialize logging
     let log_level = if cli.verbose { "debug" } else { "info" };
     tracing_subscriber::fmt()
-        .with_env_filter(format!("kindly_guard={}", log_level))
+        .with_env_filter(format!("kindly_guard={log_level}"))
         .init();
-    
+
     match cli.command {
-        Commands::Scan { path, format, recursive, extensions, max_size_mb, config } => {
-            scan_command(path, format, recursive, extensions, max_size_mb, config).await
-        }
-        Commands::Monitor { url, interval } => {
-            monitor_command(url, interval).await
-        }
-        Commands::Shield { command } => {
-            shield_command(command).await
-        }
-        Commands::ShellInit { shell } => {
-            shell_init_command(&shell).await
-        }
+        Commands::Scan {
+            path,
+            format,
+            recursive,
+            extensions,
+            max_size_mb,
+            config,
+        } => scan_command(path, format, recursive, extensions, max_size_mb, config).await,
+        Commands::Monitor { url, interval } => monitor_command(url, interval).await,
+        Commands::Shield { command } => shield_command(command).await,
+        Commands::ShellInit { shell } => shell_init_command(&shell).await,
     }
 }
 
@@ -143,43 +139,42 @@ async fn scan_command(
 ) -> Result<()> {
     let start_time = Instant::now();
     let path = Path::new(&path);
-    
+
     if !path.exists() {
         anyhow::bail!("Path does not exist: {}", path.display());
     }
-    
+
     // Parse output format
     let output_format = OutputFormat::from_str(&format)?;
-    
+
     // Parse extensions if provided
-    let allowed_extensions: Option<Vec<String>> = extensions.map(|ext| {
-        ext.split(',')
-            .map(|s| s.trim().to_lowercase())
-            .collect()
-    });
-    
+    let allowed_extensions: Option<Vec<String>> =
+        extensions.map(|ext| ext.split(',').map(|s| s.trim().to_lowercase()).collect());
+
     // Create scanner with optional config file
     let scanner = if let Some(config_file) = config_path {
         // Load full configuration from file
         let server_config = ServerConfig::load_from_file(&config_file)
             .context("Failed to load configuration file")?;
-        
+
         // Create scanner with config
         let mut scanner = SecurityScanner::new(server_config.scanner.clone())
             .context("Failed to create security scanner")?;
-        
+
         // Set up plugins if enabled
         if server_config.plugins.enabled {
             use kindly_guard_server::component_selector::ComponentManager;
             use std::sync::Arc;
-            
+
             // Create component manager to get plugin manager
-            let component_manager = Arc::new(ComponentManager::new(&server_config)
-                .context("Failed to create component manager")?);
-            
+            let component_manager = Arc::new(
+                ComponentManager::new(&server_config)
+                    .context("Failed to create component manager")?,
+            );
+
             scanner.set_plugin_manager(component_manager.plugin_manager().clone());
         }
-        
+
         scanner
     } else {
         // Use default config
@@ -191,40 +186,43 @@ async fn scan_command(
             max_scan_depth: 10,
             enable_event_buffer: false,
         };
-        
-        SecurityScanner::new(config)
-            .context("Failed to create security scanner")?
+
+        SecurityScanner::new(config).context("Failed to create security scanner")?
     };
-    
+
     // Collect files to scan
     let files_to_scan = collect_files(path, recursive, &allowed_extensions, max_size_mb)?;
-    
+
     if files_to_scan.is_empty() {
         println!("{}", "No files found to scan".yellow());
         return Ok(());
     }
-    
+
     // Create progress bar
-    let progress = if output_format != OutputFormat::Json {
-        let pb = ProgressBar::new(files_to_scan.len() as u64);
-        pb.set_style(ProgressStyle::default_bar()
+    let progress =
+        if output_format == OutputFormat::Json {
+            None
+        } else {
+            let pb = ProgressBar::new(files_to_scan.len() as u64);
+            pb.set_style(ProgressStyle::default_bar()
             .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
             .unwrap()
             .progress_chars("#>-"));
-        Some(pb)
-    } else {
-        None
-    };
-    
+            Some(pb)
+        };
+
     // Scan files
     let mut all_results = Vec::new();
     let mut total_threats = 0;
-    
+
     for file_path in &files_to_scan {
         if let Some(pb) = &progress {
-            pb.set_message(format!("Scanning {}", file_path.file_name().unwrap_or_default().to_string_lossy()));
+            pb.set_message(format!(
+                "Scanning {}",
+                file_path.file_name().unwrap_or_default().to_string_lossy()
+            ));
         }
-        
+
         match scan_file(&scanner, file_path).await {
             Ok(threats) => {
                 if !threats.is_empty() {
@@ -236,16 +234,16 @@ async fn scan_command(
                 tracing::warn!("Failed to scan {}: {}", file_path.display(), e);
             }
         }
-        
+
         if let Some(pb) = &progress {
             pb.inc(1);
         }
     }
-    
+
     if let Some(pb) = progress {
         pb.finish_with_message("Scan complete");
     }
-    
+
     // Print results
     let duration = start_time.elapsed();
     print_scan_results(
@@ -255,7 +253,7 @@ async fn scan_command(
         duration,
         output_format,
     );
-    
+
     Ok(())
 }
 
@@ -263,8 +261,9 @@ async fn scan_file(scanner: &SecurityScanner, path: &Path) -> Result<Vec<Threat>
     let content = tokio::fs::read_to_string(path)
         .await
         .context("Failed to read file")?;
-        
-    scanner.scan_text(&content)
+
+    scanner
+        .scan_text(&content)
         .context("Failed to scan file content")
 }
 
@@ -276,15 +275,16 @@ fn collect_files(
 ) -> Result<Vec<PathBuf>> {
     let max_size = max_size_mb * 1024 * 1024;
     let mut files = Vec::new();
-    
+
     if path.is_file() {
         // Check file size
         let metadata = path.metadata()?;
         if metadata.len() <= max_size {
             files.push(path.to_path_buf());
         } else {
-            tracing::warn!("Skipping large file: {} ({} MB)", 
-                path.display(), 
+            tracing::warn!(
+                "Skipping large file: {} ({} MB)",
+                path.display(),
                 metadata.len() / 1024 / 1024
             );
         }
@@ -294,11 +294,11 @@ fn collect_files(
         } else {
             WalkDir::new(path).max_depth(1)
         };
-        
+
         for entry in walker {
             let entry = entry?;
             let path = entry.path();
-            
+
             if path.is_file() {
                 // Check extension
                 if let Some(ref extensions) = allowed_extensions {
@@ -311,28 +311,32 @@ fn collect_files(
                         continue; // Skip files without extension
                     }
                 }
-                
+
                 // Check file size
                 let metadata = entry.metadata()?;
                 if metadata.len() <= max_size {
                     files.push(path.to_path_buf());
                 } else {
-                    tracing::debug!("Skipping large file: {} ({} MB)", 
-                        path.display(), 
+                    tracing::debug!(
+                        "Skipping large file: {} ({} MB)",
+                        path.display(),
                         metadata.len() / 1024 / 1024
                     );
                 }
             }
         }
     }
-    
+
     Ok(files)
 }
 
 async fn monitor_command(url: String, interval: u64) -> Result<()> {
-    println!("{}", format!("Monitoring KindlyGuard server at {}", url).green());
+    println!(
+        "{}",
+        format!("Monitoring KindlyGuard server at {url}").green()
+    );
     println!("Press Ctrl+C to stop\n");
-    
+
     loop {
         match fetch_server_status(&url).await {
             Ok(status) => {
@@ -342,7 +346,7 @@ async fn monitor_command(url: String, interval: u64) -> Result<()> {
                 println!("{}: {}", "Error".red(), e);
             }
         }
-        
+
         tokio::time::sleep(tokio::time::Duration::from_secs(interval)).await;
     }
 }
@@ -364,57 +368,63 @@ async fn fetch_server_status(url: &str) -> Result<serde_json::Value> {
 
 fn print_server_status(status: &serde_json::Value) {
     use chrono::Duration;
-    
+
     let active = status["active"].as_bool().unwrap_or(false);
     let uptime_secs = status["uptime_seconds"].as_u64().unwrap_or(0);
     let threats_blocked = status["threats_blocked"].as_u64().unwrap_or(0);
-    
+
     // Clear screen
     print!("\x1B[2J\x1B[1;1H");
-    
+
     println!("{}", "╭──────────────────────────────────────╮".cyan());
     println!("{}", "│ 🛡️  KindlyGuard Server Status        │".cyan());
     println!("{}", "├──────────────────────────────────────┤".cyan());
-    
+
     let status_text = if active {
         "● Active".green()
     } else {
         "○ Inactive".red()
     };
-    println!("│ Status: {:28} │", status_text);
-    
+    println!("│ Status: {status_text:28} │");
+
     let duration = Duration::seconds(uptime_secs as i64);
     let hours = duration.num_hours();
     let minutes = (duration.num_minutes() % 60) as u64;
     let seconds = (duration.num_seconds() % 60) as u64;
-    let uptime_str = format!("{}h {}m {}s", hours, minutes, seconds);
-    println!("│ Uptime: {:28} │", uptime_str);
-    println!("│ Threats Blocked: {:19} │", threats_blocked);
-    
+    let uptime_str = format!("{hours}h {minutes}m {seconds}s");
+    println!("│ Uptime: {uptime_str:28} │");
+    println!("│ Threats Blocked: {threats_blocked:19} │");
+
     if let Some(stats) = status["scanner_stats"].as_object() {
         println!("{}", "├──────────────────────────────────────┤".cyan());
         println!("│ Scanner Statistics:                  │");
-        println!("│   Unicode threats: {:17} │", 
-            stats["unicode_threats"].as_u64().unwrap_or(0));
-        println!("│   Injection threats: {:15} │", 
-            stats["injection_threats"].as_u64().unwrap_or(0));
-        println!("│   Total scans: {:21} │", 
-            stats["total_scans"].as_u64().unwrap_or(0));
+        println!(
+            "│   Unicode threats: {:17} │",
+            stats["unicode_threats"].as_u64().unwrap_or(0)
+        );
+        println!(
+            "│   Injection threats: {:15} │",
+            stats["injection_threats"].as_u64().unwrap_or(0)
+        );
+        println!(
+            "│   Total scans: {:21} │",
+            stats["total_scans"].as_u64().unwrap_or(0)
+        );
     }
-    
+
     println!("{}", "╰──────────────────────────────────────╯".cyan());
 }
 
 async fn shield_command(command: ShieldCommands) -> Result<()> {
     use kindly_guard_server::shield::{CliShield, DisplayFormat, Shield};
     use std::sync::Arc;
-    
+
     match command {
         ShieldCommands::Status { format } => {
             // Create a shield to get status (connects to running server if available)
             let shield = Arc::new(Shield::new());
             let cli_shield = CliShield::new(shield.clone(), DisplayFormat::Compact);
-            
+
             match format.as_str() {
                 "json" => {
                     let status = cli_shield.status();
@@ -455,7 +465,7 @@ async fn shield_command(command: ShieldCommands) -> Result<()> {
             // TODO: Mark command end in shield
         }
     }
-    
+
     Ok(())
 }
 
@@ -465,10 +475,13 @@ async fn shell_init_command(shell: &str) -> Result<()> {
         "zsh" => include_str!("../../kindly-guard-server/scripts/shell-init.zsh"),
         "fish" => include_str!("../../kindly-guard-server/scripts/shell-init.fish"),
         _ => {
-            anyhow::bail!("Unsupported shell: {}. Supported shells: bash, zsh, fish", shell);
+            anyhow::bail!(
+                "Unsupported shell: {}. Supported shells: bash, zsh, fish",
+                shell
+            );
         }
     };
-    
-    println!("{}", script);
+
+    println!("{script}");
     Ok(())
 }

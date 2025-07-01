@@ -1,29 +1,28 @@
 //! Resilience patterns for production reliability
-//! 
+//!
 //! This module provides circuit breakers, retry logic, and other patterns
 //! to ensure the system can handle failures gracefully.
-//! 
+//!
 //! The architecture uses trait-based abstractions to allow both standard
 //! and enhanced implementations, with runtime selection based on configuration.
 
 pub mod circuit_breaker;
-pub mod retry;
 pub mod config;
-pub mod standard;
 #[cfg(feature = "enhanced")]
 pub mod enhanced;
+pub mod retry;
+pub mod standard;
 pub mod stubs;
 
-use std::sync::Arc;
-use anyhow::Result;
 use crate::config::Config;
-use crate::traits::{CircuitBreakerTrait, RetryStrategyTrait, HealthCheckTrait, RecoveryStrategyTrait, ResilienceFactory, DynCircuitBreaker, DynRetryStrategy, CircuitBreakerWrapper, RetryStrategyWrapper};
+use crate::traits::{
+    DynCircuitBreaker, DynRetryStrategy, HealthCheckTrait, RecoveryStrategyTrait, ResilienceFactory,
+};
+use anyhow::Result;
+use std::sync::Arc;
 
 // Re-export core types
-pub use circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitState};
-pub use retry::{RetryPolicy, RetryConfig, retry_with_backoff};
-pub use config::ResilienceConfig;
-pub use standard::{StandardCircuitBreaker, StandardRetryStrategy, StandardResilienceFactory};
+pub use standard::StandardResilienceFactory;
 
 /// Create a circuit breaker based on configuration
 pub fn create_circuit_breaker(config: &Config) -> Result<Arc<dyn DynCircuitBreaker>> {
@@ -53,7 +52,7 @@ pub fn create_recovery_strategy(config: &Config) -> Result<Arc<dyn RecoveryStrat
 fn create_resilience_factory(config: &Config) -> Box<dyn ResilienceFactory> {
     if config.resilience.enhanced_mode {
         tracing::info!("Resilience mode: enhanced");
-        
+
         #[cfg(feature = "enhanced")]
         {
             Box::new(enhanced::EnhancedResilienceFactory)

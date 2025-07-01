@@ -1,0 +1,41 @@
+# Test configuration with neutralization enabled
+
+[server]
+port = 8080
+stdio = true
+
+[scanner]
+unicode_detection = true
+injection_detection = true
+path_traversal_detection = true
+
+[shield]
+enabled = false
+
+[auth]
+enabled = false
+
+[signing]
+enabled = false
+
+[rate_limit]
+enabled = false
+
+[event_processor]
+enabled = true  # Enable enhanced mode
+
+[neutralization]
+mode = "automatic"  # Automatically neutralize threats
+backup_originals = true
+audit_all_actions = true
+
+[neutralization.unicode]
+bidi_replacement = "marker"
+zero_width_action = "remove"
+homograph_action = "ascii"
+
+[neutralization.injection]
+sql_action = "parameterize"
+command_action = "escape"
+path_action = "normalize"
+prompt_action = "wrap"

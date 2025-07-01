@@ -1,12 +1,12 @@
 //! Output formatting for scan results
 
+use colored::Colorize;
+use comfy_table::{presets, ContentArrangement, Table};
+use kindly_guard_server::{Severity, Threat};
 use std::path::PathBuf;
 use std::time::Duration;
-use colored::*;
-use comfy_table::{Table, presets, ContentArrangement};
-use kindly_guard_server::{Threat, ThreatType, Severity};
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum OutputFormat {
     Table,
     Json,
@@ -16,10 +16,13 @@ pub enum OutputFormat {
 impl OutputFormat {
     pub fn from_str(s: &str) -> anyhow::Result<Self> {
         match s.to_lowercase().as_str() {
-            "table" => Ok(OutputFormat::Table),
-            "json" => Ok(OutputFormat::Json),
-            "brief" => Ok(OutputFormat::Brief),
-            _ => anyhow::bail!("Invalid output format: {}. Valid options: table, json, brief", s),
+            "table" => Ok(Self::Table),
+            "json" => Ok(Self::Json),
+            "brief" => Ok(Self::Brief),
+            _ => anyhow::bail!(
+                "Invalid output format: {}. Valid options: table, json, brief",
+                s
+            ),
         }
     }
 }
@@ -45,27 +48,29 @@ fn print_table_results(
     duration: Duration,
 ) {
     println!("\n{}", "=== Scan Results ===".bold().cyan());
-    
+
     if results.is_empty() {
         println!("\n{}", "✓ No threats detected!".green().bold());
     } else {
-        println!("\n{} threats found in {} files", 
-            total_threats.to_string().red().bold(), 
+        println!(
+            "\n{} threats found in {} files",
+            total_threats.to_string().red().bold(),
             results.len()
         );
-        
+
         for (path, threats) in results {
-            println!("\n{}: {} threats", 
+            println!(
+                "\n{}: {} threats",
                 path.display().to_string().yellow(),
                 threats.len().to_string().red()
             );
-            
+
             let mut table = Table::new();
             table
                 .load_preset(presets::UTF8_FULL)
                 .set_content_arrangement(ContentArrangement::Dynamic)
                 .set_header(vec!["Type", "Severity", "Location", "Description"]);
-            
+
             for threat in threats {
                 let severity_color = match threat.severity {
                     Severity::Critical => "red",
@@ -73,34 +78,37 @@ fn print_table_results(
                     Severity::Medium => "blue",
                     Severity::Low => "white",
                 };
-                
+
                 let location = match &threat.location {
                     kindly_guard_server::scanner::Location::Text { offset, length } => {
-                        format!("offset: {}, len: {}", offset, length)
+                        format!("offset: {offset}, len: {length}")
                     }
                     kindly_guard_server::scanner::Location::Json { path } => {
-                        format!("JSON path: {}", path)
+                        format!("JSON path: {path}")
                     }
                     kindly_guard_server::scanner::Location::Binary { offset } => {
-                        format!("binary offset: {}", offset)
+                        format!("binary offset: {offset}")
                     }
                 };
-                
+
                 table.add_row(vec![
                     threat.threat_type.to_string(),
-                    format!("{:?}", threat.severity).color(severity_color).to_string(),
+                    format!("{:?}", threat.severity)
+                        .color(severity_color)
+                        .to_string(),
                     location,
                     threat.description.clone(),
                 ]);
             }
-            
-            println!("{}", table);
-            
+
+            println!("{table}");
+
             // Print remediations
-            let remediations: Vec<_> = threats.iter()
+            let remediations: Vec<_> = threats
+                .iter()
                 .filter_map(|t| t.remediation.as_ref())
                 .collect();
-                
+
             if !remediations.is_empty() {
                 println!("\n{}", "Suggested Remediations:".bold());
                 for (i, remediation) in remediations.iter().enumerate() {
@@ -109,11 +117,12 @@ fn print_table_results(
             }
         }
     }
-    
+
     // Print summary
     println!("\n{}", "=== Summary ===".bold().cyan());
     println!("Files scanned: {}", total_files.to_string().bright_blue());
-    println!("Threats found: {}", 
+    println!(
+        "Threats found: {}",
         if total_threats > 0 {
             total_threats.to_string().red()
         } else {
@@ -121,7 +130,7 @@ fn print_table_results(
         }
     );
     println!("Scan duration: {:.2}s", duration.as_secs_f64());
-    
+
     // Threat breakdown
     if !results.is_empty() {
         let mut threat_counts = std::collections::HashMap::new();
@@ -130,10 +139,10 @@ fn print_table_results(
                 *threat_counts.entry(threat.threat_type.clone()).or_insert(0) += 1;
             }
         }
-        
+
         println!("\n{}", "Threat Breakdown:".bold());
         for (threat_type, count) in threat_counts {
-            println!("  {}: {}", threat_type, count);
+            println!("  {threat_type}: {count}");
         }
     }
 }
@@ -158,7 +167,7 @@ fn print_json_results(
             })
         }).collect::<Vec<_>>(),
     });
-    
+
     println!("{}", serde_json::to_string_pretty(&json_output).unwrap());
 }
 
@@ -176,9 +185,10 @@ fn print_brief_results(
             println!("{}: {} threats", path.display(), threats.len());
         }
     }
-    
-    println!("\nScanned {} files in {:.2}s | {} threats found", 
-        total_files, 
+
+    println!(
+        "\nScanned {} files in {:.2}s | {} threats found",
+        total_files,
         duration.as_secs_f64(),
         total_threats
     );

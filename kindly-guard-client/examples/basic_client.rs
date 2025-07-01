@@ -47,32 +47,36 @@ async fn main() -> Result<()> {
 
     // Call a tool - scan some text
     info!("\n📝 Testing text scanning...");
-    let scan_result = client.call_tool(
-        "scan_text",
-        serde_json::json!({
-            "text": "This is a safe text without any threats."
-        })
-    ).await?;
+    let scan_result = client
+        .call_tool(
+            "scan_text",
+            serde_json::json!({
+                "text": "This is a safe text without any threats."
+            }),
+        )
+        .await?;
     info!("Scan result: {:?}", scan_result);
 
     // Test with a potential threat
     info!("\n⚠️ Testing threat detection...");
-    match client.call_tool(
-        "scan_text",
-        serde_json::json!({
-            "text": "'; DROP TABLE users; --"
-        })
-    ).await {
+    match client
+        .call_tool(
+            "scan_text",
+            serde_json::json!({
+                "text": "'; DROP TABLE users; --"
+            }),
+        )
+        .await
+    {
         Ok(result) => info!("Threat scan result: {:?}", result),
         Err(e) => info!("Threat detected and blocked: {}", e),
     }
 
     // Get security info
     info!("\n🔒 Getting security information...");
-    let security_info = client.call_tool(
-        "get_security_info",
-        serde_json::json!({})
-    ).await?;
+    let security_info = client
+        .call_tool("get_security_info", serde_json::json!({}))
+        .await?;
     info!("Security info: {:?}", security_info);
 
     // Disconnect

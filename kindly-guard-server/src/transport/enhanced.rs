@@ -1,17 +1,17 @@
 //! Enhanced transport implementations (stub)
-//! 
+//!
 //! This module provides stubs for enhanced transport mechanisms that would
 //! integrate with advanced networking technology.
 
-use std::sync::Arc;
 use anyhow::Result;
 use async_trait::async_trait;
+use std::sync::Arc;
 use tracing::info;
 
 use super::*;
 
 /// Enhanced gRPC transport with advanced features
-/// 
+///
 /// This implementation would provide:
 /// - Bi-directional streaming with backpressure
 /// - Automatic load balancing
@@ -38,38 +38,38 @@ impl Transport for GrpcTransport {
     fn transport_type(&self) -> TransportType {
         TransportType::Grpc
     }
-    
+
     async fn start(&mut self) -> Result<()> {
         info!("Starting enhanced gRPC transport with advanced features");
         self.running = true;
         Ok(())
     }
-    
+
     async fn stop(&mut self) -> Result<()> {
         info!("Stopping enhanced gRPC transport");
         self.running = false;
         Ok(())
     }
-    
+
     async fn accept(&mut self) -> Result<Box<dyn TransportConnection>> {
         // Enhanced implementation would use tonic with custom interceptors
         Err(anyhow::anyhow!("Enhanced gRPC transport not implemented"))
     }
-    
+
     async fn connect(&mut self, address: &str) -> Result<Box<dyn TransportConnection>> {
         info!("Connecting to gRPC server at {}", address);
         // Would establish gRPC connection with advanced features
         Err(anyhow::anyhow!("Enhanced gRPC transport not implemented"))
     }
-    
+
     fn is_running(&self) -> bool {
         self.running
     }
-    
+
     fn get_stats(&self) -> TransportStats {
         TransportStats::default()
     }
-    
+
     async fn set_option(&mut self, key: &str, value: serde_json::Value) -> Result<()> {
         self.config[key] = value;
         Ok(())
@@ -77,7 +77,7 @@ impl Transport for GrpcTransport {
 }
 
 /// Quantum-resistant transport layer
-/// 
+///
 /// This would provide:
 /// - Post-quantum cryptography
 /// - Perfect forward secrecy
@@ -95,7 +95,7 @@ impl QuantumTransport {
 }
 
 /// Ultra-low latency transport
-/// 
+///
 /// This would provide:
 /// - Kernel bypass networking
 /// - RDMA support
@@ -114,7 +114,7 @@ impl UltraTransport {
 }
 
 /// Mesh transport for distributed deployments
-/// 
+///
 /// This would provide:
 /// - Automatic peer discovery
 /// - Gossip protocol for state synchronization
@@ -139,10 +139,10 @@ impl MeshTransport {
 pub trait MessageRouter: Send + Sync {
     /// Route message based on content and metadata
     async fn route(&self, message: &TransportMessage) -> Result<Vec<String>>;
-    
+
     /// Get routing table
     async fn get_routes(&self) -> Result<HashMap<String, Vec<String>>>;
-    
+
     /// Update routing rules
     async fn update_routes(&self, routes: HashMap<String, Vec<String>>) -> Result<()>;
 }
@@ -152,10 +152,10 @@ pub trait MessageRouter: Send + Sync {
 pub trait ConnectionPool: Send + Sync {
     /// Get connection from pool
     async fn get_connection(&self, address: &str) -> Result<Box<dyn TransportConnection>>;
-    
+
     /// Return connection to pool
     async fn return_connection(&self, conn: Box<dyn TransportConnection>) -> Result<()>;
-    
+
     /// Get pool statistics
     fn get_stats(&self) -> PoolStats;
 }
@@ -173,13 +173,13 @@ pub struct PoolStats {
 pub trait TransportInterceptor: Send + Sync {
     /// Intercept outgoing message
     async fn on_send(&self, message: &mut TransportMessage) -> Result<()>;
-    
+
     /// Intercept incoming message
     async fn on_receive(&self, message: &mut TransportMessage) -> Result<()>;
-    
+
     /// Intercept connection establishment
     async fn on_connect(&self, conn: &dyn TransportConnection) -> Result<()>;
-    
+
     /// Intercept connection close
     async fn on_disconnect(&self, conn: &dyn TransportConnection) -> Result<()>;
 }
@@ -189,7 +189,7 @@ pub trait TransportInterceptor: Send + Sync {
 pub trait TransportLoadBalancer: Send + Sync {
     /// Select transport based on load
     async fn select_transport(&self, transports: &[Box<dyn Transport>]) -> Result<usize>;
-    
+
     /// Update transport metrics
     async fn update_metrics(&self, transport_idx: usize, metrics: TransportMetrics) -> Result<()>;
 }

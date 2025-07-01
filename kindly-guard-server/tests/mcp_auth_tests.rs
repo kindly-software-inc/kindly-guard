@@ -1,10 +1,10 @@
 //! MCP Protocol Authentication and Security Tests
 //! Tests OAuth 2.0, message signing, and permission systems
 
-use kindly_guard_server::{McpServer, Config};
+use base64::{engine::general_purpose, Engine as _};
+use kindly_guard_server::{Config, McpServer};
 use serde_json::{json, Value};
 use std::sync::Arc;
-use base64::{Engine as _, engine::general_purpose};
 
 mod helpers;
 use helpers::*;
@@ -15,7 +15,7 @@ fn create_auth_config() -> Config {
     config.shield.enabled = false;
     config.auth.enabled = true;
     config.auth.jwt_secret = Some(general_purpose::STANDARD.encode(b"test-secret-key"));
-    config.auth.require_signature_verification = false;  // Disable for now
+    config.auth.require_signature_verification = false; // Disable for now
     config
 }
 
@@ -32,11 +32,11 @@ fn create_signing_config() -> Config {
 #[tokio::test]
 async fn test_oauth_bearer_token_auth() {
     let server = Arc::new(McpServer::new(create_auth_config()).unwrap());
-    
+
     // Initialize without auth (should work)
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Try to call tool without auth
     let request = json!({
         "jsonrpc": "2.0",
@@ -49,31 +49,42 @@ async fn test_oauth_bearer_token_auth() {
         },
         "id": 2
     });
-    
+
     let response = server.handle_message(&request.to_string()).await.unwrap();
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
-    println!("Response: {}", serde_json::to_string_pretty(&response_json).unwrap());
+
+    println!(
+        "Response: {}",
+        serde_json::to_string_pretty(&response_json).unwrap()
+    );
     validate_jsonrpc_error(&response_json, -32001); // Unauthorized
-    assert!(response_json["error"]["message"].as_str().unwrap()
-        .contains("Authentication required") || 
-        response_json["error"]["message"].as_str().unwrap()
-        .contains("authentication required") ||
-        response_json["error"]["message"].as_str().unwrap()
-        .contains("Unauthorized"));
+    assert!(
+        response_json["error"]["message"]
+            .as_str()
+            .unwrap()
+            .contains("Authentication required")
+            || response_json["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("authentication required")
+            || response_json["error"]["message"]
+                .as_str()
+                .unwrap()
+                .contains("Unauthorized")
+    );
 }
 
 #[tokio::test]
 async fn test_oauth_with_valid_token() {
     let server = Arc::new(McpServer::new(create_auth_config()).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Call with valid token
     let token = create_test_auth_token();
-    println!("Using token: {}", token);
+    println!("Using token: {token}");
     let request = json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
@@ -86,11 +97,14 @@ async fn test_oauth_with_valid_token() {
         "authorization": token,
         "id": 2
     });
-    
+
     let response = server.handle_message(&request.to_string()).await.unwrap();
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
-    println!("Valid token response: {}", serde_json::to_string_pretty(&response_json).unwrap());
+
+    println!(
+        "Valid token response: {}",
+        serde_json::to_string_pretty(&response_json).unwrap()
+    );
     assert!(response_json["result"].is_object());
     assert!(response_json["error"].is_null());
 }
@@ -98,11 +112,11 @@ async fn test_oauth_with_valid_token() {
 #[tokio::test]
 async fn test_oauth_with_invalid_token() {
     let server = Arc::new(McpServer::new(create_auth_config()).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Call with invalid token
     let request = json!({
         "jsonrpc": "2.0",
@@ -118,21 +132,21 @@ async fn test_oauth_with_invalid_token() {
         },
         "id": 2
     });
-    
+
     let response = server.handle_message(&request.to_string()).await.unwrap();
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     validate_jsonrpc_error(&response_json, -32001); // Unauthorized
 }
 
 #[tokio::test]
 async fn test_oauth_token_formats() {
     let server = Arc::new(McpServer::new(create_auth_config()).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Test various token formats
     let token_formats = vec![
         ("valid-token-123", false, "Token without Bearer prefix"),
@@ -142,7 +156,7 @@ async fn test_oauth_token_formats() {
         ("Bearer", false, "Bearer without token"),
         ("", false, "Empty token"),
     ];
-    
+
     for (i, (token, should_succeed, description)) in token_formats.iter().enumerate() {
         let request = json!({
             "jsonrpc": "2.0",
@@ -157,16 +171,20 @@ async fn test_oauth_token_formats() {
             },
             "id": i + 2
         });
-        
+
         let response = server.handle_message(&request.to_string()).await.unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
-        
+
         if *should_succeed {
-            assert!(response_json["result"].is_object(), 
-                "Should succeed for: {}", description);
+            assert!(
+                response_json["result"].is_object(),
+                "Should succeed for: {description}"
+            );
         } else {
-            assert!(response_json["error"].is_object(), 
-                "Should fail for: {}", description);
+            assert!(
+                response_json["error"].is_object(),
+                "Should fail for: {description}"
+            );
         }
     }
 }
@@ -174,11 +192,11 @@ async fn test_oauth_token_formats() {
 #[tokio::test]
 async fn test_message_signing_required() {
     let server = Arc::new(McpServer::new(create_signing_config()).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Try to call without signature
     let request = json!({
         "jsonrpc": "2.0",
@@ -191,23 +209,25 @@ async fn test_message_signing_required() {
         },
         "id": 2
     });
-    
+
     let response = server.handle_message(&request.to_string()).await.unwrap();
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     validate_jsonrpc_error(&response_json, -32001); // Unauthorized
-    assert!(response_json["error"]["message"].as_str().unwrap()
+    assert!(response_json["error"]["message"]
+        .as_str()
+        .unwrap()
         .contains("Message signature required"));
 }
 
 #[tokio::test]
 async fn test_verify_signature_tool() {
     let server = Arc::new(McpServer::new(Config::default()).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Test signature verification
     let request = json!({
         "jsonrpc": "2.0",
@@ -222,14 +242,14 @@ async fn test_verify_signature_tool() {
         },
         "id": 2
     });
-    
+
     let response = server.handle_message(&request.to_string()).await.unwrap();
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     assert!(response_json["result"].is_object());
     let content = &response_json["result"]["content"][0]["text"];
     let result: Value = serde_json::from_str(content.as_str().unwrap()).unwrap();
-    
+
     // Should have valid response structure
     assert!(result["valid"].is_boolean());
     assert!(result["algorithm"].is_string());
@@ -240,13 +260,13 @@ async fn test_rate_limiting_with_auth() {
     let mut config = create_auth_config();
     config.rate_limit.default_rpm = 10; // Low limit for testing
     config.rate_limit.burst_capacity = 2;
-    
+
     let server = Arc::new(McpServer::new(config).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Send multiple requests rapidly
     for i in 0..5 {
         let request = json!({
@@ -263,21 +283,22 @@ async fn test_rate_limiting_with_auth() {
             },
             "id": i + 2
         });
-        
+
         let response = server.handle_message(&request.to_string()).await.unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
-        
+
         if i < 2 {
             // First 2 should succeed (burst)
-            assert!(response_json["result"].is_object(), 
-                "Request {} should succeed", i);
+            assert!(
+                response_json["result"].is_object(),
+                "Request {i} should succeed"
+            );
         } else {
             // Rest might be rate limited
             // Note: Actual rate limiting might not trigger in tests due to timing
             assert!(
-                response_json["result"].is_object() || 
-                response_json["error"]["code"] == -32003, // Rate limited
-                "Request {} should succeed or be rate limited", i
+                response_json["result"].is_object() || response_json["error"]["code"] == -32003, // Rate limited
+                "Request {i} should succeed or be rate limited"
             );
         }
     }
@@ -287,13 +308,13 @@ async fn test_rate_limiting_with_auth() {
 async fn test_permission_scopes() {
     let mut config = create_auth_config();
     config.auth.required_scopes.default = vec!["security:scan".to_string()];
-    
+
     let server = Arc::new(McpServer::new(config).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Test with token but without required scope
     let request = json!({
         "jsonrpc": "2.0",
@@ -310,25 +331,22 @@ async fn test_permission_scopes() {
         },
         "id": 2
     });
-    
+
     let response = server.handle_message(&request.to_string()).await.unwrap();
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     // Should either succeed (if scope checking not implemented) or fail with auth error
-    assert!(
-        response_json["result"].is_object() || 
-        response_json["error"]["code"] == -32001
-    );
+    assert!(response_json["result"].is_object() || response_json["error"]["code"] == -32001);
 }
 
 #[tokio::test]
 async fn test_auth_state_persistence() {
     let server = Arc::new(McpServer::new(create_auth_config()).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // First request with auth
     let request1 = json!({
         "jsonrpc": "2.0",
@@ -340,9 +358,9 @@ async fn test_auth_state_persistence() {
         "authorization": create_test_auth_token(),
         "id": 2
     });
-    
+
     server.handle_message(&request1.to_string()).await.unwrap();
-    
+
     // Second request without auth (should still require it)
     let request2 = json!({
         "jsonrpc": "2.0",
@@ -353,10 +371,10 @@ async fn test_auth_state_persistence() {
         },
         "id": 3
     });
-    
+
     let response = server.handle_message(&request2.to_string()).await.unwrap();
     let response_json: Value = serde_json::from_str(&response).unwrap();
-    
+
     // Should still require auth
     validate_jsonrpc_error(&response_json, -32001);
 }
@@ -364,11 +382,11 @@ async fn test_auth_state_persistence() {
 #[tokio::test]
 async fn test_auth_bypass_attempts() {
     let server = Arc::new(McpServer::new(create_auth_config()).unwrap());
-    
+
     // Initialize
     let init_request = create_init_request(1);
     server.handle_message(&init_request.to_string()).await;
-    
+
     // Various bypass attempts
     let bypass_attempts = vec![
         // SQL injection in auth token
@@ -386,7 +404,6 @@ async fn test_auth_bypass_attempts() {
             },
             "id": 2
         }),
-        
         // Null byte injection
         json!({
             "jsonrpc": "2.0",
@@ -402,7 +419,6 @@ async fn test_auth_bypass_attempts() {
             },
             "id": 3
         }),
-        
         // Case sensitivity test
         json!({
             "jsonrpc": "2.0",
@@ -419,11 +435,11 @@ async fn test_auth_bypass_attempts() {
             "id": 4
         }),
     ];
-    
+
     for request in bypass_attempts {
         let response = server.handle_message(&request.to_string()).await.unwrap();
         let response_json: Value = serde_json::from_str(&response).unwrap();
-        
+
         // All bypass attempts should fail
         validate_jsonrpc_error(&response_json, -32001);
     }

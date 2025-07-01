@@ -1,26 +1,26 @@
 //! Storage abstraction layer for persistence
-//! 
+//!
 //! This module provides trait-based storage abstractions that allow
-//! KindlyGuard to persist security events, rate limit states, and
+//! `KindlyGuard` to persist security events, rate limit states, and
 //! correlation data across restarts.
 
-use std::sync::Arc;
-use std::time::Duration;
 use anyhow::Result;
 use async_trait::async_trait;
-use serde::{Serialize, Deserialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use std::time::Duration;
 
-pub mod memory;
 #[cfg(feature = "enhanced")]
 pub mod enhanced;
+pub mod memory;
 
 // Re-exports
-pub use memory::InMemoryStorage;
 #[cfg(feature = "enhanced")]
 pub use enhanced::EnhancedStorage;
+pub use memory::InMemoryStorage;
 
-use crate::traits::{SecurityEvent, RateLimitKey};
+use crate::traits::{RateLimitKey, SecurityEvent};
 
 /// Unique identifier for stored events
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -94,43 +94,51 @@ pub struct DetectedPattern {
 pub trait StorageProvider: Send + Sync {
     /// Store a security event
     async fn store_event(&self, event: &SecurityEvent) -> Result<EventId>;
-    
+
     /// Retrieve an event by ID
     async fn get_event(&self, id: &EventId) -> Result<Option<SecurityEvent>>;
-    
+
     /// Query events with filters
     async fn query_events(&self, filter: EventFilter) -> Result<Vec<SecurityEvent>>;
-    
+
     /// Store rate limit state
-    async fn store_rate_limit_state(&self, key: &RateLimitKey, state: &RateLimitState) -> Result<()>;
-    
+    async fn store_rate_limit_state(
+        &self,
+        key: &RateLimitKey,
+        state: &RateLimitState,
+    ) -> Result<()>;
+
     /// Get rate limit state
     async fn get_rate_limit_state(&self, key: &RateLimitKey) -> Result<Option<RateLimitState>>;
-    
+
     /// Clear old rate limit states
     async fn cleanup_rate_limit_states(&self, older_than: Duration) -> Result<u64>;
-    
+
     /// Store correlation state
-    async fn store_correlation_state(&self, client_id: &str, state: &CorrelationState) -> Result<()>;
-    
+    async fn store_correlation_state(
+        &self,
+        client_id: &str,
+        state: &CorrelationState,
+    ) -> Result<()>;
+
     /// Get correlation state
     async fn get_correlation_state(&self, client_id: &str) -> Result<Option<CorrelationState>>;
-    
+
     /// Create a snapshot
     async fn create_snapshot(&self) -> Result<SnapshotId>;
-    
+
     /// List available snapshots
     async fn list_snapshots(&self) -> Result<Vec<(SnapshotId, DateTime<Utc>)>>;
-    
+
     /// Restore from snapshot
     async fn restore_snapshot(&self, id: &SnapshotId) -> Result<()>;
-    
+
     /// Delete a snapshot
     async fn delete_snapshot(&self, id: &SnapshotId) -> Result<()>;
-    
+
     /// Get storage statistics
     async fn get_stats(&self) -> Result<StorageStats>;
-    
+
     /// Compact/optimize storage
     async fn compact(&self) -> Result<()>;
 }
@@ -140,13 +148,13 @@ pub trait StorageProvider: Send + Sync {
 pub trait ArchivalStorage: StorageProvider {
     /// Archive old events
     async fn archive_events(&self, older_than: Duration) -> Result<u64>;
-    
+
     /// Query archived events
     async fn query_archived_events(&self, filter: EventFilter) -> Result<Vec<SecurityEvent>>;
-    
+
     /// Restore events from archive
     async fn restore_from_archive(&self, filter: EventFilter) -> Result<u64>;
-    
+
     /// Get archive statistics
     async fn get_archive_stats(&self) -> Result<ArchiveStats>;
 }
@@ -228,11 +236,11 @@ pub enum StorageType {
     Memory,
     /// File-based storage
     File,
-    /// RocksDB embedded database
+    /// `RocksDB` embedded database
     RocksDb,
     /// Redis for distributed cache
     Redis,
-    /// PostgreSQL for structured queries
+    /// `PostgreSQL` for structured queries
     Postgres,
     /// S3-compatible object storage
     S3,

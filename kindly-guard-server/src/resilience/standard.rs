@@ -1,16 +1,24 @@
 //! Standard implementations of resilience traits
 //! These provide solid reliability features for production use
 
-use async_trait::async_trait;
-use std::sync::Arc;
-use std::collections::HashMap;
+use crate::resilience::circuit_breaker::{
+    CircuitBreaker as BaseCircuitBreaker, CircuitBreakerConfig,
+};
+use crate::resilience::retry::{DefaultRetryPolicy, RetryBuilder, RetryConfig};
+use crate::traits::{
+    CircuitBreakerError, CircuitBreakerTrait, CircuitBreakerWrapper, CircuitState, CircuitStats,
+    DynCircuitBreaker, DynRetryStrategy, ErrorCategory, ErrorType, HealthCheckMetadata,
+    HealthCheckResult, HealthCheckTrait, HealthCheckType, HealthReport, HealthStatus,
+    RecoveryContext, RecoveryState, RecoveryStats, RecoveryStrategyTrait, ResilienceFactory,
+    RetryContext, RetryDecision, RetryStats, RetryStrategyTrait, RetryStrategyWrapper,
+};
 use anyhow::Result;
+use async_trait::async_trait;
 use parking_lot::RwLock;
-use tokio::sync::RwLock as AsyncRwLock;
-use crate::traits::{*, CircuitBreakerWrapper, RetryStrategyWrapper};
-use crate::resilience::circuit_breaker::{CircuitBreaker as BaseCircuitBreaker, CircuitBreakerConfig};
-use crate::resilience::retry::{RetryBuilder, DefaultRetryPolicy, RetryConfig};
+use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
+use tokio::sync::RwLock as AsyncRwLock;
 
 /// Standard circuit breaker implementation
 pub struct StandardCircuitBreaker {
@@ -25,16 +33,17 @@ impl StandardCircuitBreaker {
             config,
         }
     }
-    
+
     fn get_or_create(&self, name: &str) -> Arc<BaseCircuitBreaker> {
         let breakers = self.breakers.read();
         if let Some(breaker) = breakers.get(name) {
             return breaker.clone();
         }
         drop(breakers);
-        
+
         let mut breakers = self.breakers.write();
-        breakers.entry(name.to_string())
+        breakers
+            .entry(name.to_string())
             .or_insert_with(|| Arc::new(BaseCircuitBreaker::new(name, self.config.clone())))
             .clone()
     }
@@ -50,15 +59,18 @@ impl CircuitBreakerTrait for StandardCircuitBreaker {
     {
         let breaker = self.get_or_create(name);
         breaker.call(f).await.map_err(|e| match e {
-            crate::resilience::circuit_breaker::CircuitBreakerError::CircuitOpen => 
-                CircuitBreakerError::CircuitOpen,
-            crate::resilience::circuit_breaker::CircuitBreakerError::ServiceError(msg) => 
-                CircuitBreakerError::ServiceError(msg),
-            crate::resilience::circuit_breaker::CircuitBreakerError::Timeout(d) => 
-                CircuitBreakerError::Timeout(d),
+            crate::resilience::circuit_breaker::CircuitBreakerError::CircuitOpen => {
+                CircuitBreakerError::CircuitOpen
+            }
+            crate::resilience::circuit_breaker::CircuitBreakerError::ServiceError(msg) => {
+                CircuitBreakerError::ServiceError(msg)
+            }
+            crate::resilience::circuit_breaker::CircuitBreakerError::Timeout(d) => {
+                CircuitBreakerError::Timeout(d)
+            }
         })
     }
-    
+
     fn state(&self, name: &str) -> CircuitState {
         let breaker = self.get_or_create(name);
         match breaker.state() {
@@ -67,27 +79,27 @@ impl CircuitBreakerTrait for StandardCircuitBreaker {
             crate::resilience::circuit_breaker::CircuitState::HalfOpen => CircuitState::HalfOpen,
         }
     }
-    
+
     fn stats(&self, name: &str) -> CircuitStats {
         let breaker = self.get_or_create(name);
         let stats = breaker.stats();
-        
+
         CircuitStats {
             state: self.state(name),
             failure_count: stats.failure_count,
             success_count: stats.success_count,
             total_requests: stats.total_requests,
             last_failure_time: None, // Not exposed in base implementation
-            tokens_available: 0.0, // Not applicable for standard
+            tokens_available: 0.0,   // Not applicable for standard
         }
     }
-    
+
     async fn trip(&self, name: &str, reason: &str) {
         tracing::warn!("Manually tripping circuit '{}': {}", name, reason);
         // Standard implementation doesn't support manual tripping
         // Would need to trigger failures to open circuit
     }
-    
+
     async fn reset(&self, name: &str) {
         tracing::info!("Manually resetting circuit '{}'", name);
         // Standard implementation doesn't support manual reset
@@ -115,11 +127,11 @@ impl StandardRetryStrategy {
             }),
         }
     }
-    
+
     fn consume_budget(&self, operation: &str) -> bool {
         let mut budgets = self.retry_budgets.write();
         let budget = budgets.entry(operation.to_string()).or_insert(100);
-        
+
         if *budget > 0 {
             *budget -= 1;
             true
@@ -127,10 +139,10 @@ impl StandardRetryStrategy {
             false
         }
     }
-    
+
     fn categorize_error(error: &anyhow::Error) -> ErrorCategory {
         let error_str = error.to_string().to_lowercase();
-        
+
         let (is_retryable, error_type) = if error_str.contains("timeout") {
             (true, ErrorType::Timeout)
         } else if error_str.contains("connection") || error_str.contains("network") {
@@ -139,16 +151,22 @@ impl StandardRetryStrategy {
             (true, ErrorType::RateLimit)
         } else if error_str.contains("unauthorized") || error_str.contains("401") {
             (false, ErrorType::Authentication)
-        } else if error_str.contains("500") || error_str.contains("502") || 
-                  error_str.contains("503") || error_str.contains("504") {
+        } else if error_str.contains("500")
+            || error_str.contains("502")
+            || error_str.contains("503")
+            || error_str.contains("504")
+        {
             (true, ErrorType::ServerError)
         } else if error_str.contains("400") || error_str.contains("404") {
             (false, ErrorType::ClientError)
         } else {
             (true, ErrorType::Unknown) // Retry unknown errors by default
         };
-        
-        ErrorCategory { is_retryable, error_type }
+
+        ErrorCategory {
+            is_retryable,
+            error_type,
+        }
     }
 }
 
@@ -162,12 +180,15 @@ impl RetryStrategyTrait for StandardRetryStrategy {
     {
         // Update stats
         self.stats.write().total_attempts += 1;
-        
+
         // Check budget
         if !self.consume_budget(operation) {
-            return Err(anyhow::anyhow!("Retry budget exhausted for operation: {}", operation));
+            return Err(anyhow::anyhow!(
+                "Retry budget exhausted for operation: {}",
+                operation
+            ));
         }
-        
+
         let result = RetryBuilder::new()
             .max_attempts(self.config.max_attempts)
             .initial_delay(self.config.initial_delay)
@@ -177,7 +198,7 @@ impl RetryStrategyTrait for StandardRetryStrategy {
             .policy(DefaultRetryPolicy)
             .run(operation, f)
             .await;
-        
+
         // Update stats based on result
         let mut stats = self.stats.write();
         match &result {
@@ -190,10 +211,10 @@ impl RetryStrategyTrait for StandardRetryStrategy {
                 stats.failed_retries += 1;
             }
         }
-        
+
         result
     }
-    
+
     fn should_retry(&self, _error: &anyhow::Error, context: &RetryContext) -> RetryDecision {
         // Check if we've exceeded max attempts
         if context.attempts >= self.config.max_attempts {
@@ -203,28 +224,31 @@ impl RetryStrategyTrait for StandardRetryStrategy {
                 reason: "Max attempts exceeded".to_string(),
             };
         }
-        
+
         // Check error category
         if !context.error_category.is_retryable {
             return RetryDecision {
                 should_retry: false,
                 delay: None,
-                reason: format!("Error type {:?} is not retryable", context.error_category.error_type),
+                reason: format!(
+                    "Error type {:?} is not retryable",
+                    context.error_category.error_type
+                ),
             };
         }
-        
+
         // Calculate delay
         let base_delay = self.config.initial_delay;
         let multiplier = self.config.multiplier.powi(context.attempts as i32);
         let delay = base_delay.mul_f64(multiplier).min(self.config.max_delay);
-        
+
         RetryDecision {
             should_retry: true,
             delay: Some(delay),
-            reason: format!("Retrying after {:?} delay", delay),
+            reason: format!("Retrying after {delay:?} delay"),
         }
     }
-    
+
     fn stats(&self) -> RetryStats {
         self.stats.read().clone()
     }
@@ -234,21 +258,27 @@ impl RetryStrategyTrait for StandardRetryStrategy {
 pub struct StandardResilienceFactory;
 
 impl ResilienceFactory for StandardResilienceFactory {
-    fn create_circuit_breaker(&self, config: &crate::config::Config) -> Result<Arc<dyn DynCircuitBreaker>> {
+    fn create_circuit_breaker(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn DynCircuitBreaker>> {
         let cb_config = CircuitBreakerConfig {
             failure_threshold: config.resilience.circuit_breaker.failure_threshold,
             failure_window: config.resilience.circuit_breaker.failure_window,
-            success_threshold: config.resilience.circuit_breaker.success_threshold as f64,
+            success_threshold: f64::from(config.resilience.circuit_breaker.success_threshold),
             recovery_timeout: config.resilience.circuit_breaker.recovery_timeout,
             request_timeout: config.resilience.circuit_breaker.request_timeout,
             half_open_max_requests: config.resilience.circuit_breaker.half_open_max_requests,
         };
-        
+
         let breaker = StandardCircuitBreaker::new(cb_config);
         Ok(Arc::new(CircuitBreakerWrapper::new(breaker)))
     }
-    
-    fn create_retry_strategy(&self, config: &crate::config::Config) -> Result<Arc<dyn DynRetryStrategy>> {
+
+    fn create_retry_strategy(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn DynRetryStrategy>> {
         let retry_config = RetryConfig {
             max_attempts: config.resilience.retry.max_attempts,
             initial_delay: config.resilience.retry.initial_delay,
@@ -257,16 +287,22 @@ impl ResilienceFactory for StandardResilienceFactory {
             jitter_factor: config.resilience.retry.jitter_factor,
             timeout: Some(config.resilience.retry.timeout),
         };
-        
+
         let strategy = StandardRetryStrategy::new(retry_config);
         Ok(Arc::new(RetryStrategyWrapper::new(strategy)))
     }
-    
-    fn create_health_checker(&self, _config: &crate::config::Config) -> Result<Arc<dyn HealthCheckTrait>> {
+
+    fn create_health_checker(
+        &self,
+        _config: &crate::config::Config,
+    ) -> Result<Arc<dyn HealthCheckTrait>> {
         Ok(Arc::new(StandardHealthChecker::new()))
     }
-    
-    fn create_recovery_strategy(&self, _config: &crate::config::Config) -> Result<Arc<dyn RecoveryStrategyTrait>> {
+
+    fn create_recovery_strategy(
+        &self,
+        _config: &crate::config::Config,
+    ) -> Result<Arc<dyn RecoveryStrategyTrait>> {
         Ok(Arc::new(StandardRecoveryStrategy::new()))
     }
 }
@@ -298,12 +334,12 @@ impl HealthCheckTrait for StandardHealthChecker {
     async fn check(&self) -> Result<HealthStatus> {
         let start = Instant::now();
         *self.last_check.write() = Some(start);
-        
+
         // Check all dependencies
         let deps = self.dependencies.read().await;
         let mut all_healthy = true;
         let mut has_degraded = false;
-        
+
         for (name, checker) in deps.iter() {
             match tokio::time::timeout(Duration::from_secs(3), checker.check()).await {
                 Ok(Ok(status)) => match status {
@@ -327,7 +363,7 @@ impl HealthCheckTrait for StandardHealthChecker {
                 }
             }
         }
-        
+
         if !all_healthy {
             Ok(HealthStatus::Unhealthy)
         } else if has_degraded {
@@ -336,14 +372,14 @@ impl HealthCheckTrait for StandardHealthChecker {
             Ok(HealthStatus::Healthy)
         }
     }
-    
+
     async fn detailed_check(&self) -> Result<HealthReport> {
         let start = Instant::now();
         let overall_status = self.check().await?;
-        
+
         let mut checks = Vec::new();
         let deps = self.dependencies.read().await;
-        
+
         for (name, checker) in deps.iter() {
             let check_start = Instant::now();
             let result = match tokio::time::timeout(Duration::from_secs(3), checker.check()).await {
@@ -370,7 +406,7 @@ impl HealthCheckTrait for StandardHealthChecker {
             };
             checks.push(result);
         }
-        
+
         Ok(HealthReport {
             status: overall_status,
             checks,
@@ -381,17 +417,17 @@ impl HealthCheckTrait for StandardHealthChecker {
             latency_ms: start.elapsed().as_millis() as u64,
         })
     }
-    
+
     fn register_dependency(&self, name: String, checker: Arc<dyn HealthCheckTrait>) {
         // Since this is a sync method but we need async RwLock, we'll use block_on
         // In production, this method should be made async in the trait
         tokio::task::block_in_place(|| {
             tokio::runtime::Handle::current().block_on(async {
                 self.dependencies.write().await.insert(name, checker);
-            })
+            });
         });
     }
-    
+
     fn metadata(&self) -> HealthCheckMetadata {
         self.metadata.clone()
     }
@@ -419,22 +455,26 @@ impl StandardRecoveryStrategy {
             cache_ttl: Duration::from_secs(300), // 5 minutes
         }
     }
-    
+
     fn cleanup_cache(&self) {
         let now = Instant::now();
-        self.cache.write().retain(|_, (timestamp, _)| {
-            now.duration_since(*timestamp) < self.cache_ttl
-        });
+        self.cache
+            .write()
+            .retain(|_, (timestamp, _)| now.duration_since(*timestamp) < self.cache_ttl);
     }
 }
 
 #[async_trait]
 impl RecoveryStrategyTrait for StandardRecoveryStrategy {
-    async fn recover(&self, context: &RecoveryContext, operation_name: &str) -> Result<serde_json::Value> {
+    async fn recover(
+        &self,
+        context: &RecoveryContext,
+        operation_name: &str,
+    ) -> Result<serde_json::Value> {
         // Update stats
         self.stats.write().recoveries_attempted += 1;
         *self.state.write() = RecoveryState::Recovering;
-        
+
         // Check cache first
         let cache_key = format!("{}:{}", context.service_name, operation_name);
         if let Some((timestamp, data)) = self.cache.read().get(&cache_key) {
@@ -448,49 +488,49 @@ impl RecoveryStrategyTrait for StandardRecoveryStrategy {
                 stats.fallbacks_used += 1;
                 stats.current_state = RecoveryState::Fallback;
                 *self.state.write() = RecoveryState::Fallback;
-                
+
                 // Deserialize cached data
-                if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&data) {
+                if let Ok(value) = serde_json::from_slice::<serde_json::Value>(data) {
                     return Ok(value);
                 }
             }
         }
-        
+
         // No cache available - return error
         let mut stats = self.stats.write();
         stats.current_state = RecoveryState::Failed;
         *self.state.write() = RecoveryState::Failed;
-        
+
         tracing::error!(
             "Recovery failed for service '{}' operation '{}': no fallback available",
             context.service_name,
             operation_name
         );
-        
+
         Err(anyhow::anyhow!("Recovery failed: no fallback available"))
     }
-    
+
     fn can_recover(&self, error: &anyhow::Error) -> bool {
         // Simple heuristic: check if error is recoverable
         let error_str = error.to_string().to_lowercase();
-        
+
         // These errors are typically recoverable
-        error_str.contains("timeout") ||
-        error_str.contains("connection") ||
-        error_str.contains("temporarily unavailable") ||
-        error_str.contains("503") ||
-        error_str.contains("502")
+        error_str.contains("timeout")
+            || error_str.contains("connection")
+            || error_str.contains("temporarily unavailable")
+            || error_str.contains("503")
+            || error_str.contains("502")
     }
-    
+
     fn stats(&self) -> RecoveryStats {
         self.stats.read().clone()
     }
-    
+
     async fn update_state(&self, state: RecoveryState) {
         let mut current_state = self.state.write();
         *current_state = state;
         self.stats.write().current_state = state;
-        
+
         // Clean up cache periodically
         if matches!(state, RecoveryState::Normal) {
             self.cleanup_cache();

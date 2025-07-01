@@ -1,11 +1,11 @@
 //! Simple performance test comparing standard and enhanced modes
 
-use std::time::Instant;
 use kindly_guard_server::{
-    config::Config,
     component_selector::ComponentManager,
-    traits::{SecurityEvent, RateLimitKey},
+    config::Config,
+    traits::{RateLimitKey, SecurityEvent},
 };
+use std::time::Instant;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -20,8 +20,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Testing STANDARD mode...");
     let standard_config = create_config(false);
     let standard_results = run_test(&standard_config, test_iterations, test_clients).await?;
-    
-    // Test Enhanced Mode  
+
+    // Test Enhanced Mode
     println!("\nTesting ENHANCED mode...");
     let enhanced_config = create_config(true);
     let enhanced_results = run_test(&enhanced_config, test_iterations, test_clients).await?;
@@ -32,24 +32,43 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Test iterations: {}", test_iterations);
     println!("Test clients: {}", test_clients);
     println!();
-    
+
     println!("STANDARD mode:");
-    println!("  Event Processing: {:.2} ms/op", standard_results.event_time_ms);
-    println!("  Rate Limiting: {:.2} ms/op", standard_results.rate_limit_time_ms);
+    println!(
+        "  Event Processing: {:.2} ms/op",
+        standard_results.event_time_ms
+    );
+    println!(
+        "  Rate Limiting: {:.2} ms/op",
+        standard_results.rate_limit_time_ms
+    );
     println!("  Scanner: {:.2} ms/op", standard_results.scanner_time_ms);
     println!();
-    
+
     println!("ENHANCED mode:");
-    println!("  Event Processing: {:.2} ms/op", enhanced_results.event_time_ms);
-    println!("  Rate Limiting: {:.2} ms/op", enhanced_results.rate_limit_time_ms);
+    println!(
+        "  Event Processing: {:.2} ms/op",
+        enhanced_results.event_time_ms
+    );
+    println!(
+        "  Rate Limiting: {:.2} ms/op",
+        enhanced_results.rate_limit_time_ms
+    );
     println!("  Scanner: {:.2} ms/op", enhanced_results.scanner_time_ms);
     println!();
-    
+
     println!("Performance Improvement:");
-    let event_improvement = (standard_results.event_time_ms - enhanced_results.event_time_ms) / standard_results.event_time_ms * 100.0;
-    let rate_improvement = (standard_results.rate_limit_time_ms - enhanced_results.rate_limit_time_ms) / standard_results.rate_limit_time_ms * 100.0;
-    let scanner_improvement = (standard_results.scanner_time_ms - enhanced_results.scanner_time_ms) / standard_results.scanner_time_ms * 100.0;
-    
+    let event_improvement = (standard_results.event_time_ms - enhanced_results.event_time_ms)
+        / standard_results.event_time_ms
+        * 100.0;
+    let rate_improvement = (standard_results.rate_limit_time_ms
+        - enhanced_results.rate_limit_time_ms)
+        / standard_results.rate_limit_time_ms
+        * 100.0;
+    let scanner_improvement = (standard_results.scanner_time_ms - enhanced_results.scanner_time_ms)
+        / standard_results.scanner_time_ms
+        * 100.0;
+
     println!("  Event Processing: {:.1}% faster", event_improvement);
     println!("  Rate Limiting: {:.1}% faster", rate_improvement);
     println!("  Scanner: {:.1}% faster", scanner_improvement);
@@ -72,9 +91,13 @@ fn create_config(enhanced: bool) -> Config {
     config
 }
 
-async fn run_test(config: &Config, iterations: usize, clients: usize) -> Result<TestResults, Box<dyn std::error::Error>> {
+async fn run_test(
+    config: &Config,
+    iterations: usize,
+    clients: usize,
+) -> Result<TestResults, Box<dyn std::error::Error>> {
     let manager = ComponentManager::new(config)?;
-    
+
     // Test event processing
     let start = Instant::now();
     let processor = manager.event_processor();
@@ -91,7 +114,7 @@ async fn run_test(config: &Config, iterations: usize, clients: usize) -> Result<
         processor.process_event(event).await?;
     }
     let event_time_ms = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-    
+
     // Test rate limiting
     let start = Instant::now();
     let rate_limiter = manager.rate_limiter();
@@ -103,7 +126,7 @@ async fn run_test(config: &Config, iterations: usize, clients: usize) -> Result<
         rate_limiter.check_rate_limit(&key).await?;
     }
     let rate_limit_time_ms = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-    
+
     // Test scanner
     let start = Instant::now();
     let scanner = manager.scanner();
@@ -112,7 +135,7 @@ async fn run_test(config: &Config, iterations: usize, clients: usize) -> Result<
         scanner.enhanced_scan(test_data)?;
     }
     let scanner_time_ms = start.elapsed().as_secs_f64() * 1000.0 / iterations as f64;
-    
+
     Ok(TestResults {
         event_time_ms,
         rate_limit_time_ms,

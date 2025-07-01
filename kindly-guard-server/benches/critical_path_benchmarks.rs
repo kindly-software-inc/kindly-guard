@@ -1,71 +1,68 @@
 //! Critical path performance benchmarks for production readiness
 
-use criterion::{black_box, criterion_group, criterion_main, Criterion, BenchmarkId, Throughput};
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use kindly_guard_server::{
-    McpServer, Config, ScannerConfig,
+    metrics::MetricsRegistry,
     scanner::{SecurityScanner, UnicodeScanner},
     security::hardening::CommandRateLimiter,
-    metrics::MetricsRegistry,
+    Config, McpServer, ScannerConfig,
 };
+use serde_json::json;
 use std::sync::Arc;
 use std::time::Duration;
-use serde_json::json;
 
 /// Benchmark unicode threat detection performance
 fn bench_unicode_scanning(c: &mut Criterion) {
     let mut group = c.benchmark_group("unicode_scanning");
-    
+
     // Test different text sizes
     let test_cases = vec![
         ("small", "Hello World".to_string()),
         ("medium", "A".repeat(1000)),
         ("large", "B".repeat(10000)),
-        ("unicode_threat", "Hello\u{202E}World\u{200B}Test\u{FEFF}".to_string()),
+        (
+            "unicode_threat",
+            "Hello\u{202E}World\u{200B}Test\u{FEFF}".to_string(),
+        ),
     ];
-    
+
     let scanner = UnicodeScanner::new();
-    
+
     for (name, text) in test_cases {
         group.throughput(Throughput::Bytes(text.len() as u64));
-        group.bench_with_input(
-            BenchmarkId::from_parameter(name),
-            &text,
-            |b, text| {
-                b.iter(|| {
-                    black_box(scanner.scan_text(text))
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(name), &text, |b, text| {
+            b.iter(|| black_box(scanner.scan_text(text)));
+        });
     }
-    
+
     group.finish();
 }
 
 /// Benchmark SQL injection detection
 fn bench_sql_injection_detection(c: &mut Criterion) {
     let mut group = c.benchmark_group("sql_injection");
-    
+
     let test_cases = vec![
         ("safe", "SELECT * FROM users WHERE id = ?"),
-        ("simple_injection", "SELECT * FROM users WHERE id = 1 OR 1=1"),
-        ("union_attack", "SELECT * FROM users UNION SELECT * FROM passwords"),
+        (
+            "simple_injection",
+            "SELECT * FROM users WHERE id = 1 OR 1=1",
+        ),
+        (
+            "union_attack",
+            "SELECT * FROM users UNION SELECT * FROM passwords",
+        ),
         ("complex", "'; DROP TABLE users; --"),
     ];
-    
+
     let scanner = SecurityScanner::new(ScannerConfig::default()).unwrap();
-    
+
     for (name, query) in test_cases {
-        group.bench_with_input(
-            BenchmarkId::from_parameter(name),
-            &query,
-            |b, query| {
-                b.iter(|| {
-                    black_box(scanner.scan_text(query))
-                });
-            },
-        );
+        group.bench_with_input(BenchmarkId::from_parameter(name), &query, |b, query| {
+            b.iter(|| black_box(scanner.scan_text(query)));
+        });
     }
-    
+
     group.finish();
 }
 
@@ -73,23 +70,23 @@ fn bench_sql_injection_detection(c: &mut Criterion) {
 fn bench_mcp_request_handling(c: &mut Criterion) {
     let mut group = c.benchmark_group("mcp_request_handling");
     group.measurement_time(Duration::from_secs(10));
-    
+
     // Create runtime for async operations
     let rt = tokio::runtime::Runtime::new().unwrap();
-    
+
     // Test both standard and enhanced modes
     for mode in &["standard", "enhanced"] {
         let enhanced = *mode == "enhanced";
-        
+
         // Setup server
         let mut config = Config::default();
         config.server.stdio = true;
         config.shield.enabled = false;
         config.auth.enabled = false; // Disable auth for pure request handling benchmark
         config.event_processor.enabled = enhanced;
-        
+
         let server = Arc::new(McpServer::new(config).unwrap());
-        
+
         // Initialize server
         rt.block_on(async {
             let init_request = json!({
@@ -107,103 +104,110 @@ fn bench_mcp_request_handling(c: &mut Criterion) {
             });
             server.handle_message(&init_request.to_string()).await;
         });
-        
+
         // Test different request types
         let test_requests = vec![
-            ("tools_list", json!({
-                "jsonrpc": "2.0",
-                "method": "tools/list",
-                "params": {},
-                "id": 1
-            })),
-            ("scan_small", json!({
-                "jsonrpc": "2.0",
-                "method": "tools/call",
-                "params": {
-                    "name": "scan_text",
-                    "arguments": {
-                        "text": "Hello World"
-                    }
-                },
-                "id": 1
-            })),
-            ("scan_large", json!({
-                "jsonrpc": "2.0",
-                "method": "tools/call",
-                "params": {
-                    "name": "scan_text",
-                    "arguments": {
-                        "text": "X".repeat(1000)
-                    }
-                },
-                "id": 1
-            })),
+            (
+                "tools_list",
+                json!({
+                    "jsonrpc": "2.0",
+                    "method": "tools/list",
+                    "params": {},
+                    "id": 1
+                }),
+            ),
+            (
+                "scan_small",
+                json!({
+                    "jsonrpc": "2.0",
+                    "method": "tools/call",
+                    "params": {
+                        "name": "scan_text",
+                        "arguments": {
+                            "text": "Hello World"
+                        }
+                    },
+                    "id": 1
+                }),
+            ),
+            (
+                "scan_large",
+                json!({
+                    "jsonrpc": "2.0",
+                    "method": "tools/call",
+                    "params": {
+                        "name": "scan_text",
+                        "arguments": {
+                            "text": "X".repeat(1000)
+                        }
+                    },
+                    "id": 1
+                }),
+            ),
         ];
-        
+
         for (req_name, request) in test_requests {
             let server_clone = server.clone();
             let bench_name = format!("{}/{}", mode, req_name);
-            group.bench_function(
-                BenchmarkId::from_parameter(&bench_name),
-                |b| {
-                    b.iter(|| {
-                        let request_str = request.to_string();
-                        rt.block_on(async {
-                            black_box(server_clone.handle_message(&request_str).await)
-                        })
-                    });
-                },
-            );
+            group.bench_function(BenchmarkId::from_parameter(&bench_name), |b| {
+                b.iter(|| {
+                    let request_str = request.to_string();
+                    rt.block_on(async {
+                        black_box(server_clone.handle_message(&request_str).await)
+                    })
+                });
+            });
         }
     }
-    
+
     group.finish();
 }
 
 /// Benchmark rate limiting performance
 fn bench_rate_limiting(c: &mut Criterion) {
     let mut group = c.benchmark_group("rate_limiting");
-    
+
     let rate_limiter = CommandRateLimiter::new();
-    
+
     // Test different scenarios
     let commands = vec!["scan", "status", "dashboard"];
-    
+
     for command in commands {
-        group.bench_function(
-            BenchmarkId::from_parameter(command),
-            |b| {
-                let mut counter = 0;
-                b.iter(|| {
-                    // Use different "time" by rotating commands to avoid hitting rate limit
-                    let test_command = format!("{}_{}", command, counter % 10);
-                    counter += 1;
-                    black_box(rate_limiter.check_command(&test_command))
-                });
-            },
-        );
+        group.bench_function(BenchmarkId::from_parameter(command), |b| {
+            let mut counter = 0;
+            b.iter(|| {
+                // Use different "time" by rotating commands to avoid hitting rate limit
+                let test_command = format!("{}_{}", command, counter % 10);
+                counter += 1;
+                black_box(rate_limiter.check_command(&test_command))
+            });
+        });
     }
-    
+
     group.finish();
 }
 
 /// Benchmark metrics collection overhead
 fn bench_metrics_overhead(c: &mut Criterion) {
     let mut group = c.benchmark_group("metrics_overhead");
-    
+
     let registry = Arc::new(MetricsRegistry::new());
-    
+
     // Create metrics
     let counter = registry.counter("test_counter", "Test counter");
     let gauge = registry.gauge("test_gauge", "Test gauge");
-    let histogram = registry.histogram("test_histogram", "Test histogram", vec![0.1, 0.5, 1.0, 5.0, 10.0]);
-    
+    let histogram = registry.histogram(
+        "test_histogram",
+        "Test histogram",
+        vec![0.1, 0.5, 1.0, 5.0, 10.0],
+    );
+
     group.bench_function("counter_increment", |b| {
         b.iter(|| {
             counter.inc();
         });
     });
-    
+
     group.bench_function("gauge_set", |b| {
         let mut value = 0.0;
         b.iter(|| {
@@ -211,7 +215,7 @@ fn bench_metrics_overhead(c: &mut Criterion) {
             value += 1.0;
         });
     });
-    
+
     group.bench_function("histogram_observe", |b| {
         let mut value = 0.0;
         b.iter(|| {
@@ -219,7 +223,7 @@ fn bench_metrics_overhead(c: &mut Criterion) {
             value += 0.1;
         });
     });
-    
+
     group.bench_function("metrics_export", |b| {
         // Add some data
         for i in 0..100 {
@@ -227,12 +231,10 @@ fn bench_metrics_overhead(c: &mut Criterion) {
             gauge.set(i as i64);
             histogram.observe(i as f64 * 0.1);
         }
-        
-        b.iter(|| {
-            black_box(registry.export_prometheus())
-        });
+
+        b.iter(|| black_box(registry.export_prometheus()));
     });
-    
+
     group.finish();
 }
 
@@ -240,18 +242,18 @@ fn bench_metrics_overhead(c: &mut Criterion) {
 fn bench_memory_patterns(c: &mut Criterion) {
     let mut group = c.benchmark_group("memory_patterns");
     group.measurement_time(Duration::from_secs(5));
-    
+
     // Test threat allocation patterns
     group.bench_function("threat_vector_allocation", |b| {
         let scanner = SecurityScanner::new(ScannerConfig::default()).unwrap();
         let text = "A".repeat(1000);
-        
+
         b.iter(|| {
             // This allocates a new Vec<Threat> each time
             black_box(scanner.scan_text(&text))
         });
     });
-    
+
     // Test JSON serialization patterns
     group.bench_function("json_serialization", |b| {
         let data = json!({
@@ -264,12 +266,10 @@ fn bench_memory_patterns(c: &mut Criterion) {
                 "scanner_version": "1.0.0"
             }
         });
-        
-        b.iter(|| {
-            black_box(serde_json::to_string(&data).unwrap())
-        });
+
+        b.iter(|| black_box(serde_json::to_string(&data).unwrap()));
     });
-    
+
     group.finish();
 }
 
@@ -278,22 +278,22 @@ fn bench_concurrent_requests(c: &mut Criterion) {
     let mut group = c.benchmark_group("concurrent_requests");
     group.measurement_time(Duration::from_secs(10));
     group.sample_size(50);
-    
+
     let rt = tokio::runtime::Runtime::new().unwrap();
-    
+
     // Test both standard and enhanced modes
     for mode in &["standard", "enhanced"] {
         let enhanced = *mode == "enhanced";
-        
+
         // Setup server
         let mut config = Config::default();
         config.server.stdio = true;
         config.shield.enabled = false;
         config.auth.enabled = false;
         config.event_processor.enabled = enhanced;
-        
+
         let server = Arc::new(McpServer::new(config).unwrap());
-        
+
         // Initialize
         rt.block_on(async {
             let init_request = json!({
@@ -311,46 +311,43 @@ fn bench_concurrent_requests(c: &mut Criterion) {
             });
             server.handle_message(&init_request.to_string()).await;
         });
-        
+
         // Test different concurrency levels
         for concurrency in [1, 10, 50, 100] {
             let server_clone = server.clone();
             let bench_name = format!("{}/{}_concurrent", mode, concurrency);
-            group.bench_function(
-                BenchmarkId::from_parameter(&bench_name),
-                |b| {
-                    b.iter(|| {
-                        rt.block_on(async {
-                            let tasks: Vec<_> = (0..concurrency)
-                                .map(|i| {
-                                    let server = server_clone.clone();
-                                    tokio::spawn(async move {
-                                        let request = json!({
-                                            "jsonrpc": "2.0",
-                                            "method": "tools/call",
-                                            "params": {
-                                                "name": "scan_text",
-                                                "arguments": {
-                                                    "text": format!("Test text {}", i)
-                                                }
-                                            },
-                                            "id": i
-                                        });
-                                        server.handle_message(&request.to_string()).await
-                                    })
+            group.bench_function(BenchmarkId::from_parameter(&bench_name), |b| {
+                b.iter(|| {
+                    rt.block_on(async {
+                        let tasks: Vec<_> = (0..concurrency)
+                            .map(|i| {
+                                let server = server_clone.clone();
+                                tokio::spawn(async move {
+                                    let request = json!({
+                                        "jsonrpc": "2.0",
+                                        "method": "tools/call",
+                                        "params": {
+                                            "name": "scan_text",
+                                            "arguments": {
+                                                "text": format!("Test text {}", i)
+                                            }
+                                        },
+                                        "id": i
+                                    });
+                                    server.handle_message(&request.to_string()).await
                                 })
-                                .collect();
-                            
-                            for task in tasks {
-                                black_box(task.await.unwrap());
-                            }
-                        })
-                    });
-                },
-            );
+                            })
+                            .collect();
+
+                        for task in tasks {
+                            black_box(task.await.unwrap());
+                        }
+                    })
+                });
+            });
         }
     }
-    
+
     group.finish();
 }
 

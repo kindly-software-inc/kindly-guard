@@ -2,8 +2,7 @@
 
 use anyhow::Result;
 use kindly_guard_client::{
-    ClientConfiguration, TestClient, MetricsCollectorImpl,
-    MetricsCollector,
+    ClientConfiguration, MetricsCollector, MetricsCollectorImpl, TestClient,
 };
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -77,14 +76,15 @@ stdio = true
         for client_id in 0..concurrent_clients {
             let metrics_clone = metrics.clone();
             let server_path_clone = server_path.clone();
-            
+
             tasks.spawn(async move {
                 run_client_workload(
                     client_id,
                     server_path_clone,
                     requests_per_client,
                     metrics_clone,
-                ).await
+                )
+                .await
             });
         }
 
@@ -99,17 +99,23 @@ stdio = true
 
         // Get metrics summary
         let summary = metrics.get_summary();
-        
+
         info!("\n📊 Stress Test Results - {} mode", mode);
         info!("==================================");
         info!("Test duration: {:.2}s", test_duration.as_secs_f64());
         info!("Total requests: {}", summary.total_requests);
-        info!("Requests/sec: {:.0}", summary.total_requests as f64 / test_duration.as_secs_f64());
+        info!(
+            "Requests/sec: {:.0}",
+            summary.total_requests as f64 / test_duration.as_secs_f64()
+        );
         info!("Total errors: {}", summary.total_errors);
-        info!("Error rate: {:.2}%", (summary.total_errors as f64 / summary.total_requests as f64) * 100.0);
+        info!(
+            "Error rate: {:.2}%",
+            (summary.total_errors as f64 / summary.total_requests as f64) * 100.0
+        );
         info!("Average latency: {:.2}ms", summary.avg_latency_ms);
         info!("P99 latency: {:.2}ms", summary.p99_latency_ms);
-        
+
         if !summary.errors_by_type.is_empty() {
             info!("\nError breakdown:");
             for (error_type, count) in &summary.errors_by_type {
@@ -152,40 +158,42 @@ async fn run_client_workload(
     // Generate varied workload
     for i in 0..request_count {
         let start = Instant::now();
-        
+
         // Mix of operations
         let operation = i % 4;
-        let result = match operation {
-            0 => {
-                // Normal scan
-                client.call_tool(
+        let result =
+            match operation {
+                0 => {
+                    // Normal scan
+                    client.call_tool(
                     "scan_text",
                     serde_json::json!({
                         "text": format!("Normal text from client {} request {}", client_id, i)
                     })
                 ).await
-            }
-            1 => {
-                // Threat scan
-                client.call_tool(
-                    "scan_text",
-                    serde_json::json!({
-                        "text": "SELECT * FROM users WHERE 1=1"
-                    })
-                ).await
-            }
-            2 => {
-                // Security info
-                client.call_tool(
-                    "get_security_info",
-                    serde_json::json!({})
-                ).await
-            }
-            _ => {
-                // List tools
-                client.list_tools().await.map(|_| serde_json::Value::Null)
-            }
-        };
+                }
+                1 => {
+                    // Threat scan
+                    client
+                        .call_tool(
+                            "scan_text",
+                            serde_json::json!({
+                                "text": "SELECT * FROM users WHERE 1=1"
+                            }),
+                        )
+                        .await
+                }
+                2 => {
+                    // Security info
+                    client
+                        .call_tool("get_security_info", serde_json::json!({}))
+                        .await
+                }
+                _ => {
+                    // List tools
+                    client.list_tools().await.map(|_| serde_json::Value::Null)
+                }
+            };
 
         let duration = start.elapsed();
 
@@ -208,6 +216,6 @@ async fn run_client_workload(
 
     // Disconnect
     client.disconnect().await?;
-    
+
     Ok(())
 }

@@ -1,6 +1,7 @@
 //! Enhanced logging with semantic fields for stealth operation
 //! This module provides structured logging that hides implementation details
 
+use serde::Serialize;
 use tracing_subscriber::{
     filter::EnvFilter,
     fmt::{self, format::FmtSpan},
@@ -8,9 +9,6 @@ use tracing_subscriber::{
     util::SubscriberInitExt,
     Layer,
 };
-use tracing::{Level, Span};
-use serde::Serialize;
-use std::io::Write;
 
 /// Logging configuration
 #[derive(Debug, Clone)]
@@ -47,18 +45,20 @@ pub enum LogFormat {
 /// Initialize the logging system with stealth configuration
 pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>> {
     let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| {
-            EnvFilter::new(&format!("kindly_guard={},warn", config.level))
-        });
-    
+        .unwrap_or_else(|_| EnvFilter::new(format!("kindly_guard={},warn", config.level)));
+
     if config.json_output || matches!(config.format, LogFormat::Json) {
         // JSON structured logging
         let fmt_layer = fmt::layer()
             .with_target(config.include_target)
             .with_thread_ids(false)
             .with_thread_names(false)
-            .with_span_events(if config.detailed { FmtSpan::FULL } else { FmtSpan::NONE });
-        
+            .with_span_events(if config.detailed {
+                FmtSpan::FULL
+            } else {
+                FmtSpan::NONE
+            });
+
         tracing_subscriber::registry()
             .with(env_filter)
             .with(fmt_layer)
@@ -70,14 +70,18 @@ pub fn init_logging(config: LogConfig) -> Result<(), Box<dyn std::error::Error>>
             .with_thread_ids(false)
             .with_thread_names(false)
             .with_ansi(!cfg!(windows)) // Disable ANSI on Windows
-            .with_span_events(if config.detailed { FmtSpan::FULL } else { FmtSpan::NONE });
-        
+            .with_span_events(if config.detailed {
+                FmtSpan::FULL
+            } else {
+                FmtSpan::NONE
+            });
+
         tracing_subscriber::registry()
             .with(env_filter)
             .with(fmt_layer)
             .init();
     }
-    
+
     Ok(())
 }
 
@@ -88,7 +92,6 @@ pub fn init_logging_simple(detailed: bool) -> Result<(), Box<dyn std::error::Err
         ..Default::default()
     })
 }
-
 
 /// Log security events with semantic fields
 #[macro_export]
@@ -174,12 +177,12 @@ pub struct SemanticLogger;
 impl SemanticLogger {
     /// Log an authentication event
     pub fn auth_event(success: bool, client_id: &str, method: Option<&str>) {
-        let event_type = if success { 
-            event_types::AUTH_SUCCESS 
-        } else { 
-            event_types::AUTH_FAILURE 
+        let event_type = if success {
+            event_types::AUTH_SUCCESS
+        } else {
+            event_types::AUTH_FAILURE
         };
-        
+
         if let Some(method) = method {
             tracing::info!(
                 event_type = event_type,
@@ -195,7 +198,7 @@ impl SemanticLogger {
             );
         }
     }
-    
+
     /// Log a threat detection
     pub fn threat_detected(client_id: &str, threat_type: &str, severity: &str) {
         tracing::warn!(
@@ -206,7 +209,7 @@ impl SemanticLogger {
             category = "security"
         );
     }
-    
+
     /// Log rate limiting
     pub fn rate_limit_event(client_id: &str, allowed: bool, tokens: f64) {
         if allowed {
@@ -227,7 +230,7 @@ impl SemanticLogger {
             );
         }
     }
-    
+
     /// Log performance metrics
     pub fn performance_metric(operation: &str, duration_ms: u64, enhanced: bool) {
         let level = if enhanced { "optimized" } else { "standard" };
@@ -239,7 +242,7 @@ impl SemanticLogger {
             category = "performance"
         );
     }
-    
+
     /// Log circuit breaker events
     pub fn circuit_breaker_event(endpoint: &str, open: bool) {
         let event_type = if open {
@@ -247,7 +250,7 @@ impl SemanticLogger {
         } else {
             event_types::CIRCUIT_BREAKER_CLOSE
         };
-        
+
         tracing::info!(
             event_type = event_type,
             endpoint = endpoint,
@@ -263,7 +266,7 @@ pub fn sanitize_for_log(input: &str) -> String {
     let sanitized = input
         .replace("enhanced", "optimized")
         .replace("standard", "normal");
-    
+
     // Truncate if too long
     if sanitized.len() > 200 {
         format!("{}...", &sanitized[..200])
@@ -314,7 +317,7 @@ pub struct ErrorLog {
 impl ErrorLog {
     pub fn from_kindly_error(error: &crate::error::KindlyError) -> Self {
         Self {
-            error_type: format!("{:?}", error),
+            error_type: format!("{error:?}"),
             error_code: error.to_protocol_code(),
             message: error.to_string(),
             severity: format!("{:?}", error.severity()),
@@ -322,7 +325,7 @@ impl ErrorLog {
             context: None,
         }
     }
-    
+
     pub fn log(&self) {
         match self.severity.as_str() {
             "Critical" => tracing::error!(

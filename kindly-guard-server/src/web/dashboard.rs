@@ -1,20 +1,19 @@
-//! Minimalist web dashboard for KindlyGuard
+//! Minimalist web dashboard for `KindlyGuard`
 //! Clean, modern interface for security monitoring
 
-use std::sync::Arc;
-use std::net::SocketAddr;
-use tokio::sync::RwLock;
 use axum::{
-    Router,
-    routing::{get, post},
-    response::{Html, Json},
     extract::State,
     http::StatusCode,
+    response::{Html, Json},
+    routing::{get, post},
+    Router,
 };
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
+use std::net::SocketAddr;
+use std::sync::Arc;
 
-use crate::shield::{Shield, UniversalShieldStatus};
 use crate::shield::universal_display::UniversalDisplay;
+use crate::shield::{Shield, UniversalShieldStatus};
 
 /// Dashboard configuration
 #[derive(Debug, Clone)]
@@ -51,12 +50,12 @@ pub struct DashboardServer {
 
 impl DashboardServer {
     /// Create new dashboard server
-    pub fn new(shield: Arc<Shield>, config: DashboardConfig) -> Self {
+    pub const fn new(shield: Arc<Shield>, config: DashboardConfig) -> Self {
         Self {
             state: AppState { shield, config },
         }
     }
-    
+
     /// Run the dashboard server
     pub async fn run(self) -> Result<(), Box<dyn std::error::Error>> {
         let app = Router::new()
@@ -65,10 +64,13 @@ impl DashboardServer {
             .route("/api/shield/toggle", post(toggle_shield))
             .route("/api/mode/toggle", post(toggle_mode))
             .with_state(self.state.clone());
-        
+
         let listener = tokio::net::TcpListener::bind(&self.state.config.listen_addr).await?;
-        tracing::info!("Dashboard running at http://{}", self.state.config.listen_addr);
-        
+        tracing::info!(
+            "Dashboard running at http://{}",
+            self.state.config.listen_addr
+        );
+
         axum::serve(listener, app).await?;
         Ok(())
     }
@@ -82,18 +84,17 @@ async fn serve_dashboard() -> Html<&'static str> {
 /// Get current shield status as JSON
 async fn get_status(State(state): State<AppState>) -> Json<UniversalShieldStatus> {
     let display = UniversalDisplay::new(
-        state.shield.clone(),
+        state.shield,
         crate::shield::universal_display::UniversalDisplayConfig {
             color: false,
             detailed: true,
             format: crate::shield::universal_display::DisplayFormat::Json,
             status_file: None,
-        }
+        },
     );
-    
+
     Json(display.get_status())
 }
-
 
 /// Toggle shield active state
 async fn toggle_shield(State(state): State<AppState>) -> StatusCode {

@@ -1,8 +1,8 @@
 //! Trait abstractions for MCP client components
 //! Enables testing with different security scenarios
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
 use serde_json::Value;
 use std::time::Duration;
 
@@ -11,10 +11,10 @@ use std::time::Duration;
 pub trait McpTransport: Send + Sync {
     /// Send a request and receive a response
     async fn send_request(&self, request: &str) -> Result<String>;
-    
+
     /// Check if transport is connected
     fn is_connected(&self) -> bool;
-    
+
     /// Close the transport
     async fn close(&self) -> Result<()>;
 }
@@ -24,13 +24,13 @@ pub trait McpTransport: Send + Sync {
 pub trait SecurityTester: Send + Sync {
     /// Inject a specific threat pattern
     async fn inject_threat(&self, threat_type: ThreatType, payload: &str) -> Result<TestResult>;
-    
+
     /// Test rate limiting behavior
     async fn test_rate_limits(&self, requests_per_second: u32) -> Result<RateLimitTestResult>;
-    
+
     /// Test authentication flows
     async fn test_auth(&self, scenario: AuthScenario) -> Result<AuthTestResult>;
-    
+
     /// Test message signing
     async fn test_signing(&self, tamper: bool) -> Result<SigningTestResult>;
 }
@@ -39,10 +39,10 @@ pub trait SecurityTester: Send + Sync {
 pub trait MetricsCollector: Send + Sync {
     /// Record request latency
     fn record_latency(&self, method: &str, duration: Duration);
-    
+
     /// Record error
     fn record_error(&self, method: &str, error: &str);
-    
+
     /// Get metrics summary
     fn get_summary(&self) -> MetricsSummary;
 }
@@ -117,13 +117,13 @@ pub struct MetricsSummary {
 pub trait ClientConfig {
     /// Get server URL or stdio indicator
     fn server_endpoint(&self) -> &str;
-    
+
     /// Get authentication token if configured
     fn auth_token(&self) -> Option<&str>;
-    
+
     /// Check if message signing is enabled
     fn signing_enabled(&self) -> bool;
-    
+
     /// Get client identifier
     fn client_id(&self) -> &str;
 }
@@ -133,19 +133,19 @@ pub trait ClientConfig {
 pub trait McpClient: Send + Sync {
     /// Initialize the client connection
     async fn connect(&mut self) -> Result<()>;
-    
+
     /// Send a raw JSON-RPC request
     async fn send_request(&self, method: &str, params: Option<Value>) -> Result<Value>;
-    
+
     /// Call an MCP tool
     async fn call_tool(&self, tool_name: &str, arguments: Value) -> Result<Value>;
-    
+
     /// List available tools
     async fn list_tools(&self) -> Result<Vec<ToolInfo>>;
-    
+
     /// Get server capabilities
     async fn get_capabilities(&self) -> Result<ServerCapabilities>;
-    
+
     /// Disconnect from server
     async fn disconnect(&mut self) -> Result<()>;
 }

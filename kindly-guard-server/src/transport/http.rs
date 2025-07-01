@@ -1,21 +1,24 @@
 //! HTTP transport implementation
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
-use std::net::SocketAddr;
 use anyhow::Result;
 use async_trait::async_trait;
-use tokio::sync::{Mutex, mpsc};
-use tracing::{debug, info, warn, error};
-use axum::{Router, routing::post, extract::State, Json};
+use axum::{extract::State, routing::post, Json, Router};
+use std::net::SocketAddr;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use tokio::sync::{mpsc, Mutex};
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
+use tracing::{debug, error, info};
 
-use super::*;
+use super::{
+    ConnectionInfo, ConnectionStats, Transport, TransportConnection, TransportMessage,
+    TransportStats, TransportType,
+};
 
+use super::Deserialize;
 /// HTTP transport configuration
 use super::Serialize;
-use super::Deserialize;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpConfig {
@@ -58,7 +61,7 @@ impl HttpTransport {
     /// Create new HTTP transport
     pub fn new(config: serde_json::Value) -> Result<Self> {
         let config: HttpConfig = serde_json::from_value(config)?;
-        
+
         Ok(Self {
             config,
             running: AtomicBool::new(false),
@@ -66,27 +69,27 @@ impl HttpTransport {
             shutdown_tx: None,
         })
     }
-    
+
     /// Start HTTP server
     async fn start_server(&mut self) -> Result<mpsc::Sender<()>> {
         let (shutdown_tx, mut shutdown_rx) = mpsc::channel(1);
         let addr: SocketAddr = self.config.bind_addr.parse()?;
         let stats = self.stats.clone();
-        
+
         // Create router with basic endpoint
         let app = Router::new()
             .route("/rpc", post(handle_rpc))
             .layer(
                 ServiceBuilder::new()
                     .layer(CorsLayer::permissive())
-                    .into_inner()
+                    .into_inner(),
             )
             .with_state(stats);
-        
+
         // Start server
         let listener = tokio::net::TcpListener::bind(&addr).await?;
         info!("HTTP server listening on {}", addr);
-        
+
         tokio::spawn(async move {
             axum::serve(listener, app)
                 .with_graceful_shutdown(async move {
@@ -97,7 +100,7 @@ impl HttpTransport {
                 .map_err(|e| error!("Server error: {}", e))
                 .ok();
         });
-        
+
         Ok(shutdown_tx)
     }
 }
@@ -107,48 +110,48 @@ impl Transport for HttpTransport {
     fn transport_type(&self) -> TransportType {
         TransportType::Http
     }
-    
+
     async fn start(&mut self) -> Result<()> {
         if self.running.load(Ordering::Relaxed) {
             return Err(anyhow::anyhow!("Transport already running"));
         }
-        
+
         let shutdown_tx = self.start_server().await?;
         self.shutdown_tx = Some(shutdown_tx);
         self.running.store(true, Ordering::Relaxed);
-        
+
         info!("Started HTTP transport on {}", self.config.bind_addr);
         Ok(())
     }
-    
+
     async fn stop(&mut self) -> Result<()> {
         if let Some(shutdown_tx) = self.shutdown_tx.take() {
             let _ = shutdown_tx.send(()).await;
         }
-        
+
         self.running.store(false, Ordering::Relaxed);
         info!("Stopped HTTP transport");
         Ok(())
     }
-    
+
     async fn accept(&mut self) -> Result<Box<dyn TransportConnection>> {
         if !self.running.load(Ordering::Relaxed) {
             return Err(anyhow::anyhow!("Transport not running"));
         }
-        
+
         // In real implementation, this would accept HTTP connections
         // For now, return a stub connection
         let mut stats = self.stats.lock().await;
         stats.connections_accepted += 1;
         stats.active_connections += 1;
         drop(stats);
-        
+
         Ok(Box::new(HttpConnection::new(
             "127.0.0.1:12345".to_string(),
             self.stats.clone(),
         )))
     }
-    
+
     async fn connect(&mut self, address: &str) -> Result<Box<dyn TransportConnection>> {
         // Create HTTP client connection
         Ok(Box::new(HttpConnection::new(
@@ -156,11 +159,11 @@ impl Transport for HttpTransport {
             self.stats.clone(),
         )))
     }
-    
+
     fn is_running(&self) -> bool {
         self.running.load(Ordering::Relaxed)
     }
-    
+
     fn get_stats(&self) -> TransportStats {
         if let Ok(stats) = self.stats.try_lock() {
             stats.clone()
@@ -168,7 +171,7 @@ impl Transport for HttpTransport {
             TransportStats::default()
         }
     }
-    
+
     async fn set_option(&mut self, key: &str, value: serde_json::Value) -> Result<()> {
         match key {
             "max_body_size" => {
@@ -201,7 +204,7 @@ pub struct HttpConnection {
 impl HttpConnection {
     fn new(remote_addr: String, transport_stats: Arc<Mutex<TransportStats>>) -> Self {
         let (message_tx, message_rx) = mpsc::unbounded_channel();
-        
+
         let info = ConnectionInfo {
             id: uuid::Uuid::new_v4().to_string(),
             transport_type: TransportType::Http,
@@ -210,7 +213,7 @@ impl HttpConnection {
             connected_at: chrono::Utc::now(),
             security_info: None, // Would be populated based on TLS info
         };
-        
+
         Self {
             info,
             remote_addr,
@@ -228,32 +231,32 @@ impl TransportConnection for HttpConnection {
     fn connection_info(&self) -> &ConnectionInfo {
         &self.info
     }
-    
+
     async fn send(&mut self, message: TransportMessage) -> Result<()> {
         if !self.connected.load(Ordering::Relaxed) {
             return Err(anyhow::anyhow!("Connection closed"));
         }
-        
+
         // In real implementation, send HTTP request/response
         debug!("HTTP send to {}: {}", self.remote_addr, message.id);
-        
+
         let mut stats = self.stats.lock().await;
         stats.messages_sent += 1;
         stats.bytes_sent += serde_json::to_vec(&message.payload)?.len() as u64;
         drop(stats);
-        
+
         let mut transport_stats = self.transport_stats.lock().await;
         transport_stats.messages_sent += 1;
         drop(transport_stats);
-        
+
         Ok(())
     }
-    
+
     async fn receive(&mut self) -> Result<Option<TransportMessage>> {
         if !self.connected.load(Ordering::Relaxed) {
             return Ok(None);
         }
-        
+
         // Check message queue
         let mut queue = self.message_queue.lock().await;
         match queue.recv().await {
@@ -261,32 +264,32 @@ impl TransportConnection for HttpConnection {
                 let mut stats = self.stats.lock().await;
                 stats.messages_received += 1;
                 drop(stats);
-                
+
                 let mut transport_stats = self.transport_stats.lock().await;
                 transport_stats.messages_received += 1;
                 drop(transport_stats);
-                
+
                 Ok(Some(message))
             }
             None => Ok(None),
         }
     }
-    
+
     async fn close(&mut self) -> Result<()> {
         self.connected.store(false, Ordering::Relaxed);
-        
+
         let mut transport_stats = self.transport_stats.lock().await;
         transport_stats.active_connections = transport_stats.active_connections.saturating_sub(1);
         drop(transport_stats);
-        
+
         info!("Closed HTTP connection to {}", self.remote_addr);
         Ok(())
     }
-    
+
     fn is_connected(&self) -> bool {
         self.connected.load(Ordering::Relaxed)
     }
-    
+
     fn get_stats(&self) -> ConnectionStats {
         if let Ok(stats) = self.stats.try_lock() {
             stats.clone()
@@ -294,15 +297,12 @@ impl TransportConnection for HttpConnection {
             ConnectionStats::default()
         }
     }
-    
+
     async fn set_option(&mut self, key: &str, value: serde_json::Value) -> Result<()> {
-        match key {
-            "client_id" => {
-                if let Some(id) = value.as_str() {
-                    self.info.client_id = Some(id.to_string());
-                }
+        if key == "client_id" {
+            if let Some(id) = value.as_str() {
+                self.info.client_id = Some(id.to_string());
             }
-            _ => {}
         }
         Ok(())
     }
@@ -316,7 +316,7 @@ async fn handle_rpc(
     // Update stats
     let mut s = stats.lock().await;
     s.messages_received += 1;
-    
+
     // Echo back for now (would process RPC in real impl)
     Ok(Json(serde_json::json!({
         "jsonrpc": "2.0",

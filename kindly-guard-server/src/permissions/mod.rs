@@ -1,25 +1,25 @@
 //! Tool-level permission system with trait-based architecture
 //! Enables fine-grained control over tool access
 
-use async_trait::async_trait;
 use anyhow::Result;
+use async_trait::async_trait;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
-use serde::{Deserialize, Serialize};
 
 #[cfg(any(test, feature = "test-utils"))]
 use mockall::{automock, predicate::*};
 
-pub mod standard;
 #[cfg(feature = "enhanced")]
 pub mod enhanced;
+pub mod standard;
 
-pub use standard::StandardPermissionManager;
 #[cfg(feature = "enhanced")]
 pub use enhanced::EnhancedPermissionManager;
+pub use standard::StandardPermissionManager;
 
 /// Permission decision
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Permission {
     Allow,
     Deny(String), // Reason for denial
@@ -36,17 +36,17 @@ pub trait ToolPermissionManager: Send + Sync {
         tool_name: &str,
         context: &PermissionContext,
     ) -> Result<Permission>;
-    
+
     /// Get list of allowed tools for a client
     async fn get_allowed_tools(&self, client_id: &str) -> Result<Vec<String>>;
-    
+
     /// Update permissions for a client
     async fn update_permissions(
         &self,
         client_id: &str,
         permissions: ClientPermissions,
     ) -> Result<()>;
-    
+
     /// Get permission stats
     fn get_stats(&self) -> PermissionStats;
 }
@@ -126,13 +126,13 @@ pub struct ToolDefinition {
 pub struct PermissionRules {
     /// Default permissions for new clients
     pub default_permissions: ClientPermissions,
-    
+
     /// Tool definitions
     pub tools: HashMap<String, ToolDefinition>,
-    
+
     /// Category-based rules
     pub category_rules: HashMap<ToolCategory, CategoryRule>,
-    
+
     /// Global deny list
     pub global_deny_list: HashSet<String>,
 }
@@ -178,11 +178,11 @@ impl Serialize for ThreatLevel {
         S: serde::Serializer,
     {
         let s = match self {
-            ThreatLevel::Safe => "safe",
-            ThreatLevel::Low => "low",
-            ThreatLevel::Medium => "medium",
-            ThreatLevel::High => "high",
-            ThreatLevel::Critical => "critical",
+            Self::Safe => "safe",
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+            Self::Critical => "critical",
         };
         serializer.serialize_str(s)
     }
@@ -195,11 +195,11 @@ impl<'de> Deserialize<'de> for ThreatLevel {
     {
         let s = String::deserialize(deserializer)?;
         match s.as_str() {
-            "safe" => Ok(ThreatLevel::Safe),
-            "low" => Ok(ThreatLevel::Low),
-            "medium" => Ok(ThreatLevel::Medium),
-            "high" => Ok(ThreatLevel::High),
-            "critical" => Ok(ThreatLevel::Critical),
+            "safe" => Ok(Self::Safe),
+            "low" => Ok(Self::Low),
+            "medium" => Ok(Self::Medium),
+            "high" => Ok(Self::High),
+            "critical" => Ok(Self::Critical),
             _ => Err(serde::de::Error::custom("invalid threat level")),
         }
     }
@@ -208,42 +208,53 @@ impl<'de> Deserialize<'de> for ThreatLevel {
 /// Default tool definitions
 pub fn default_tool_definitions() -> HashMap<String, ToolDefinition> {
     let mut tools = HashMap::new();
-    
+
     // Security tools
-    tools.insert("scan_text".to_string(), ToolDefinition {
-        name: "scan_text".to_string(),
-        category: ToolCategory::Security,
-        required_scopes: vec!["security:scan".to_string()],
-        min_threat_level: ThreatLevel::Safe,
-        require_signing: false,
-    });
-    
-    tools.insert("verify_signature".to_string(), ToolDefinition {
-        name: "verify_signature".to_string(),
-        category: ToolCategory::Security,
-        required_scopes: vec!["security:verify".to_string()],
-        min_threat_level: ThreatLevel::Safe,
-        require_signing: true,
-    });
-    
+    tools.insert(
+        "scan_text".to_string(),
+        ToolDefinition {
+            name: "scan_text".to_string(),
+            category: ToolCategory::Security,
+            required_scopes: vec!["security:scan".to_string()],
+            min_threat_level: ThreatLevel::Safe,
+            require_signing: false,
+        },
+    );
+
+    tools.insert(
+        "verify_signature".to_string(),
+        ToolDefinition {
+            name: "verify_signature".to_string(),
+            category: ToolCategory::Security,
+            required_scopes: vec!["security:verify".to_string()],
+            min_threat_level: ThreatLevel::Safe,
+            require_signing: true,
+        },
+    );
+
     // Information tools
-    tools.insert("get_security_info".to_string(), ToolDefinition {
-        name: "get_security_info".to_string(),
-        category: ToolCategory::Information,
-        required_scopes: vec!["info:read".to_string()],
-        min_threat_level: ThreatLevel::Safe,
-        require_signing: false,
-    });
-    
+    tools.insert(
+        "get_security_info".to_string(),
+        ToolDefinition {
+            name: "get_security_info".to_string(),
+            category: ToolCategory::Information,
+            required_scopes: vec!["info:read".to_string()],
+            min_threat_level: ThreatLevel::Safe,
+            require_signing: false,
+        },
+    );
+
     // Administrative tools
-    tools.insert("update_config".to_string(), ToolDefinition {
-        name: "update_config".to_string(),
-        category: ToolCategory::Administrative,
-        required_scopes: vec!["admin:write".to_string()],
-        min_threat_level: ThreatLevel::Safe,
-        require_signing: true,
-    });
-    
+    tools.insert(
+        "update_config".to_string(),
+        ToolDefinition {
+            name: "update_config".to_string(),
+            category: ToolCategory::Administrative,
+            required_scopes: vec!["admin:write".to_string()],
+            min_threat_level: ThreatLevel::Safe,
+            require_signing: true,
+        },
+    );
+
     tools
 }
-
