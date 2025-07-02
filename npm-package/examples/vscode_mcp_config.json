@@ -1,0 +1,16 @@
+{
+  "mcp.servers": {
+    "kindlyguard": {
+      "command": "npx",
+      "args": ["kindlyguard", "--stdio"],
+      "env": {
+        "RUST_LOG": "debug"
+      },
+      "capabilities": {
+        "tools": true,
+        "resources": true,
+        "prompts": false
+      }
+    }
+  }
+}

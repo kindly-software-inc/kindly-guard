@@ -1,0 +1,53 @@
+{
+  "name": "Medium test file",
+  "description": "10KB test file with mixed content",
+  "users": [
+    {"id": 1, "name": "Alice", "email": "alice@example.com", "bio": "Software developer interested in security"},
+    {"id": 2, "name": "Bob", "email": "bob@example.com", "bio": "System administrator with 10 years experience"},
+    {"id": 3, "name": "Charlie", "email": "charlie@example.com", "bio": "Security researcher and bug bounty hunter"},
+    {"id": 4, "name": "David", "email": "david@example.com", "bio": "Full-stack developer working on web applications"},
+    {"id": 5, "name": "Eve", "email": "eve@example.com", "bio": "Cryptography enthusiast and blockchain developer"}
+  ],
+  "posts": [
+    {
+      "id": 101,
+      "author": "Alice",
+      "title": "Understanding Unicode Security",
+      "content": "Unicode can be used in various attack vectors. It's important to validate and sanitize all Unicode input to prevent security vulnerabilities. Common attacks include bidirectional text override, homograph attacks, and zero-width character injection.",
+      "tags": ["security", "unicode", "web-security"],
+      "comments": [
+        {"user": "Bob", "text": "Great article! I've seen these attacks in the wild."},
+        {"user": "Charlie", "text": "Don't forget about normalization attacks too!"}
+      ]
+    },
+    {
+      "id": 102,
+      "author": "Bob",
+      "title": "SQL Injection Prevention Best Practices",
+      "content": "Always use parameterized queries and prepared statements. Never concatenate user input directly into SQL queries. Input validation is important but should not be your only defense. Use principle of least privilege for database accounts.",
+      "tags": ["sql", "security", "database"],
+      "comments": [
+        {"user": "David", "text": "What about stored procedures?"},
+        {"user": "Eve", "text": "ORMs can help but aren't foolproof"}
+      ]
+    },
+    {
+      "id": 103,
+      "author": "Charlie",
+      "title": "XSS Attack Vectors and Defenses",
+      "content": "Cross-site scripting remains one of the most common web vulnerabilities. Always encode output, use Content Security Policy headers, and validate input on both client and server side. Be especially careful with user-generated content.",
+      "tags": ["xss", "web-security", "javascript"],
+      "comments": [
+        {"user": "Alice", "text": "CSP is crucial for defense in depth"},
+        {"user": "Bob", "text": "Don't forget about DOM-based XSS"}
+      ]
+    }
+  ],
+  "logs": [
+    {"timestamp": "2024-01-01T10:00:00Z", "level": "INFO", "message": "System started successfully"},
+    {"timestamp": "2024-01-01T10:15:00Z", "level": "WARN", "message": "High memory usage detected"},
+    {"timestamp": "2024-01-01T10:30:00Z", "level": "INFO", "message": "Backup completed"},
+    {"timestamp": "2024-01-01T11:00:00Z", "level": "ERROR", "message": "Failed to connect to database"},
+    {"timestamp": "2024-01-01T11:05:00Z", "level": "INFO", "message": "Database connection restored"}
+  ]
+}

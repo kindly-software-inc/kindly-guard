@@ -1,0 +1,21 @@
+{
+  "name": "@kindlyguard/linux-x64",
+  "version": "0.2.0",
+  "description": "Linux x64 binary for KindlyGuard",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samduchaine/kindly-guard.git"
+  },
+  "license": "MIT",
+  "author": "samduchaine",
+  "main": "kindlyguard",
+  "files": [
+    "kindlyguard",
+    "kindlyguard-cli"
+  ],
+  "os": ["linux"],
+  "cpu": ["x64"],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

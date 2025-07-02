@@ -1,43 +1,43 @@
 #!/usr/bin/env node
 
-const path = require('path');
+/**
+ * KindlyGuard CLI tool wrapper
+ * This script launches the native KindlyGuard CLI binary
+ */
+
 const { spawn } = require('child_process');
-const fs = require('fs');
+const path = require('path');
+const platform = require('../lib/platform');
 
-// Find the actual binary
-const binDir = __dirname;
-const possibleBinaries = [
-  'kindlyguard-cli.bin',
-  'kindlyguard-cli.exe',
-  'kindlyguard-cli'
-];
-
-let binaryPath = null;
-for (const binary of possibleBinaries) {
-  const fullPath = path.join(binDir, binary);
-  if (fs.existsSync(fullPath)) {
-    binaryPath = fullPath;
-    break;
+try {
+  // Find the binary
+  const binaryPath = platform.getBinaryPath('kindlyguard-cli');
+  
+  // Validate it exists and is executable
+  const validation = platform.validateBinary(binaryPath);
+  if (!validation.valid) {
+    throw new Error(`Binary validation failed: ${validation.error}`);
   }
-}
-
-if (!binaryPath) {
-  console.error('KindlyGuard CLI binary not found!');
-  console.error('Please run: npm install -g kindlyguard');
+  
+  // Spawn the actual binary with all arguments
+  const proc = spawn(binaryPath, process.argv.slice(2), {
+    stdio: 'inherit',
+    env: process.env
+  });
+  
+  proc.on('exit', (code) => {
+    process.exit(code || 0);
+  });
+  
+  proc.on('error', (err) => {
+    console.error('Failed to start KindlyGuard CLI:', err.message);
+    console.error('\nTry reinstalling: npm install -g kindlyguard');
+    process.exit(1);
+  });
+  
+} catch (error) {
+  console.error('Error:', error.message);
+  console.error('\nKindlyGuard CLI binary not found or invalid.');
+  console.error('Please reinstall: npm install -g kindlyguard');
   process.exit(1);
 }
-
-// Spawn the actual binary with all arguments
-const proc = spawn(binaryPath, process.argv.slice(2), {
-  stdio: 'inherit',
-  env: process.env
-});
-
-proc.on('exit', (code) => {
-  process.exit(code);
-});
-
-proc.on('error', (err) => {
-  console.error('Failed to start KindlyGuard CLI:', err);
-  process.exit(1);
-});

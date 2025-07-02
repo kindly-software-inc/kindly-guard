@@ -1,41 +1,28 @@
+# Build artifacts
+npm/
+scripts/
+*.sh
+test-*.js
+
 # Development files
-*.log
-*.tmp
-.DS_Store
-node_modules/
-npm-debug.log*
-
-# Source control
-.git/
 .gitignore
+.editorconfig
+tsconfig.json
 
-# Build files
-*.tgz
-
-# Editor files
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Test files
-test/
-tests/
-__tests__/
-*.test.js
-*.spec.js
-
-# Documentation source
-docs/
-
-# Local config
-.env
-.env.local
+# Documentation
+*.md
+!README.md
 
 # OS files
+.DS_Store
 Thumbs.db
 
-# Publishing files
-publish.sh
-PUBLISH_INSTRUCTIONS.md
-test-package.js
+# Local test files
+test/
+tests/
+coverage/
+
+# Build scripts
+build-*.js
+publish-*.js
+auto-*.js

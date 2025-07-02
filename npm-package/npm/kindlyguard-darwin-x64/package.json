@@ -1,0 +1,21 @@
+{
+  "name": "@kindlyguard/darwin-x64",
+  "version": "0.2.0",
+  "description": "macOS x64 (Intel) binary for KindlyGuard",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samduchaine/kindly-guard.git"
+  },
+  "license": "MIT",
+  "author": "samduchaine",
+  "main": "kindlyguard",
+  "files": [
+    "kindlyguard",
+    "kindlyguard-cli"
+  ],
+  "os": ["darwin"],
+  "cpu": ["x64"],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

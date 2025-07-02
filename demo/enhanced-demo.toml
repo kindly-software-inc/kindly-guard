@@ -1,0 +1,66 @@
+# KindlyGuard Demo Configuration - Enhanced Mode
+# Demonstrates advanced threat detection with optimized performance
+
+[server]
+bind_address = "127.0.0.1:8080"
+max_connections = 1000
+timeout_seconds = 30
+
+[security]
+# Enhanced security with advanced features
+mode = "enhanced"
+unicode_detection = true
+injection_detection = true
+xss_detection = true
+max_input_size = 104857600  # 100MB
+
+[scanner]
+# Advanced pattern detection with SIMD optimization
+patterns = [
+    "sql_injection_advanced",
+    "xss_advanced",
+    "unicode_all",
+    "path_traversal",
+    "command_injection",
+    "ldap_injection",
+    "xml_injection"
+]
+use_simd = true
+parallel_scanning = true
+
+[shield]
+# Purple shield for enhanced mode
+color = "purple"
+show_notifications = true
+notification_duration = 5
+glow_effect = true
+
+[resilience]
+# Enhanced resilience features
+enhanced_mode = true
+
+[resilience.circuit_breaker]
+failure_threshold = 5
+recovery_timeout = "30s"
+half_open_max_requests = 3
+
+[resilience.retry]
+max_attempts = 3
+initial_delay = "100ms"
+max_delay = "10s"
+jitter_factor = 0.1
+
+[logging]
+level = "info"
+format = "pretty"
+
+[metrics]
+enabled = true
+export_interval = 5
+detailed_stats = true
+
+[performance]
+# Performance optimizations
+cache_size = 1000
+use_memory_pool = true
+zero_copy = true

@@ -1,0 +1,15 @@
+[package]
+name = "kindlyguard"
+version = "0.0.1"
+authors = ["samduchaine"]
+edition = "2021"
+description = "Security-focused MCP server for AI protection - Coming soon!"
+license = "MIT"
+repository = "https://github.com/samduchaine/kindly-guard"
+homepage = "https://github.com/samduchaine/kindly-guard"
+documentation = "https://docs.rs/kindlyguard"
+readme = "README.md"
+keywords = ["security", "mcp", "ai", "protection"]
+categories = ["network-programming", "web-programming"]
+
+[dependencies]

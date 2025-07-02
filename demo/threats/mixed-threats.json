@@ -1,0 +1,66 @@
+{
+  "name": "Mixed Threat Scenarios",
+  "description": "Complex attacks combining multiple techniques",
+  "threats": [
+    {
+      "type": "mixed",
+      "name": "Unicode + SQL Injection",
+      "payload": "admin\u200B' OR '1'='1",
+      "description": "Uses zero-width space to bypass input validation before SQL injection"
+    },
+    {
+      "type": "mixed",
+      "name": "XSS with Unicode Obfuscation",
+      "payload": "<scr\u200Bipt>alert('XSS')</scr\u200Bipt>",
+      "description": "Hides script tag with zero-width spaces"
+    },
+    {
+      "type": "mixed",
+      "name": "Path Traversal with Encoding",
+      "payload": "%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+      "description": "URL encoded path traversal attempt"
+    },
+    {
+      "type": "mixed",
+      "name": "Polyglot Payload",
+      "payload": "';alert(String.fromCharCode(88,83,83))//';alert(String.fromCharCode(88,83,83))//\";alert(String.fromCharCode(88,83,83))//\";alert(String.fromCharCode(88,83,83))//--></script>\">'><script>alert(String.fromCharCode(88,83,83))</script>",
+      "description": "Works in multiple contexts (SQL, JS, HTML)"
+    },
+    {
+      "type": "mixed",
+      "name": "Homograph + Phishing",
+      "payload": "https://www.gооgle.com/secure-login",
+      "description": "Uses Cyrillic 'о' in 'google' for phishing"
+    },
+    {
+      "type": "mixed",
+      "name": "Command Injection with Unicode",
+      "payload": "test; \u202Erm -rf /",
+      "description": "Uses RTL override to hide malicious command"
+    },
+    {
+      "type": "mixed",
+      "name": "JSON Injection with Unicode",
+      "payload": "{\"user\": \"admin\u0008\u0008\u0008guest\", \"role\": \"admin\"}",
+      "description": "Attempts to overwrite user role with backspace characters"
+    },
+    {
+      "type": "mixed",
+      "name": "CRLF + XSS",
+      "payload": "test%0d%0aContent-Type:%20text/html%0d%0a%0d%0a<script>alert('XSS')</script>",
+      "description": "CRLF injection to inject XSS payload"
+    },
+    {
+      "type": "mixed",
+      "name": "Nested Encoding Attack",
+      "payload": "%253Cscript%253Ealert('XSS')%253C%252Fscript%253E",
+      "description": "Double URL encoding to bypass filters"
+    },
+    {
+      "type": "mixed",
+      "name": "Unicode Normalization + SQL",
+      "payload": "ｕｓｅｒ' OR '1'='1",
+      "description": "Full-width characters that normalize to ASCII for SQL injection"
+    }
+  ]
+}

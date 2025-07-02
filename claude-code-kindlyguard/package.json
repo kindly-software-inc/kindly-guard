@@ -1,0 +1,67 @@
+{
+  "name": "claude-code-kindlyguard",
+  "displayName": "KindlyGuard Security Shield",
+  "description": "Real-time security monitoring for Claude Code",
+  "version": "0.1.0",
+  "main": "./out/extension.js",
+  "engines": {
+    "claude-code": "^1.0.0"
+  },
+  "categories": ["Security", "MCP"],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "kindlyguard.toggleShield",
+        "title": "Toggle Security Shield",
+        "icon": "$(shield)"
+      },
+      {
+        "command": "kindlyguard.showDetails",
+        "title": "Show Security Details"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "kindlyguard.toggleShield",
+        "key": "ctrl+shift+s",
+        "mac": "cmd+shift+s"
+      }
+    ],
+    "configuration": {
+      "title": "KindlyGuard",
+      "properties": {
+        "kindlyguard.autoConnect": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically connect to shield app on startup"
+        },
+        "kindlyguard.notificationLevel": {
+          "type": "string",
+          "enum": ["all", "threats", "critical"],
+          "default": "threats",
+          "description": "Level of notifications to show"
+        },
+        "kindlyguard.shieldPort": {
+          "type": "number",
+          "default": 9955,
+          "description": "Port for shield WebSocket server"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/ws": "^8.5.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "ws": "^8.16.0"
+  }
+}

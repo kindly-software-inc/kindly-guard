@@ -1,0 +1,54 @@
+{
+  "name": "Unicode Attack Samples",
+  "description": "Various unicode-based security threats",
+  "threats": [
+    {
+      "type": "bidi_override",
+      "name": "Right-to-Left Override",
+      "payload": "Important\u202Edocument.pdf",
+      "description": "Filename appears as 'Importantfdp.tnemucod' to hide true extension"
+    },
+    {
+      "type": "homograph",
+      "name": "Cyrillic Homograph",
+      "payload": "раура1.com",
+      "description": "Uses Cyrillic 'а' (U+0430) instead of Latin 'a' for phishing"
+    },
+    {
+      "type": "invisible_chars",
+      "name": "Zero-Width Characters",
+      "payload": "admin\u200Bpassword",
+      "description": "Contains zero-width space (U+200B) to bypass validation"
+    },
+    {
+      "type": "control_chars",
+      "name": "Control Character Injection",
+      "payload": "data\u0008\u0008\u0008safe",
+      "description": "Backspace characters to overwrite display"
+    },
+    {
+      "type": "normalization",
+      "name": "Unicode Normalization Attack",
+      "payload": "café",
+      "description": "Different representations of 'é' can bypass filters"
+    },
+    {
+      "type": "direction_marks",
+      "name": "Left-to-Right Mark Abuse",
+      "payload": "user\u200Einput\u200Fdata",
+      "description": "Direction marks can break text processing"
+    },
+    {
+      "type": "combining_chars",
+      "name": "Combining Character Overflow",
+      "payload": "a\u0301\u0301\u0301\u0301\u0301\u0301\u0301\u0301",
+      "description": "Excessive combining marks can cause rendering issues"
+    },
+    {
+      "type": "emoji_modifier",
+      "name": "Emoji Modifier Sequences",
+      "payload": "Safe text 👨\u200D💻\u200D🔒",
+      "description": "Complex emoji sequences with zero-width joiners"
+    }
+  ]
+}
