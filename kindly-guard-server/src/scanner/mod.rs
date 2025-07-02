@@ -512,8 +512,8 @@ impl SecurityScanner {
         let event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>> = None;
 
         // Create scanners with optional enhancement
-        let unicode_scanner = UnicodeScanner::new();
-        let injection_scanner = InjectionScanner::new(&patterns)?;
+        let mut unicode_scanner = UnicodeScanner::new();
+        let mut injection_scanner = InjectionScanner::new(&patterns)?;
         
         // Create XSS scanner with trait-based architecture
         let xss_scanner = create_xss_scanner(
@@ -856,7 +856,7 @@ impl SecurityScanner {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn stats(&self) -> ScannerStats {
-        let stats = ScannerStats {
+        let mut stats = ScannerStats {
             unicode_threats_detected: self.unicode_scanner.threats_detected(),
             injection_threats_detected: self.injection_scanner.threats_detected(),
             total_scans: self.unicode_scanner.total_scans() + self.injection_scanner.total_scans(),

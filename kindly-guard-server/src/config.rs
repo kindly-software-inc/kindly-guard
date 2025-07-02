@@ -87,7 +87,6 @@ pub struct EventProcessorConfig {
 /// mode = "automatic"
 /// audit_all_actions = true
 /// ```
-#[cfg(not(feature = "enhanced"))]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     /// Server configuration

@@ -18,4 +18,4 @@ pub use claude_code::{
 };
 
 #[cfg(feature = "enhanced")]
-pub use claude_code::{BinaryMessageHeader, BinaryShieldStatus};
+pub use claude_code::BinaryMessageHeader;
