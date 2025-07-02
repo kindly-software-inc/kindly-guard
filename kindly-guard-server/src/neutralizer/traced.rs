@@ -171,18 +171,7 @@ impl ThreatNeutralizer for TracedNeutralizer {
             }
         };
 
-        // End span with status
-        self.tracing_provider
-            .end_distributed_span(
-                &span_id,
-                SpanStatus {
-                    code: status_code,
-                    description: status_description,
-                },
-            )
-            .await;
-
-        // Record metrics via span attributes
+        // Record metrics via span attributes (before ending span)
         if let Ok(ref neutralize_result) = result {
             self.tracing_provider
                 .add_span_event(
@@ -199,6 +188,17 @@ impl ThreatNeutralizer for TracedNeutralizer {
                 )
                 .await;
         }
+
+        // End span with status
+        self.tracing_provider
+            .end_distributed_span(
+                &span_id,
+                SpanStatus {
+                    code: status_code,
+                    description: status_description,
+                },
+            )
+            .await;
 
         result
     }
@@ -411,6 +411,8 @@ mod tests {
 
         let span = &spans[0];
         assert_eq!(span.operation_name, "neutralize");
+        // Debug: print attributes to see what's there
+        eprintln!("Span attributes: {:?}", span.attributes);
         assert!(span.attributes.contains_key("threat.type"));
         assert!(span.events.iter().any(|e| e.name == "neutralization.start"));
     }
@@ -477,6 +479,7 @@ mod tests {
             .iter()
             .find(|s| s.operation_name == "batch_neutralize")
             .unwrap();
+        eprintln!("Batch span attributes: {:?}", batch_span.attributes);
         assert!(batch_span.attributes.contains_key("batch.size"));
         assert!(batch_span.events.iter().any(|e| e.name == "batch.summary"));
     }

@@ -383,6 +383,29 @@ impl StandardNeutralizer {
             .replace("</", "[BLOCKED: </]")
             .replace("{{", "[BLOCKED: {{]")
     }
+    
+    /// Neutralize XSS attacks
+    async fn neutralize_xss(&self, content: &str, _threat: &Threat) -> Result<NeutralizeResult> {
+        let start = Instant::now();
+        
+        // HTML encode dangerous characters
+        let escaped = content
+            .replace('&', "&amp;")
+            .replace('<', "&lt;")
+            .replace('>', "&gt;")
+            .replace('"', "&quot;")
+            .replace('\'', "&#x27;")
+            .replace('/', "&#x2F;");
+        
+        Ok(NeutralizeResult {
+            action_taken: NeutralizeAction::Escaped,
+            sanitized_content: Some(escaped),
+            confidence_score: 0.90,
+            processing_time_us: start.elapsed().as_micros() as u64,
+            correlation_data: None,
+            extracted_params: None,
+        })
+    }
 }
 
 #[async_trait]
@@ -406,6 +429,7 @@ impl ThreatNeutralizer for StandardNeutralizer {
             ThreatType::CommandInjection => self.neutralize_command(content, threat).await,
             ThreatType::PathTraversal => self.neutralize_path(content, threat).await,
             ThreatType::PromptInjection => self.neutralize_prompt(content, threat).await,
+            ThreatType::CrossSiteScripting => self.neutralize_xss(content, threat).await,
             _ => {
                 // Unsupported threat type
                 Ok(NeutralizeResult {
@@ -431,6 +455,7 @@ impl ThreatNeutralizer for StandardNeutralizer {
                 | ThreatType::CommandInjection
                 | ThreatType::PathTraversal
                 | ThreatType::PromptInjection
+                | ThreatType::CrossSiteScripting
         )
     }
 
@@ -450,6 +475,7 @@ impl ThreatNeutralizer for StandardNeutralizer {
                 ThreatType::CommandInjection,
                 ThreatType::PathTraversal,
                 ThreatType::PromptInjection,
+                ThreatType::CrossSiteScripting,
             ],
         }
     }
@@ -484,6 +510,9 @@ pub const fn to_ascii_equivalent(ch: char) -> Option<char> {
         '\u{039F}' => Some('O'), // Ο
         '\u{03A1}' => Some('P'), // Ρ
         '\u{03A4}' => Some('T'), // Τ
+        
+        // Turkish
+        '\u{0131}' => Some('i'), // ı (dotless i)
 
         _ => None,
     }
