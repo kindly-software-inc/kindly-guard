@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard Critical Paths</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .description {
+            max-width: 800px;
+            margin: 0 auto 30px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #graph {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin: 0 auto;
+            max-width: 1400px;
+            overflow-x: auto;
+        }
+        .mermaid {
+            text-align: center;
+        }
+        .path-list {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .path-item {
+            padding: 10px;
+            border-radius: 5px;
+            border: 1px solid #ddd;
+        }
+        .security { background-color: #ffe6e6; }
+        .protocol { background-color: #e6f3ff; }
+        .enhancement { background-color: #e6ffe6; }
+    </style>
+</head>
+<body>
+    <h1>KindlyGuard Critical Execution Paths</h1>
+    
+    <div class="description">
+        <h2>Critical Path Analysis</h2>
+        <p>This diagram shows the three critical execution paths in KindlyGuard:</p>
+        
+        <div class="path-list">
+            <div class="path-item security">
+                <h3>🛡️ Security Critical Path</h3>
+                <p>How threats are detected and neutralized in real-time</p>
+            </div>
+            <div class="path-item protocol">
+                <h3>🔌 Protocol Critical Path</h3>
+                <p>Request processing flow with authentication</p>
+            </div>
+            <div class="path-item enhancement">
+                <h3>⚡ Enhancement Path</h3>
+                <p>Optional enhanced features activation flow</p>
+            </div>
+        </div>
+    </div>
+    
+    <div id="graph">
+        <div class="mermaid">
+graph LR
+    subgraph "Security Critical Path"
+        INPUT1[Input Data] --> SCAN[Scanner]
+        SCAN --> DETECT{Threat<br/>Detected?}
+        DETECT -->|Yes| NEUT[Neutralizer]
+        DETECT -->|No| PASS1[Pass Through]
+        NEUT --> AUDIT1[Audit Log]
+        AUDIT1 --> SAFE[Safe Output]
+    end
+    
+    subgraph "Protocol Critical Path"
+        CLIENT[Client Request] --> TRANS[Transport Layer]
+        TRANS --> AUTH{Authenticated?}
+        AUTH -->|Yes| PROTO[Protocol Handler]
+        AUTH -->|No| REJECT[Reject]
+        PROTO --> PROCESS[Process Request]
+        PROCESS --> RESP[Response]
+    end
+    
+    subgraph "Enhancement Path"
+        STD[Standard Mode] -.->|Feature Flag| CHECK{Enhanced<br/>Enabled?}
+        CHECK -->|Yes| CORE[Core Library]
+        CHECK -->|No| STD_IMPL[Standard Implementation]
+        CORE --> ENH[Enhanced Features]
+        ENH --> ATOM[Atomic Event Buffer]
+        ENH --> BIN[Binary Protocol]
+        ENH --> ADV[Advanced Patterns]
+    end
+    
+    %% Styling
+    classDef threat fill:#f99,stroke:#333,stroke-width:2px
+    classDef safe fill:#9f9,stroke:#333,stroke-width:2px
+    classDef decision fill:#ff9,stroke:#333,stroke-width:2px
+    classDef enhanced fill:#9ff,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class SCAN,NEUT,REJECT threat
+    class PASS1,SAFE,RESP safe
+    class DETECT,AUTH,CHECK decision
+    class CORE,ENH,ATOM,BIN,ADV enhanced
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                fontSize: '14px'
+            },
+            flowchart: {
+                rankSpacing: 60,
+                nodeSpacing: 40
+            }
+        });
+    </script>
+</body>
+</html>

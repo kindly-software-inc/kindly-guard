@@ -1,0 +1,41 @@
+graph TD
+    %% Main workspace root
+    KG[kindly-guard<br/>workspace root]
+    
+    %% Core components
+    KGS[kindly-guard-server<br/>Main MCP Server]
+    KGC[kindly-guard-cli<br/>CLI Tool]
+    KGSH[kindly-guard-shield<br/>Tauri App]
+    KGCORE[kindly-guard-core<br/>Private Enhanced Core]
+    KGCRATE[crates-io-package<br/>Public Crate]
+    
+    %% Integrations
+    CLAUDE_AI[claude-ai-kindlyguard<br/>Browser Extension]
+    CLAUDE_CODE[claude-code-kindlyguard<br/>VS Code Extension]
+    NPM[npm-package<br/>NPM Distribution]
+    
+    %% Dependencies
+    KG --> KGS
+    KG --> KGC
+    KG --> KGSH
+    KG --> KGCRATE
+    
+    KGC --> KGS
+    KGS -.->|optional<br/>enhanced| KGCORE
+    KGSH -.->|optional<br/>enhanced| KGCORE
+    
+    %% External integrations
+    KGS --> CLAUDE_AI
+    KGS --> CLAUDE_CODE
+    KGS --> NPM
+    
+    %% Styling
+    classDef core fill:#f9f,stroke:#333,stroke-width:4px
+    classDef main fill:#bbf,stroke:#333,stroke-width:2px
+    classDef integration fill:#bfb,stroke:#333,stroke-width:2px
+    classDef optional fill:#ffa,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class KG core
+    class KGS,KGC,KGSH,KGCRATE main
+    class CLAUDE_AI,CLAUDE_CODE,NPM integration
+    class KGCORE optional

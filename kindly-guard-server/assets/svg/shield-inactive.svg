@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Inactive Shield - Gray Theme -->
+  <defs>
+    <!-- Gray gradient -->
+    <linearGradient id="inactive-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#95A5A6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#7F8C8D;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Subtle shadow -->
+    <filter id="inactive-shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="1"/>
+      <feOffset dx="0" dy="1" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.1"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Shield Shape -->
+  <path d="M32 4 L52 12 L52 28 C52 42 42 54 32 58 C22 54 12 42 12 28 L12 12 Z" 
+        fill="url(#inactive-gradient)" 
+        stroke="#7F8C8D" 
+        stroke-width="2"
+        stroke-dasharray="4 2"
+        opacity="0.7"
+        filter="url(#inactive-shadow)"/>
+  
+  <!-- Power off symbol -->
+  <g transform="translate(32, 32)" opacity="0.5">
+    <!-- Circle -->
+    <circle cx="0" cy="0" r="12" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-dasharray="0 4 0"/>
+    <!-- Power line -->
+    <line x1="0" y1="-12" x2="0" y2="-4" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round"/>
+  </g>
+</svg>

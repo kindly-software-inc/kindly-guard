@@ -1,0 +1,25 @@
+[package]
+name = "kindly-guard-core"
+version = "0.1.0"
+edition = "2021"
+description = "Private enhanced core library for KindlyGuard"
+license = "Proprietary"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+anyhow = "1.0"
+thiserror = "1.0"
+tracing = "0.1"
+chrono = "0.4"
+regex = "1.11"
+
+# For atomic operations
+parking_lot = "0.12"
+crossbeam = "0.8"
+
+# For compression
+flate2 = "1.0"
+
+[features]
+default = []

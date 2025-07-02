@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard Threat Visualization</title>
+    <link rel="stylesheet" href="../css/threat-visualization.css">
+</head>
+<body>
+    <!-- Threat Visualization Dashboard -->
+    <div class="threat-viz-container">
+        <!-- Real-time Threat Map -->
+        <div class="threat-map" id="threat-map">
+            <canvas id="threat-canvas" width="800" height="400"></canvas>
+            <div class="threat-overlay">
+                <div class="threat-radar">
+                    <div class="radar-sweep"></div>
+                    <div class="radar-dots"></div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Threat Type Distribution -->
+        <div class="threat-distribution">
+            <h3>Threat Categories</h3>
+            <div class="distribution-chart">
+                <div class="chart-bar unicode" data-value="35">
+                    <div class="bar-fill" style="height: 35%"></div>
+                    <div class="bar-label">Unicode</div>
+                    <div class="bar-value">35%</div>
+                </div>
+                <div class="chart-bar injection" data-value="25">
+                    <div class="bar-fill" style="height: 25%"></div>
+                    <div class="bar-label">Injection</div>
+                    <div class="bar-value">25%</div>
+                </div>
+                <div class="chart-bar xss" data-value="20">
+                    <div class="bar-fill" style="height: 20%"></div>
+                    <div class="bar-label">XSS</div>
+                    <div class="bar-value">20%</div>
+                </div>
+                <div class="chart-bar traversal" data-value="15">
+                    <div class="bar-fill" style="height: 15%"></div>
+                    <div class="bar-label">Path</div>
+                    <div class="bar-value">15%</div>
+                </div>
+                <div class="chart-bar other" data-value="5">
+                    <div class="bar-fill" style="height: 5%"></div>
+                    <div class="bar-label">Other</div>
+                    <div class="bar-value">5%</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Real-time Threat Stream -->
+        <div class="threat-stream">
+            <h3>Live Threat Stream</h3>
+            <div class="stream-container" id="threat-stream">
+                <!-- Threat items will be dynamically added here -->
+            </div>
+        </div>
+        
+        <!-- Enhanced Mode Visualizations -->
+        <div class="enhanced-visualizations">
+            <!-- Neural Network Activity -->
+            <div class="neural-network-viz">
+                <h3>Pattern Recognition Network</h3>
+                <svg id="neural-network" width="300" height="200" viewBox="0 0 300 200">
+                    <!-- Input Layer -->
+                    <g class="input-layer">
+                        <circle cx="50" cy="40" r="8" class="neuron input"/>
+                        <circle cx="50" cy="80" r="8" class="neuron input"/>
+                        <circle cx="50" cy="120" r="8" class="neuron input"/>
+                        <circle cx="50" cy="160" r="8" class="neuron input"/>
+                    </g>
+                    
+                    <!-- Hidden Layer 1 -->
+                    <g class="hidden-layer-1">
+                        <circle cx="150" cy="50" r="10" class="neuron hidden"/>
+                        <circle cx="150" cy="100" r="10" class="neuron hidden"/>
+                        <circle cx="150" cy="150" r="10" class="neuron hidden"/>
+                    </g>
+                    
+                    <!-- Output Layer -->
+                    <g class="output-layer">
+                        <circle cx="250" cy="75" r="12" class="neuron output safe"/>
+                        <circle cx="250" cy="125" r="12" class="neuron output threat"/>
+                    </g>
+                    
+                    <!-- Connections -->
+                    <g class="connections">
+                        <!-- Connections will be dynamically generated -->
+                    </g>
+                </svg>
+            </div>
+            
+            <!-- Threat Prediction Timeline -->
+            <div class="prediction-timeline">
+                <h3>Threat Prediction</h3>
+                <div class="timeline-container">
+                    <div class="timeline-axis"></div>
+                    <div class="prediction-bars">
+                        <div class="prediction-bar low" style="left: 10%; width: 20px;">
+                            <div class="prediction-tooltip">Low Risk: 15%</div>
+                        </div>
+                        <div class="prediction-bar medium" style="left: 30%; width: 30px;">
+                            <div class="prediction-tooltip">Medium Risk: 45%</div>
+                        </div>
+                        <div class="prediction-bar high" style="left: 60%; width: 25px;">
+                            <div class="prediction-tooltip">High Risk: 78%</div>
+                        </div>
+                        <div class="prediction-bar critical" style="left: 85%; width: 35px;">
+                            <div class="prediction-tooltip">Critical: 92%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 3D Threat Landscape -->
+            <div class="threat-landscape">
+                <h3>Threat Landscape</h3>
+                <div class="landscape-3d" id="threat-landscape-3d">
+                    <div class="terrain-grid">
+                        <!-- 3D terrain visualization -->
+                    </div>
+                    <div class="threat-peaks">
+                        <!-- Threat intensity peaks -->
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Threat Heatmap -->
+        <div class="threat-heatmap">
+            <h3>Attack Pattern Heatmap</h3>
+            <div class="heatmap-grid" id="heatmap">
+                <!-- Heatmap cells will be generated dynamically -->
+            </div>
+            <div class="heatmap-legend">
+                <span class="legend-label">Low</span>
+                <div class="legend-gradient"></div>
+                <span class="legend-label">High</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Visualization Scripts -->
+    <script src="../js/threat-visualization.js"></script>
+</body>
+</html>

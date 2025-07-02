@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- System Tray Icon - Enhanced Mode (Purple Glow) -->
+  <defs>
+    <linearGradient id="enhanced-tray-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9B59B6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6C3483;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Glowing effect -->
+    <filter id="purple-glow">
+      <feGaussianBlur stdDeviation="1" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Animated glow -->
+    <radialGradient id="enhanced-tray-glow">
+      <stop offset="0%" style="stop-color:#E8B4FF;stop-opacity:0.8">
+        <animate attributeName="stop-opacity" 
+                 values="0.8;0.4;0.8" 
+                 dur="2s" 
+                 repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#9B59B6;stop-opacity:0"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- Outer glow ring -->
+  <circle cx="8" cy="8" r="7" fill="none" stroke="url(#enhanced-tray-glow)" stroke-width="1" opacity="0.6">
+    <animate attributeName="r" 
+             values="6.5;7.5;6.5" 
+             dur="2s" 
+             repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Shield Shape with glow -->
+  <path d="M8 1 L13 3 L13 7 C13 10.5 10.5 13.5 8 14.5 C5.5 13.5 3 10.5 3 7 L3 3 Z" 
+        fill="url(#enhanced-tray-gradient)" 
+        stroke="#5B2C6F" 
+        stroke-width="0.5"
+        filter="url(#purple-glow)"/>
+  
+  <!-- Lightning bolt (mini version) -->
+  <path d="M6.5 4 L5 8 L7 8 L5.5 12 L10 7 L8 7 L9.5 4 Z" 
+        fill="#FFFFFF" 
+        stroke="#E8B4FF" 
+        stroke-width="0.3"
+        opacity="0.9">
+    <animate attributeName="opacity" 
+             values="0.9;1;0.9" 
+             dur="1.5s" 
+             repeatCount="indefinite"/>
+  </path>
+</svg>

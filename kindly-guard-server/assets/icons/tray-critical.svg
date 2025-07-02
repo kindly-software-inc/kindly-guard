@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="16" height="16" viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+  <!-- System Tray Icon - Critical State (Red) -->
+  <defs>
+    <linearGradient id="critical-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#E74C3C;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#C0392B;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Pulsing effect for critical state -->
+    <radialGradient id="critical-pulse">
+      <stop offset="0%" style="stop-color:#FF6B6B;stop-opacity:0.8">
+        <animate attributeName="stop-opacity" 
+                 values="0.8;0.3;0.8" 
+                 dur="1s" 
+                 repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#E74C3C;stop-opacity:0"/>
+    </radialGradient>
+  </defs>
+  
+  <!-- Pulsing outline -->
+  <path d="M8 1 L13 3 L13 7 C13 10.5 10.5 13.5 8 14.5 C5.5 13.5 3 10.5 3 7 L3 3 Z" 
+        fill="none" 
+        stroke="url(#critical-pulse)" 
+        stroke-width="2"/>
+  
+  <!-- Shield Shape -->
+  <path d="M8 1 L13 3 L13 7 C13 10.5 10.5 13.5 8 14.5 C5.5 13.5 3 10.5 3 7 L3 3 Z" 
+        fill="url(#critical-gradient)" 
+        stroke="#922B21" 
+        stroke-width="0.5"/>
+  
+  <!-- X mark -->
+  <g stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round">
+    <path d="M5.5 5.5 L10.5 10.5"/>
+    <path d="M10.5 5.5 L5.5 10.5"/>
+  </g>
+</svg>

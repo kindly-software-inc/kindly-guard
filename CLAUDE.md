@@ -362,4 +362,331 @@ pub fn create_processor(config: &Config) -> Arc<dyn EventProcessor> {
   </private-core>
 
   <motto priority="HIGHEST">Security First, Performance Second, Features Third</motto>
+
+  <navigation-aids>
+    <description>Navigation markers and file locations for efficient codebase exploration</description>
+    
+    <entry-points>
+      <entry name="Main Server" location="kindly-guard-server/src/main.rs" description="MCP server entry point - start here">
+        <marker>CLAUDE-note-entry: Server initialization and configuration</marker>
+      </entry>
+      <entry name="CLI Entry" location="kindly-guard-cli/src/main.rs" description="Command-line interface entry">
+        <marker>CLAUDE-note-entry: CLI commands (scan, server, config)</marker>
+      </entry>
+      <entry name="Protocol Handler" location="kindly-guard-server/src/protocol/handler.rs" description="MCP request handling">
+        <marker>CLAUDE-note-entry: Main request dispatcher</marker>
+      </entry>
+    </entry-points>
+
+    <core-components>
+      <component name="Security Scanner" base="kindly-guard-server/src/scanner/">
+        <file path="mod.rs" description="Scanner trait and factory">
+          <marker>CLAUDE-note-implemented: Scanner orchestration (~200 lines)</marker>
+        </file>
+        <file path="unicode.rs" description="Unicode threat detection">
+          <marker>CLAUDE-note-implemented: Homograph, bidi, zero-width detection (~350 lines)</marker>
+        </file>
+        <file path="injection.rs" description="Injection attack prevention">
+          <marker>CLAUDE-note-implemented: SQL, command, LDAP injection (~300 lines)</marker>
+        </file>
+        <file path="xss.rs" description="Cross-site scripting prevention">
+          <marker>CLAUDE-note-implemented: HTML, JS, CSS context XSS (~400 lines)</marker>
+        </file>
+        <file path="patterns.rs" description="Pattern-based detection">
+          <marker>CLAUDE-note-implemented: Regex and ML pattern matching (~250 lines)</marker>
+        </file>
+      </component>
+
+      <component name="Neutralizer" base="kindly-guard-server/src/neutralizer/">
+        <file path="mod.rs" description="Neutralization strategies">
+          <marker>CLAUDE-note-implemented: Threat neutralization engine (~150 lines)</marker>
+        </file>
+        <file path="encoders/html.rs" description="HTML encoding">
+          <marker>CLAUDE-note-implemented: Entity and attribute encoding (~100 lines)</marker>
+        </file>
+        <file path="encoders/url.rs" description="URL encoding">
+          <marker>CLAUDE-note-implemented: Percent and punycode encoding (~120 lines)</marker>
+        </file>
+      </component>
+
+      <component name="Shield UI" base="kindly-guard-server/src/shield/">
+        <file path="dashboard.rs" description="Real-time threat dashboard">
+          <marker>CLAUDE-note-implemented: TUI dashboard with ratatui (~300 lines)</marker>
+        </file>
+        <file path="stats.rs" description="Statistics display">
+          <marker>CLAUDE-note-implemented: Performance metrics UI (~200 lines)</marker>
+        </file>
+      </component>
+
+      <component name="Storage" base="kindly-guard-server/src/storage/">
+        <file path="sqlite.rs" description="SQLite persistence">
+          <marker>CLAUDE-note-implemented: Threat and audit storage (~400 lines)</marker>
+        </file>
+        <file path="cache.rs" description="In-memory caching">
+          <marker>CLAUDE-note-implemented: LRU cache with TTL (~250 lines)</marker>
+        </file>
+      </component>
+
+      <component name="Resilience" base="kindly-guard-server/src/resilience/">
+        <file path="circuit_breaker.rs" description="Circuit breaker pattern">
+          <marker>CLAUDE-note-implemented: Fault tolerance (~200 lines)</marker>
+        </file>
+        <file path="retry.rs" description="Retry with backoff">
+          <marker>CLAUDE-note-implemented: Exponential backoff retry (~150 lines)</marker>
+        </file>
+      </component>
+    </core-components>
+
+    <test-locations>
+      <test-type name="Unit Tests" pattern="src/**/tests.rs" description="Module-level tests">
+        <marker>CLAUDE-note-tests: Unit tests colocated with modules</marker>
+      </test-type>
+      <test-type name="Integration Tests" location="tests/integration/" description="End-to-end tests">
+        <marker>CLAUDE-note-tests: Full flow integration tests</marker>
+      </test-type>
+      <test-type name="Property Tests" location="tests/property/" description="Fuzzing tests">
+        <marker>CLAUDE-note-tests: Proptest-based fuzzing</marker>
+      </test-type>
+      <test-type name="Benchmarks" location="benches/" description="Performance tests">
+        <marker>CLAUDE-note-tests: Criterion benchmarks</marker>
+      </test-type>
+    </test-locations>
+  </navigation-aids>
+
+  <feature-inventory>
+    <description>Complete inventory of implemented features with locations</description>
+    
+    <security-features>
+      <feature name="Unicode Threat Detection" status="implemented" location="src/scanner/unicode.rs">
+        <sub-features>
+          <item>Homograph attack detection</item>
+          <item>Bidi override detection</item>
+          <item>Zero-width character detection</item>
+          <item>Unicode normalization</item>
+        </sub-features>
+        <marker>CLAUDE-note-implemented: Complete Unicode security suite</marker>
+      </feature>
+
+      <feature name="Injection Prevention" status="implemented" location="src/scanner/injection.rs">
+        <sub-features>
+          <item>SQL injection detection</item>
+          <item>Command injection detection</item>
+          <item>LDAP injection detection</item>
+          <item>Path traversal detection</item>
+        </sub-features>
+        <marker>CLAUDE-note-implemented: Multi-vector injection prevention</marker>
+      </feature>
+
+      <feature name="XSS Protection" status="implemented" location="src/scanner/xss.rs">
+        <sub-features>
+          <item>HTML context XSS</item>
+          <item>JavaScript context XSS</item>
+          <item>CSS context XSS</item>
+          <item>URL context XSS</item>
+        </sub-features>
+        <marker>CLAUDE-note-implemented: Context-aware XSS prevention</marker>
+      </feature>
+
+      <feature name="Pattern Detection" status="implemented" location="src/scanner/patterns.rs">
+        <sub-features>
+          <item>Regex pattern matching</item>
+          <item>Fuzzy pattern matching</item>
+          <item>ML-based patterns</item>
+        </sub-features>
+        <marker>CLAUDE-note-implemented: Extensible pattern engine</marker>
+      </feature>
+    </security-features>
+
+    <protocol-features>
+      <feature name="MCP Server" status="implemented" location="src/protocol/">
+        <sub-features>
+          <item>Tool registration</item>
+          <item>Request handling</item>
+          <item>Response formatting</item>
+          <item>Error handling</item>
+        </sub-features>
+        <marker>CLAUDE-note-implemented: Full MCP protocol support</marker>
+      </feature>
+    </protocol-features>
+
+    <ui-features>
+      <feature name="Terminal UI" status="implemented" location="src/shield/">
+        <sub-features>
+          <item>Live threat dashboard</item>
+          <item>Statistics view</item>
+          <item>Configuration UI</item>
+        </sub-features>
+        <marker>CLAUDE-note-implemented: Real-time monitoring TUI</marker>
+      </feature>
+
+      <feature name="CLI Interface" status="implemented" location="kindly-guard-cli/">
+        <sub-features>
+          <item>Scan command</item>
+          <item>Server command</item>
+          <item>Config command</item>
+        </sub-features>
+        <marker>CLAUDE-note-implemented: Full CLI with clap</marker>
+      </feature>
+    </ui-features>
+
+    <resilience-features>
+      <feature name="Circuit Breaker" status="implemented" location="src/resilience/circuit_breaker.rs">
+        <marker>CLAUDE-note-implemented: Fault isolation pattern</marker>
+      </feature>
+      <feature name="Retry Logic" status="implemented" location="src/resilience/retry.rs">
+        <marker>CLAUDE-note-implemented: Exponential backoff with jitter</marker>
+      </feature>
+      <feature name="Bulkhead Isolation" status="implemented" location="src/resilience/bulkhead.rs">
+        <marker>CLAUDE-note-implemented: Resource isolation</marker>
+      </feature>
+    </resilience-features>
+  </feature-inventory>
+
+  <mcp-servers>
+    <description>Installed MCP servers for enhanced codebase navigation</description>
+    
+    <server name="tree-sitter" type="AST Analysis">
+      <purpose>Parse and analyze Rust AST structure</purpose>
+      <config-location>~/.mcp.json</config-location>
+      <usage>Structural code analysis, symbol extraction</usage>
+    </server>
+
+    <server name="filesystem-context7" type="File Access">
+      <purpose>Provide filesystem access to ultrathink-context7</purpose>
+      <config-location>~/.mcp.json</config-location>
+      <usage>Read/write project files</usage>
+    </server>
+
+    <server name="sequential-thinking" type="Problem Solving">
+      <purpose>Enhanced sequential thinking for complex problems</purpose>
+      <config-location>~/.mcp.json</config-location>
+      <usage>Step-by-step problem analysis</usage>
+    </server>
+
+    <server name="FileScopeMCP" type="Dependency Analysis">
+      <purpose>Generate dependency graphs and file importance rankings</purpose>
+      <installation>~/Tools/FileScopeMCP</installation>
+      <usage>Create Mermaid diagrams, analyze module relationships</usage>
+    </server>
+
+    <server name="ast-grep" type="Pattern Search">
+      <purpose>Structural code search with Rust patterns</purpose>
+      <installation>~/.mcp-servers/ast-grep-mcp</installation>
+      <usage>Find code patterns, refactoring support</usage>
+    </server>
+
+    <server name="rust-docs-mcp" type="Documentation">
+      <purpose>Semantic search through docs.rs</purpose>
+      <installation>~/rust-docs-mcp-server</installation>
+      <usage>Query Rust crate documentation</usage>
+    </server>
+
+    <server name="mcp-language-server" type="Semantic Navigation">
+      <purpose>Bridge rust-analyzer with MCP</purpose>
+      <installation>Go-based, installed via go install</installation>
+      <usage>Go to definition, find references, diagnostics</usage>
+    </server>
+  </mcp-servers>
+
+  <codebase-map>
+    <description>High-level map of project structure</description>
+    
+    <workspace-root path="kindly-guard/">
+      <crate name="kindly-guard-server" type="binary" path="kindly-guard-server/">
+        <purpose>Main MCP server implementation</purpose>
+        <key-files>
+          <file>src/main.rs - Entry point</file>
+          <file>src/scanner/mod.rs - Scanner orchestration</file>
+          <file>src/protocol/handler.rs - MCP handling</file>
+          <file>src/config/mod.rs - Configuration</file>
+        </key-files>
+      </crate>
+
+      <crate name="kindly-guard-cli" type="binary" path="kindly-guard-cli/">
+        <purpose>Command-line interface</purpose>
+        <key-files>
+          <file>src/main.rs - CLI entry</file>
+          <file>src/commands/scan.rs - Scan command</file>
+          <file>src/commands/server.rs - Server command</file>
+        </key-files>
+      </crate>
+
+      <crate name="kindly-guard-shield" type="binary" path="kindly-guard-shield/">
+        <purpose>Desktop UI (Tauri app)</purpose>
+        <key-files>
+          <file>src/main.rs - Tauri entry</file>
+          <file>src-tauri/src/main.rs - Backend</file>
+          <file>src/App.tsx - Frontend</file>
+        </key-files>
+      </crate>
+
+      <documentation path="docs/">
+        <file>API_DOCUMENTATION.md - API reference</file>
+        <file>SECURITY_AUDIT_REPORT.md - Security analysis</file>
+        <file>BUILD_PROCESS.md - Build instructions</file>
+      </documentation>
+
+      <analysis path="analysis/">
+        <file>kindlyguard_analysis_report.md - Project analysis</file>
+        <file>dependency_graph.html - Visual dependencies</file>
+        <file>file_importance_ranking.md - Critical files</file>
+      </analysis>
+    </workspace-root>
+  </codebase-map>
+
+  <cross-references>
+    <description>Quick links between related components</description>
+    
+    <reference from="Scanner trait" to="src/scanner/mod.rs#L25">
+      <related-to>All scanner implementations</related-to>
+      <related-to>Scanner factory at line 150</related-to>
+    </reference>
+
+    <reference from="MCP handler" to="src/protocol/handler.rs#L50">
+      <related-to>Request types in types.rs</related-to>
+      <related-to>Response builders in response.rs</related-to>
+    </reference>
+
+    <reference from="Config" to="src/config/mod.rs">
+      <related-to>TOML schema in schema.rs</related-to>
+      <related-to>Environment overrides in env.rs</related-to>
+    </reference>
+
+    <reference from="Storage trait" to="src/storage/mod.rs#L20">
+      <related-to>SQLite impl in sqlite.rs</related-to>
+      <related-to>Cache impl in cache.rs</related-to>
+    </reference>
+  </cross-references>
+
+  <troubleshooting>
+    <description>Common issues and solutions</description>
+    
+    <issue name="Build fails">
+      <solution>Run: cargo update && cargo clean && cargo build</solution>
+    </issue>
+
+    <issue name="Tests fail randomly">
+      <solution>Check async handling, ensure test isolation</solution>
+    </issue>
+
+    <issue name="Performance regression">
+      <solution>Compare benchmarks: cargo bench -- --baseline main</solution>
+    </issue>
+
+    <issue name="MCP server not found">
+      <solution>Restart Claude Code after MCP configuration changes</solution>
+    </issue>
+  </troubleshooting>
+
+  <recommended-workflow>
+    <description>Optimal development workflow</description>
+    
+    <step number="1">Start with PROJECT_PRIMER.md for overview</step>
+    <step number="2">Read ARCHITECTURE.md for system design</step>
+    <step number="3">Check FEATURES.md for implementation status</step>
+    <step number="4">Use navigation-aids above to find specific code</step>
+    <step number="5">Run analysis tools for codebase exploration</step>
+    <step number="6">Use MCP servers for semantic navigation</step>
+  </recommended-workflow>
+
 </claude-configuration>
