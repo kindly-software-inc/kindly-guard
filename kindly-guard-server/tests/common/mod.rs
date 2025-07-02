@@ -133,6 +133,84 @@ where
     f()
 }
 
+/// Re-export WebSocket server functionality
+#[cfg(feature = "websocket")]
+pub use self::websocket::{TestWebSocketServer, create_test_websocket_server};
+
+/// WebSocket test server for integration testing
+#[cfg(feature = "websocket")]
+pub mod websocket {
+    use axum::{
+        extract::ws::{WebSocket, WebSocketUpgrade},
+        response::Response,
+        routing::get,
+        Router,
+    };
+    use tokio::net::TcpListener;
+    use std::net::SocketAddr;
+    use std::sync::Arc;
+    use tokio::sync::Mutex;
+
+    /// Test WebSocket server for integration testing
+    pub struct TestWebSocketServer {
+        pub addr: SocketAddr,
+        pub shutdown_tx: tokio::sync::oneshot::Sender<()>,
+        pub handle: tokio::task::JoinHandle<()>,
+    }
+
+    impl TestWebSocketServer {
+        /// Create a new test WebSocket server
+        pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+            Self::new_with_handler(|_ws| async {}).await
+        }
+
+        /// Create a new test WebSocket server with custom handler
+        pub async fn new_with_handler<F, Fut>(handler: F) -> Result<Self, Box<dyn std::error::Error>>
+        where
+            F: Fn(WebSocket) -> Fut + Send + Sync + 'static + Clone,
+            Fut: std::future::Future<Output = ()> + Send + 'static,
+        {
+            let listener = TcpListener::bind("127.0.0.1:0").await?;
+            let addr = listener.local_addr()?;
+            
+            let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel();
+            
+            let app = Router::new()
+                .route("/ws", get(move |ws: WebSocketUpgrade| {
+                    let handler = handler.clone();
+                    async move {
+                        ws.on_upgrade(move |socket| handler(socket))
+                    }
+                }));
+            
+            let handle = tokio::spawn(async move {
+                let serve = axum::serve(listener, app);
+                tokio::select! {
+                    _ = serve => {},
+                    _ = &mut shutdown_rx => {},
+                }
+            });
+            
+            // Give server time to start
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+            
+            Ok(TestWebSocketServer { addr, shutdown_tx, handle })
+        }
+
+        /// Shutdown the test server
+        pub async fn shutdown(self) -> Result<(), Box<dyn std::error::Error>> {
+            let _ = self.shutdown_tx.send(());
+            self.handle.await?;
+            Ok(())
+        }
+    }
+
+    /// Create a test WebSocket server for integration testing
+    pub async fn create_test_websocket_server() -> Result<TestWebSocketServer, Box<dyn std::error::Error>> {
+        TestWebSocketServer::new().await
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

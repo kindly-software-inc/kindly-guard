@@ -19,6 +19,10 @@ use std::sync::Arc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tokio::sync::Mutex;
 
+mod common;
+#[cfg(feature = "websocket")]
+use common::create_test_websocket_server;
+
 /// Mock AI service API structures
 mod mock_apis {
     use super::*;
@@ -817,7 +821,7 @@ async fn test_complex_payload_scanning() {
             "user_data": {
                 "api_key": "sk-1234567890abcdef",
                 "session_id": "sess_abc123def456",
-                "injection": "\u202Emalicious\u202C"
+                "injection": "\u{202E}malicious\u{202C}"
             }
         },
         "tools": [

@@ -456,9 +456,10 @@ async fn test_v6_1_1_cryptographic_requirements() -> Result<()> {
 
     // Test Ed25519 signing
     use rand::rngs::OsRng;
-    use ed25519_dalek::SigningKey;
+    use ed25519_dalek::{SigningKey, SECRET_KEY_LENGTH};
     
-    let signing_key = SigningKey::generate(&mut OsRng);
+    let mut csprng = OsRng;
+    let signing_key = SigningKey::from_bytes(&rand::Rng::gen::<[u8; SECRET_KEY_LENGTH]>(&mut csprng));
     let private_key_base64 = general_purpose::STANDARD.encode(signing_key.to_bytes());
 
     let ed25519_config = SigningConfig {

@@ -53,8 +53,7 @@ fn test_command_injection_prevention_semicolon() {
         .write_stdin(b"safe input\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("test; rm -rf /"))
-        .stdout(predicate::str::does_not_contain("rm -rf /"));
+        .stdout(predicate::str::contains("test; rm -rf /"));
 }
 
 #[test]
@@ -102,7 +101,7 @@ fn test_environment_variable_security() {
         .assert()
         .success()
         .stdout(predicate::str::contains("PATH="))
-        .stdout(predicate::str::does_not_contain("MALICIOUS_VAR"));
+        .stdout(predicate::str::contains("MALICIOUS_VAR").not());
     
     std::env::remove_var("MALICIOUS_VAR");
 }
@@ -117,8 +116,7 @@ fn test_environment_injection_prevention() {
         .env("PATH", "/usr/bin:/bin:$(rm -rf /)")
         .assert()
         .success()
-        .stdout(predicate::str::contains("$(rm -rf /)"))
-        .stdout(predicate::str::does_not_contain("rm -rf /"));
+        .stdout(predicate::str::contains("$(rm -rf /)"));
 }
 
 #[test]
@@ -162,12 +160,12 @@ fn test_input_stream_unicode_injection() {
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
-        .write_stdin(b"Hello\u{202E}World\n") // Right-to-left override
+        .write_stdin("Hello\u{202E}World\n".as_bytes()) // Right-to-left override
         .assert()
         .success()
         .stderr(predicate::str::contains("THREAT DETECTED"))
         .stderr(predicate::str::contains("Input blocked"))
-        .stdout(predicate::str::does_not_contain("\u{202E}"));
+        .stdout(predicate::str::contains("\u{202E}").not());
 }
 
 #[test]
@@ -556,7 +554,7 @@ fn test_multiple_threat_detection() {
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
-        .write_stdin(b"'; DROP TABLE; -- <script>alert('xss')</script> \u{202E}\n")
+        .write_stdin("'; DROP TABLE; -- <script>alert('xss')</script> \u{202E}\n".as_bytes())
         .assert()
         .success()
         .stderr(predicate::str::contains("THREAT DETECTED"))
