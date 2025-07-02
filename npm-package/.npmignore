@@ -1,0 +1,41 @@
+# Development files
+*.log
+*.tmp
+.DS_Store
+node_modules/
+npm-debug.log*
+
+# Source control
+.git/
+.gitignore
+
+# Build files
+*.tgz
+
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Test files
+test/
+tests/
+__tests__/
+*.test.js
+*.spec.js
+
+# Documentation source
+docs/
+
+# Local config
+.env
+.env.local
+
+# OS files
+Thumbs.db
+
+# Publishing files
+publish.sh
+PUBLISH_INSTRUCTIONS.md
+test-package.js

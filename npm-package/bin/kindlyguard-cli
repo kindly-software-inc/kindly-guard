@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+
+const path = require('path');
+const { spawn } = require('child_process');
+const fs = require('fs');
+
+// Find the actual binary
+const binDir = __dirname;
+const possibleBinaries = [
+  'kindlyguard-cli.bin',
+  'kindlyguard-cli.exe',
+  'kindlyguard-cli'
+];
+
+let binaryPath = null;
+for (const binary of possibleBinaries) {
+  const fullPath = path.join(binDir, binary);
+  if (fs.existsSync(fullPath)) {
+    binaryPath = fullPath;
+    break;
+  }
+}
+
+if (!binaryPath) {
+  console.error('KindlyGuard CLI binary not found!');
+  console.error('Please run: npm install -g kindlyguard');
+  process.exit(1);
+}
+
+// Spawn the actual binary with all arguments
+const proc = spawn(binaryPath, process.argv.slice(2), {
+  stdio: 'inherit',
+  env: process.env
+});
+
+proc.on('exit', (code) => {
+  process.exit(code);
+});
+
+proc.on('error', (err) => {
+  console.error('Failed to start KindlyGuard CLI:', err);
+  process.exit(1);
+});
