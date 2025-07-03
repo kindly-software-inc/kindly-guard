@@ -2,7 +2,7 @@
 
 ## Overview
 
-KindlyGuard uses a comprehensive test suite to ensure security, reliability, and performance. The test suite is organized into unit tests, integration tests, and performance benchmarks.
+KindlyGuard implements a comprehensive dual-implementation testing strategy to ensure both security and performance. Our testing infrastructure validates that standard and enhanced implementations maintain security parity while allowing performance optimizations. The test suite includes unit tests, integration tests, performance benchmarks, and specialized security validation.
 
 ## Test Architecture
 
@@ -317,13 +317,256 @@ For out-of-memory errors:
 - Run tests with limited parallelism
 - Check for memory leaks with valgrind
 
+## Comprehensive Test Suites
+
+### 1. Trait Compliance Tests (`tests/trait_compliance.rs`)
+Validates that all implementations correctly implement required traits:
+
+```bash
+cargo test --test trait_compliance
+```
+
+Features:
+- Verifies trait method signatures
+- Tests default implementations
+- Validates error handling
+- Ensures Send + Sync bounds
+
+### 2. Behavioral Equivalence Tests (`tests/behavioral_equivalence.rs`)
+Ensures standard and enhanced implementations produce identical security outcomes:
+
+```bash
+cargo test --test behavioral_equivalence
+```
+
+Tests:
+- Same threats detected for identical inputs
+- Equivalent severity assessments
+- Consistent neutralization results
+- Performance metrics collection
+
+Example:
+```rust
+#[tokio::test]
+async fn test_scanner_equivalence() {
+    let input = "malicious\u{202E}content";
+    
+    let standard_threats = test_standard_scanner(input).await;
+    let enhanced_threats = test_enhanced_scanner(input).await;
+    
+    assert_eq!(standard_threats.len(), enhanced_threats.len());
+    for (std_threat, enh_threat) in standard_threats.iter().zip(enhanced_threats.iter()) {
+        assert_eq!(std_threat.threat_type, enh_threat.threat_type);
+        assert_eq!(std_threat.severity, enh_threat.severity);
+    }
+}
+```
+
+### 3. Performance Regression Tests (`tests/performance_regression.rs`)
+Tracks performance metrics across versions:
+
+```bash
+cargo test --test performance_regression
+```
+
+Metrics tracked:
+- Throughput (MB/s)
+- Latency percentiles (p50, p95, p99, p99.9)
+- Memory allocations
+- CPU utilization
+
+### 4. Security Properties Tests (`tests/security_properties.rs`)
+Property-based testing for security invariants:
+
+```bash
+cargo test --test security_properties
+```
+
+Properties tested:
+- No false negatives on known threats
+- Monotonic threat detection (more context = same or more threats)
+- Safe neutralization (no data corruption)
+- Consistent behavior across runs
+
+### 5. Integration Scenarios (`tests/integration_scenarios.rs`)
+Real-world usage patterns:
+
+```bash
+cargo test --test integration_scenarios
+```
+
+Scenarios:
+- Multi-client concurrent access
+- Mixed protocol usage (HTTP + WebSocket)
+- Authentication flows
+- Rate limiting behavior
+- Circuit breaker activation
+
+### 6. Comparative Benchmarks (`benches/comparative_benchmarks.rs`)
+Side-by-side performance analysis:
+
+```bash
+cargo bench --bench comparative_benchmarks
+```
+
+Comparisons:
+- Standard vs Enhanced throughput
+- Memory efficiency ratios
+- Latency distribution analysis
+- Scalability under load
+
+### 7. Chaos Engineering Tests (`tests/chaos_engineering.rs`)
+Fault injection and resilience testing:
+
+```bash
+cargo test --test chaos_engineering -- --test-threads=1
+```
+
+Fault scenarios:
+- Random component failures
+- Network delays and partitions
+- Resource exhaustion
+- Cascading failure recovery
+
+### 8. Load Testing (`tests/load_testing.rs`)
+Stress and capacity testing:
+
+```bash
+cargo test --test load_testing -- --release
+```
+
+Load patterns:
+- Sustained high throughput
+- Burst traffic handling
+- Connection limit testing
+- Memory pressure scenarios
+
+## Running the Complete Test Suite
+
+### Quick Test Run
+```bash
+# Run all tests with optimal settings
+./run-all-tests.sh
+```
+
+### Comprehensive Test Run
+```bash
+# Run all tests including slow tests and benchmarks
+./run-all-tests.sh --comprehensive
+```
+
+### CI/CD Test Pipeline
+```bash
+# Run tests as CI would
+./run-all-tests.sh --ci
+```
+
+## Test Configuration
+
+### Environment Variables
+```bash
+# Control test behavior
+RUST_TEST_THREADS=1              # Sequential execution
+RUST_LOG=debug                   # Enable debug logging
+PROPTEST_CASES=10000            # More property test cases
+KINDLY_TEST_ENHANCED=true       # Test enhanced implementations
+```
+
+### Test Features
+```toml
+[dev-dependencies]
+kindly-guard-server = { path = ".", features = ["test-utils", "enhanced"] }
+```
+
+## Performance Testing Best Practices
+
+### Baseline Comparison
+```bash
+# Save baseline
+cargo bench -- --save-baseline main
+
+# Compare against baseline
+cargo bench -- --baseline main
+```
+
+### Performance Regression Detection
+```bash
+# Run performance regression tests
+cargo test --test performance_regression -- --nocapture
+
+# Analyze results
+python analyze-benchmarks.py --baseline main --threshold 10
+```
+
+## Security Testing Guidelines
+
+### Threat Coverage
+Ensure tests cover all threat categories:
+- Unicode exploits (homographs, bidi, zero-width)
+- Injection attacks (SQL, command, LDAP, path)
+- XSS variants (HTML, JS, CSS contexts)
+- Authentication bypasses
+- Rate limit evasion
+
+### Security Test Pattern
+```rust
+#[test]
+fn test_security_invariant() {
+    // Test both implementations
+    for implementation in &[Implementation::Standard, Implementation::Enhanced] {
+        let scanner = create_scanner(*implementation);
+        
+        // Test known threats
+        for (input, expected_threat) in KNOWN_THREATS.iter() {
+            let threats = scanner.scan(input).unwrap();
+            assert!(threats.iter().any(|t| t.threat_type == *expected_threat),
+                   "Failed to detect {} in {:?}", expected_threat, implementation);
+        }
+    }
+}
+```
+
+## Continuous Integration
+
+### GitHub Actions Integration
+```yaml
+name: Comprehensive Testing
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Run all tests
+        run: ./run-all-tests.sh --ci
+        
+      - name: Run benchmarks
+        run: cargo bench -- --save-baseline ${{ github.sha }}
+        
+      - name: Check performance regression
+        run: python analyze-benchmarks.py --threshold 10
+        
+      - name: Upload results
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results
+          path: |
+            target/criterion
+            test-results.json
+```
+
 ## Contributing Tests
 
 When adding new features:
 
-1. Write unit tests first (TDD)
-2. Add integration tests for user scenarios
-3. Include edge cases and error conditions
-4. Update this documentation if needed
+1. Write trait compliance tests for new traits
+2. Add behavioral equivalence tests for dual implementations
+3. Include performance benchmarks
+4. Add security property tests
+5. Create integration scenarios
+6. Document test patterns
 
-Remember: A feature without tests is not complete!
+Remember: Every feature must maintain security parity between implementations!

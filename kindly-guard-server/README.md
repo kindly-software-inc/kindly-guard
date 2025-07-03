@@ -185,14 +185,63 @@ cargo build --release
 ```
 
 ### Testing
+
+KindlyGuard implements a comprehensive dual-implementation testing strategy:
+
 ```bash
+# Run all tests
 cargo test
+
+# Run specific test suites
+cargo test --test trait_compliance        # Trait implementation validation
+cargo test --test behavioral_equivalence  # Security parity verification
+cargo test --test performance_regression  # Performance tracking
+cargo test --test security_properties     # Security invariant testing
+
+# Run integration tests
+cargo test --test integration_scenarios
+
+# Run stress tests
+cargo test --test load_testing -- --release
+
+# Run chaos engineering tests
+cargo test --test chaos_engineering -- --test-threads=1
 ```
 
 ### Benchmarks
+
 ```bash
+# Run all benchmarks
 cargo bench
+
+# Run comparative benchmarks (Standard vs Enhanced)
+cargo bench --bench comparative_benchmarks
+
+# Save baseline for comparison
+cargo bench -- --save-baseline main
+
+# Compare against baseline
+cargo bench -- --baseline main
 ```
+
+### Comprehensive Testing
+
+```bash
+# Run complete test suite
+./run-all-tests.sh
+
+# Run with CI configuration
+./run-all-tests.sh --ci
+
+# Run with coverage
+./run-all-tests.sh --coverage
+```
+
+Our testing infrastructure ensures:
+- **Security Parity**: Both standard and enhanced implementations detect identical threats
+- **Performance Tracking**: Continuous monitoring of performance metrics
+- **Fault Tolerance**: Chaos engineering validates resilience
+- **Real-world Scenarios**: Integration tests cover production use cases
 
 ## License
 

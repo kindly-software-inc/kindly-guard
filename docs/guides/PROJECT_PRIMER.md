@@ -192,6 +192,8 @@ Start with these files to understand the system:
 
 ## Testing Strategy
 
+KindlyGuard implements a comprehensive dual-implementation testing approach to ensure security parity between standard and enhanced versions while enabling performance optimization.
+
 ### Test Types and Locations
 ```bash
 # Unit tests (next to code)
@@ -205,24 +207,114 @@ cargo test proptest
 
 # Benchmarks
 cargo bench
+
+# Run all comprehensive tests
+./run-all-tests.sh
+
+# Run specific test suites
+cargo test --test trait_compliance           # Trait implementation tests
+cargo test --test behavioral_equivalence     # Dual-implementation verification
+cargo test --test performance_regression      # Performance tracking
+cargo test --test security_properties         # Security invariants
+cargo test --test integration_scenarios       # End-to-end scenarios
+cargo test --test chaos_engineering          # Fault injection
+cargo test --test load_testing               # Stress testing
 ```
+
+### Comprehensive Test Suites
+
+#### 1. Trait Compliance Tests (`tests/trait_compliance.rs`)
+Ensures all implementations correctly implement required traits:
+- Scanner trait compliance
+- Neutralizer trait compliance
+- Storage trait compliance
+- Resilience trait compliance
+
+#### 2. Behavioral Equivalence Tests (`tests/behavioral_equivalence.rs`)
+Verifies standard and enhanced implementations produce identical security outcomes:
+- Same threats detected
+- Same severity assessments
+- Same neutralization results
+- Performance differences tracked
+
+#### 3. Performance Regression Tests (`tests/performance_regression.rs`)
+Tracks performance metrics across versions:
+- Throughput benchmarks
+- Latency percentiles (p50, p95, p99)
+- Memory usage patterns
+- CPU utilization
+
+#### 4. Security Properties Tests (`tests/security_properties.rs`)
+Property-based testing for security invariants:
+- No false negatives on known threats
+- Consistent threat detection
+- Safe neutralization
+- No security bypasses
+
+#### 5. Integration Scenarios (`tests/integration_scenarios.rs`)
+Real-world usage patterns:
+- Multi-protocol handling
+- Concurrent client scenarios
+- Resource contention
+- Error recovery paths
+
+#### 6. Comparative Benchmarks (`benches/comparative_benchmarks.rs`)
+Side-by-side performance comparison:
+- Standard vs Enhanced throughput
+- Memory efficiency
+- Latency distribution
+- Scalability characteristics
+
+#### 7. Chaos Engineering Tests (`tests/chaos_engineering.rs`)
+Fault injection and resilience:
+- Random failures
+- Resource exhaustion
+- Network partitions
+- Cascading failures
+
+#### 8. Load Testing (`tests/load_testing.rs`)
+Stress and capacity testing:
+- Sustained high load
+- Burst traffic patterns
+- Resource limits
+- Graceful degradation
 
 ### Writing Good Tests
 ```rust
-// CLAUDE-note-testing: Test pattern
+// CLAUDE-note-testing: Dual-implementation test pattern
 #[test]
-fn test_threat_detection() {
-    // Arrange
-    let scanner = UnicodeScanner::new();
+fn test_threat_detection_parity() {
+    // Test both implementations
+    let standard_scanner = create_standard_scanner();
+    let enhanced_scanner = create_enhanced_scanner();
+    
     let malicious_input = "evil\u{202E}good";  // Right-to-left override
     
-    // Act
-    let result = scanner.scan(malicious_input).unwrap();
+    // Both must detect the same threats
+    let standard_result = standard_scanner.scan(malicious_input).unwrap();
+    let enhanced_result = enhanced_scanner.scan(malicious_input).unwrap();
     
-    // Assert
-    assert!(result.has_threats());
-    assert_eq!(result.threats[0].type, ThreatType::BidiOverride);
+    // Assert security parity
+    assert_eq!(standard_result.threats.len(), enhanced_result.threats.len());
+    assert_eq!(standard_result.severity, enhanced_result.severity);
+    
+    // Track performance difference
+    assert!(enhanced_result.scan_time < standard_result.scan_time);
 }
+```
+
+### CI/CD Integration
+```yaml
+# Performance testing in CI
+- name: Run Performance Tests
+  run: |
+    cargo test --test performance_regression -- --baseline main
+    cargo bench -- --save-baseline ${{ github.sha }}
+    
+- name: Check Performance Regression
+  run: |
+    python analyze-benchmarks.py --threshold 10
+```
 ```
 
 ## Performance Considerations

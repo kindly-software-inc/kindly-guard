@@ -52,13 +52,21 @@ use anyhow::Result;
 pub fn create_event_buffer(
     config: &event_processor::EventProcessorConfig,
 ) -> Result<Option<Box<dyn traits::EventBufferTrait>>> {
-    // For now, return a simple stub implementation
-    // Enhanced implementations can be added behind feature flags
-    if config.enabled {
-        Ok(Some(Box::new(event_processor::SimpleEventBuffer::new())))
-    } else {
-        Ok(None)
+    if !config.enabled {
+        return Ok(None);
     }
+
+    #[cfg(feature = "enhanced")]
+    {
+        // Check if enhanced mode is requested
+        if config.enhanced_mode.unwrap_or(false) {
+            use enhanced_impl::event_buffer::AtomicBitPackedEventBuffer;
+            return Ok(Some(Box::new(AtomicBitPackedEventBuffer::new(config)?)));
+        }
+    }
+    
+    // Default to simple implementation
+    Ok(Some(Box::new(event_processor::SimpleEventBuffer::new())))
 }
 
 /// Mock types for testing

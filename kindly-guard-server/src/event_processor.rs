@@ -144,6 +144,9 @@ pub struct EventProcessorConfig {
 
     /// Enable real-time correlation
     pub correlation_enabled: bool,
+
+    /// Use enhanced atomic bit-packed implementation (requires enhanced feature)
+    pub enhanced_mode: Option<bool>,
 }
 
 impl Default for EventProcessorConfig {

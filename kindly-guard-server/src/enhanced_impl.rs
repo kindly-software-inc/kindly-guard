@@ -1,6 +1,8 @@
 //! Enhanced implementations with optimized event processing
 //! These provide advanced capabilities when enabled
 
+pub mod event_buffer;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use parking_lot::RwLock;
