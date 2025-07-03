@@ -590,6 +590,12 @@ impl<'a> SpanBuilder<'a> {
         // Add links
         span.links = self.links;
 
+        // Update the span in active_spans if it was sampled
+        if let Some(existing_span) = self.provider.active_spans.write().await.get_mut(&span.span_id) {
+            existing_span.attributes = span.attributes.clone();
+            existing_span.links = span.links.clone();
+        }
+
         span
     }
 }
