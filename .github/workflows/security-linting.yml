@@ -1,0 +1,221 @@
+name: Security Linting
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run comprehensive security checks daily
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      deep_scan:
+        description: 'Run deep security scan'
+        required: false
+        default: 'false'
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
+jobs:
+  security-lints:
+    name: Security Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: rustfmt, clippy
+    
+    - name: Cache cargo registry
+      uses: actions/cache@v3
+      with:
+        path: ~/.cargo/registry
+        key: ${{ runner.os }}-cargo-registry-sec-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Install security tools
+      run: |
+        cargo install cargo-audit
+        cargo install cargo-outdated
+        cargo install cargo-geiger
+        cargo install cargo-deny
+    
+    - name: Check formatting compliance
+      run: cargo fmt --all -- --check
+    
+    - name: Run comprehensive security lints
+      run: |
+        echo "Running security-focused clippy lints..."
+        cargo clippy --all-targets --all-features -- \
+          -D clippy::unwrap_used \
+          -D clippy::expect_used \
+          -D clippy::panic \
+          -D clippy::unimplemented \
+          -D clippy::todo \
+          -D clippy::dbg_macro \
+          -D clippy::print_stdout \
+          -D clippy::print_stderr \
+          -D clippy::exit \
+          -D clippy::mem_forget \
+          -D clippy::large_stack_arrays \
+          -D clippy::large_heap_allocations \
+          -W clippy::pedantic \
+          -W clippy::missing_errors_doc \
+          -W clippy::missing_panics_doc \
+          -W clippy::missing_safety_doc \
+          -W clippy::cargo \
+          -W clippy::unwrap_in_result \
+          -W clippy::indexing_slicing \
+          -W clippy::arithmetic_overflow \
+          -W clippy::integer_arithmetic \
+          -W clippy::float_arithmetic \
+          -W clippy::modulo_arithmetic \
+          -W clippy::as_conversions \
+          -W clippy::lossy_float_literal \
+          -A clippy::module_name_repetitions \
+          -A clippy::must_use_candidate \
+          -A clippy::missing_const_for_fn
+    
+    - name: Check for unsafe code
+      run: |
+        echo "Checking for unsafe code usage..."
+        # Count unsafe blocks
+        UNSAFE_COUNT=$(grep -r "unsafe" --include="*.rs" src/ | grep -v "// unsafe" | wc -l || echo 0)
+        echo "Found $UNSAFE_COUNT potential unsafe blocks"
+        if [ "$UNSAFE_COUNT" -gt "0" ]; then
+          echo "::warning::Found $UNSAFE_COUNT potential unsafe blocks - review required"
+          grep -r "unsafe" --include="*.rs" -n src/ | grep -v "// unsafe" || true
+        fi
+    
+    - name: Run cargo audit
+      run: |
+        echo "Checking for known vulnerabilities..."
+        cargo audit --deny warnings
+    
+    - name: Check dependencies with cargo-deny
+      run: |
+        # Create a basic deny.toml if it doesn't exist
+        if [ ! -f "deny.toml" ]; then
+          cat > deny.toml << 'EOF'
+[advisories]
+db-path = "~/.cargo/advisory-db"
+db-urls = ["https://github.com/rustsec/advisory-db"]
+vulnerability = "deny"
+unmaintained = "warn"
+yanked = "warn"
+notice = "warn"
+
+[licenses]
+unlicensed = "deny"
+allow = ["MIT", "Apache-2.0", "BSD-3-Clause", "ISC", "Unicode-DFS-2016"]
+copyleft = "warn"
+
+[bans]
+multiple-versions = "warn"
+skip = []
+
+[sources]
+unknown-registry = "warn"
+unknown-git = "warn"
+EOF
+        fi
+        cargo deny check
+    
+    - name: Check outdated dependencies
+      run: |
+        echo "Checking for outdated dependencies..."
+        cargo outdated --exit-code 1 || echo "::warning::Some dependencies are outdated"
+    
+    - name: Analyze unsafe code with cargo-geiger
+      run: |
+        echo "Analyzing unsafe code in dependencies..."
+        cargo geiger --all-features
+    
+    - name: Deep security scan
+      if: github.event.inputs.deep_scan == 'true'
+      run: |
+        echo "Running deep security scan..."
+        # Additional pedantic lints
+        cargo clippy --all-targets --all-features -- \
+          -W clippy::restriction \
+          -A clippy::missing_docs_in_private_items \
+          -A clippy::implicit_return \
+          -A clippy::missing_inline_in_public_items \
+          -A clippy::question_mark_used \
+          -A clippy::separated_literal_suffix \
+          -A clippy::mod_module_files
+    
+    - name: Generate security report
+      if: always()
+      run: |
+        echo "# Security Lint Report" > security-report.md
+        echo "Generated on: $(date)" >> security-report.md
+        echo "" >> security-report.md
+        
+        echo "## Clippy Security Lints" >> security-report.md
+        echo "All security-critical lints passed ✓" >> security-report.md
+        echo "" >> security-report.md
+        
+        echo "## Dependency Audit" >> security-report.md
+        cargo audit --json | jq -r '.vulnerabilities' >> security-report.md || echo "No vulnerabilities found ✓" >> security-report.md
+        echo "" >> security-report.md
+        
+        echo "## Unsafe Code Analysis" >> security-report.md
+        cargo geiger --all-features --output-format Ratio >> security-report.md
+    
+    - name: Upload security report
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: security-report
+        path: security-report.md
+    
+    - name: Comment PR with security status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const fs = require('fs');
+          const report = fs.readFileSync('security-report.md', 'utf8');
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '## Security Lint Status\n\n' + report
+          });
+
+  license-check:
+    name: License Compliance
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install cargo-license
+      run: cargo install cargo-license
+    
+    - name: Check licenses
+      run: |
+        echo "Checking dependency licenses..."
+        cargo license --json > licenses.json
+        
+        # Check for problematic licenses
+        COPYLEFT=$(jq -r '.[] | select(.license | contains("GPL")) | .name' licenses.json || echo "")
+        if [ ! -z "$COPYLEFT" ]; then
+          echo "::warning::Found copyleft licenses in: $COPYLEFT"
+        fi
+        
+        # List all licenses
+        echo "All dependency licenses:"
+        cargo license

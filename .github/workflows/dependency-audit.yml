@@ -1,0 +1,168 @@
+name: Dependency Audit
+
+on:
+  # Run on all pull requests
+  pull_request:
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - 'deny.toml'
+  
+  # Run on pushes to main branch
+  push:
+    branches: [main, master]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - 'deny.toml'
+  
+  # Run on schedule for new vulnerabilities
+  schedule:
+    # Run at 2 AM UTC every day
+    - cron: '0 2 * * *'
+  
+  # Allow manual runs
+  workflow_dispatch:
+
+jobs:
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-deny
+        run: |
+          wget https://github.com/EmbarkStudios/cargo-deny/releases/download/0.14.3/cargo-deny-0.14.3-x86_64-unknown-linux-musl.tar.gz
+          tar -xzf cargo-deny-0.14.3-x86_64-unknown-linux-musl.tar.gz
+          chmod +x cargo-deny
+          sudo mv cargo-deny /usr/local/bin/
+      
+      - name: Check advisories
+        run: cargo deny check advisories
+        continue-on-error: false
+      
+      - name: Check licenses
+        run: cargo deny check licenses
+        continue-on-error: false
+      
+      - name: Check bans
+        run: cargo deny check bans
+        continue-on-error: false
+      
+      - name: Check sources
+        run: cargo deny check sources
+        continue-on-error: false
+      
+      - name: Generate full report
+        if: failure()
+        run: |
+          echo "## Dependency Audit Failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Run \`cargo deny check\` locally to see detailed issues." >> $GITHUB_STEP_SUMMARY
+          cargo deny check 2>&1 | tee audit-report.txt || true
+      
+      - name: Upload audit report
+        if: failure()
+        uses: actions/upload-artifact@v3
+        with:
+          name: dependency-audit-report
+          path: audit-report.txt
+          retention-days: 7
+      
+      - name: Comment PR with security issues
+        if: github.event_name == 'pull_request' && failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `
+            ⚠️ **Dependency Security Audit Failed**
+            
+            The dependency audit found security or license issues. Please run:
+            \`\`\`bash
+            cargo deny check
+            \`\`\`
+            
+            For details, check the workflow artifacts or run the command locally.
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+  # Separate job for scheduled vulnerability checks
+  vulnerability-check:
+    name: Vulnerability Database Check
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      
+      - name: Install cargo-deny
+        run: |
+          wget https://github.com/EmbarkStudios/cargo-deny/releases/download/0.14.3/cargo-deny-0.14.3-x86_64-unknown-linux-musl.tar.gz
+          tar -xzf cargo-deny-0.14.3-x86_64-unknown-linux-musl.tar.gz
+          chmod +x cargo-deny
+          sudo mv cargo-deny /usr/local/bin/
+      
+      - name: Update advisory database
+        run: cargo deny fetch
+      
+      - name: Check for new vulnerabilities
+        id: vuln-check
+        run: |
+          if ! cargo deny check advisories; then
+            echo "vulnerabilities_found=true" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+      
+      - name: Create issue for vulnerabilities
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = '🚨 Security: New vulnerabilities detected in dependencies';
+            const body = `
+            The scheduled security audit has detected new vulnerabilities in the project dependencies.
+            
+            **Action Required:**
+            1. Run \`cargo deny check advisories\` locally
+            2. Update affected dependencies
+            3. Test the updates thoroughly
+            4. Create a PR with the fixes
+            
+            This issue was automatically created by the dependency audit workflow.
+            `;
+            
+            // Check if issue already exists
+            const issues = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: ['security', 'dependencies']
+            });
+            
+            const existingIssue = issues.data.find(issue => issue.title === title);
+            
+            if (!existingIssue) {
+              await github.rest.issues.create({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                title: title,
+                body: body,
+                labels: ['security', 'dependencies', 'priority:high']
+              });
+            }

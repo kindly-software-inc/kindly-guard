@@ -1,5 +1,26 @@
 # Release Checklist for KindlyGuard v1.0
 
+## Quick Release (Automated)
+
+For standard releases, use the automated system:
+
+```bash
+# One-command release
+./scripts/release.sh 1.0.0
+
+# With options
+./scripts/release.sh 1.0.0 --auto-publish  # Skip prompts
+./scripts/release.sh 1.0.0 --dry-run      # Preview only
+```
+
+The automated release handles:
+- ✅ Version updates across all files
+- ✅ Git commits and tags
+- ✅ GitHub Actions triggering
+- ✅ Multi-platform builds
+- ✅ GitHub release creation
+- ✅ Package publishing (with confirmation)
+
 ## Overview
 KindlyGuard is now production-ready with comprehensive security coverage and excellent test results. This checklist outlines the remaining tasks before the official v1.0 release.
 
@@ -11,7 +32,7 @@ KindlyGuard is now production-ready with comprehensive security coverage and exc
 - **Documentation**: 🟡 90% complete
 - **Release Prep**: 🟡 In progress
 
-## Pre-Release Checklist
+## Pre-Release Checklist (Manual Process)
 
 ### 1. Documentation Completion (Week 1)
 - [ ] **API Documentation**
@@ -32,6 +53,11 @@ KindlyGuard is now production-ready with comprehensive security coverage and exc
   - [ ] Docker deployment guide
 
 ### 2. Code Cleanup (Week 1-2)
+- [ ] **Version Management**
+  - [ ] Update all version numbers: `./scripts/update-version.sh 1.0.0`
+  - [ ] Validate version consistency: `./scripts/validate-versions.sh`
+  - [ ] Verify README badges show correct version
+  
 - [ ] **Remove Debug Code**
   - [ ] Remove any println! statements
   - [ ] Clean up temporary test code
@@ -99,21 +125,27 @@ KindlyGuard is now production-ready with comprehensive security coverage and exc
   - [ ] Apple Silicon (M1/M2)
 
 ### 6. Release Artifacts (Week 3-4)
+
+**Note**: Use automated release tools for efficiency:
+- `./scripts/release.sh 1.0.0` - Complete release process
+- `./scripts/update-version.sh --release 1.0.0` - Version update with release
+- `./scripts/release-orchestrator.sh` - Advanced control
+
 - [ ] **Binary Releases**
-  - [ ] Build for all platforms
+  - [ ] Build for all platforms (automated via GitHub Actions)
   - [ ] Sign binaries
-  - [ ] Create checksums
+  - [ ] Create checksums (automated)
   - [ ] Test installation
   
 - [ ] **Package Managers**
-  - [ ] Publish to crates.io
+  - [ ] Publish to crates.io (`./scripts/publish-crates.sh`)
   - [ ] Homebrew formula
   - [ ] AUR package
   - [ ] Debian/RPM packages
   
 - [ ] **Container Images**
-  - [ ] Docker Hub image
-  - [ ] Multi-arch support
+  - [ ] Docker Hub image (`./scripts/publish-docker.sh`)
+  - [ ] Multi-arch support (automated)
   - [ ] Security scanning
   - [ ] Minimal Alpine image
 

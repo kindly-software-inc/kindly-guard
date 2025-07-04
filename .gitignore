@@ -84,6 +84,7 @@ env/
 *.p12
 *.pfx
 secrets/
+.secrets.baseline
 
 # Benchmark results
 /benches/target/
@@ -154,3 +155,12 @@ docker-compose.override.yml
 # Local Docker publish configuration
 docker-publish.local.sh
 .docker-hub-token
+# Release orchestrator
+.release-state.json
+.release.lock
+.release-logs/
+release-config.yml
+
+# Changelog backups
+CHANGELOG.md.bak
+*.bak

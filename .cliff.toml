@@ -1,0 +1,173 @@
+# git-cliff configuration for KindlyGuard
+# Security-focused changelog generation
+
+[changelog]
+# Changelog header
+header = """
+# Changelog
+
+All notable changes to KindlyGuard will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+"""
+# Template for the changelog body
+# https://keats.github.io/tera/docs/
+body = """
+{% if version %}\
+    ## [{{ version | trim_start_matches(pat="v") }}] - {{ timestamp | date(format="%Y-%m-%d") }}
+{% else %}\
+    ## [Unreleased]
+{% endif %}\
+
+{% for group, commits in commits | group_by(attribute="group") %}
+    ### {{ group | striptags | trim | upper_first }}
+    {% for commit in commits %}
+        - {% if commit.scope %}**{{ commit.scope }}**: {% endif %}\
+            {% if commit.breaking %}[**BREAKING**] {% endif %}\
+            {{ commit.message | split(pat="\n") | first | trim }}\
+            {% if commit.body %} - {{ commit.body | split(pat="\n") | first | trim }}{% endif %}\
+    {% endfor %}
+{% endfor %}\n
+"""
+
+# Template for the changelog footer
+footer = """
+{% for release in releases -%}
+    {% if release.version -%}
+        {% if release.previous.version -%}
+            [{{ release.version | trim_start_matches(pat="v") }}]: \
+                https://github.com/KindlySecurity/kindly-guard/compare/{{ release.previous.version }}..{{ release.version }}
+        {% else -%}
+            [{{ release.version | trim_start_matches(pat="v") }}]: \
+                https://github.com/KindlySecurity/kindly-guard/releases/tag/{{ release.version }}
+        {% endif -%}
+    {% else -%}
+        [Unreleased]: https://github.com/KindlySecurity/kindly-guard/compare/{{ release.previous.version }}..HEAD
+    {% endif -%}
+{% endfor %}
+"""
+
+# Remove the leading and trailing whitespace from the templates
+trim = true
+
+[git]
+# Parse the commits based on https://www.conventionalcommits.org
+conventional_commits = true
+# Filter out the commits that are not conventional
+filter_unconventional = true
+# Process each line of a commit as an individual commit
+split_commits = false
+# Regex for preprocessing the commit messages
+commit_preprocessors = [
+    # Remove issue numbers from commits
+    { pattern = '\((\w+\s)?#([0-9]+)\)', replace = "" },
+    # Remove PR numbers
+    { pattern = 'Merge pull request #[0-9]+ from [^ ]+', replace = "" },
+]
+
+# Regex for parsing and grouping commits
+commit_parsers = [
+    # Security fixes (always first)
+    { message = "^security", group = "🔒 Security" },
+    { message = "^vuln", group = "🔒 Security" },
+    { message = "^cve", group = "🔒 Security" },
+    { message = "^fix.*security", group = "🔒 Security" },
+    { message = "^fix.*injection", group = "🔒 Security" },
+    { message = "^fix.*xss", group = "🔒 Security" },
+    { message = "^fix.*traversal", group = "🔒 Security" },
+    
+    # Audit and compliance
+    { message = "^audit", group = "📋 Audit & Compliance" },
+    { message = "^compliance", group = "📋 Audit & Compliance" },
+    
+    # Features
+    { message = "^feat", group = "✨ Features" },
+    { message = "^feature", group = "✨ Features" },
+    
+    # Bug fixes
+    { message = "^fix", group = "🐛 Bug Fixes" },
+    { message = "^bugfix", group = "🐛 Bug Fixes" },
+    
+    # Performance
+    { message = "^perf", group = "⚡ Performance" },
+    { message = "^optimize", group = "⚡ Performance" },
+    
+    # Documentation
+    { message = "^docs", group = "📚 Documentation" },
+    { message = "^doc", group = "📚 Documentation" },
+    
+    # Testing
+    { message = "^test", group = "🧪 Testing" },
+    { message = "^tests", group = "🧪 Testing" },
+    
+    # Refactoring
+    { message = "^refactor", group = "♻️ Refactoring" },
+    
+    # Dependencies
+    { message = "^deps", group = "📦 Dependencies" },
+    { message = "^dependencies", group = "📦 Dependencies" },
+    { message = "^chore.*deps", group = "📦 Dependencies" },
+    { message = "^chore.*dependencies", group = "📦 Dependencies" },
+    
+    # Build & CI
+    { message = "^build", group = "🔧 Build & CI" },
+    { message = "^ci", group = "🔧 Build & CI" },
+    { message = "^chore.*build", group = "🔧 Build & CI" },
+    { message = "^chore.*ci", group = "🔧 Build & CI" },
+    
+    # Other changes
+    { message = "^style", group = "🎨 Style" },
+    { message = "^chore", group = "🔧 Miscellaneous" },
+    { message = "^revert", group = "⏪ Reverts" },
+]
+
+# Protect breaking changes
+protect_breaking_commits = true
+
+# Filter out the commits that are not matched by commit parsers
+filter_commits = false
+
+# Sort the tags topologically
+tag_pattern = "v[0-9].*"
+
+# Sort the commits inside sections by oldest/newest order
+sort_commits = "oldest"
+
+# Group commits by scope
+[git.scope]
+# Scopes based on KindlyGuard architecture
+# Scanner components
+scanner = "Scanner"
+unicode = "Unicode Detection"
+injection = "Injection Prevention"
+xss = "XSS Protection"
+patterns = "Pattern Detection"
+
+# Server components
+server = "Server"
+protocol = "Protocol"
+handler = "Request Handler"
+
+# Shield components
+shield = "Shield UI"
+dashboard = "Dashboard"
+stats = "Statistics"
+
+# Storage components
+storage = "Storage"
+cache = "Cache"
+sqlite = "SQLite"
+
+# Resilience components
+resilience = "Resilience"
+circuit-breaker = "Circuit Breaker"
+retry = "Retry Logic"
+bulkhead = "Bulkhead"
+
+# Other components
+config = "Configuration"
+cli = "CLI"
+neutralizer = "Neutralizer"
+audit = "Audit"

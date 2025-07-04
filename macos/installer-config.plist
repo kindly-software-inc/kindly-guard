@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>title</key>
+    <string>KindlyGuard</string>
+    <key>background</key>
+    <string>background.png</string>
+    <key>background-darkAqua</key>
+    <string>background-dark.png</string>
+    <key>license</key>
+    <string>LICENSE.txt</string>
+    <key>welcome</key>
+    <string>welcome.html</string>
+    <key>conclusion</key>
+    <string>conclusion.html</string>
+    <key>domains</key>
+    <dict>
+        <key>enable_anywhere</key>
+        <false/>
+        <key>enable_currentUserHome</key>
+        <true/>
+        <key>enable_localSystem</key>
+        <true/>
+    </dict>
+    <key>choices</key>
+    <array>
+        <dict>
+            <key>choiceIdentifier</key>
+            <string>com.kindlyguard.cli</string>
+            <key>choiceDisplayName</key>
+            <string>KindlyGuard CLI</string>
+            <key>choiceDescription</key>
+            <string>Command-line interface for KindlyGuard security scanning</string>
+            <key>customLocation</key>
+            <string>/usr/local/bin</string>
+        </dict>
+        <dict>
+            <key>choiceIdentifier</key>
+            <string>com.kindlyguard.server</string>
+            <key>choiceDisplayName</key>
+            <string>KindlyGuard Server</string>
+            <key>choiceDescription</key>
+            <string>MCP server for real-time security protection</string>
+            <key>customLocation</key>
+            <string>/usr/local/bin</string>
+        </dict>
+    </array>
+</dict>
+</plist>

@@ -1,0 +1,51 @@
+# KindlyGuard Commit Message Template
+# 
+# Format: <type>(<scope>): <subject>
+#
+# === SECURITY TYPES (Always Priority) ===
+# security: Security fixes and improvements
+# vuln:     Vulnerability patches
+# cve:      CVE-related fixes
+# audit:    Audit-related changes
+#
+# === STANDARD TYPES ===
+# feat:     New feature
+# fix:      Bug fix
+# perf:     Performance improvement
+# docs:     Documentation only
+# test:     Test additions/changes
+# refactor: Code refactoring
+# build:    Build system changes
+# ci:       CI/CD changes
+# deps:     Dependency updates
+# chore:    Other maintenance
+#
+# === SCOPES ===
+# Scanner:  scanner, unicode, injection, xss, patterns
+# Server:   server, protocol, handler
+# Other:    shield, storage, cache, resilience, config, cli, neutralizer
+#
+# === RULES ===
+# 1. Subject line: imperative mood, max 72 chars
+# 2. Blank line between subject and body
+# 3. Body: explain what and why, not how
+# 4. Footer: issue refs, breaking changes, CVE refs
+#
+# === EXAMPLES ===
+# security: fix timing attack in token validation
+# feat(scanner): add Windows command injection detection
+# fix(unicode): correct homograph detection for Cyrillic
+# perf(scanner): optimize pattern matching with SIMD
+#
+# For breaking changes, add ! after type/scope:
+# feat(api)!: change scan response format
+#
+# Then add in footer:
+# BREAKING CHANGE: description of what changed
+
+
+# <type>(<scope>): <subject>
+
+# <body - explain what and why>
+
+# <footer - references, breaking changes>

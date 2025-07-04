@@ -1,0 +1,33 @@
+name: Version Consistency Check
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+  push:
+    branches: [main, master]
+
+jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    - name: Make scripts executable
+      run: chmod +x scripts/*.sh
+    
+    - name: Check version consistency
+      run: ./scripts/validate-versions.sh
+      
+    - name: Comment on PR if versions mismatch
+      if: failure() && github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: '❌ Version mismatch detected! Please ensure all versions are consistent.\n\nRun `./scripts/validate-versions.sh --fix` locally to update all versions.'
+          })

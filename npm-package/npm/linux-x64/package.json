@@ -1,6 +1,6 @@
 {
   "name": "@kindlyguard/linux-x64",
-  "version": "0.9.2",
+  "version": "0.9.7",
   "description": "KindlyGuard binaries for linux-x64",
   "author": "samduchaine",
   "license": "Apache-2.0",

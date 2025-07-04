@@ -6,15 +6,39 @@
 [![CI Status](https://img.shields.io/github/workflow/status/kindlyguard/kindlyguard/CI)](https://github.com/kindlyguard/kindlyguard/actions)
 [![Security Audit](https://img.shields.io/badge/security-audited-green.svg)](docs/SECURITY_AUDIT_REPORT.md)
 [![License](https://img.shields.io/crates/l/kindlyguard.svg)](LICENSE)
+[![MSRV](https://img.shields.io/badge/rust-1.75%2B-blue.svg)](https://github.com/rust-lang/rust)
+[![deps.rs](https://deps.rs/repo/github/kindlyguard/kindlyguard/status.svg)](https://deps.rs/repo/github/kindlyguard/kindlyguard)
+[![Documentation](https://docs.rs/kindlyguard/badge.svg)](https://docs.rs/kindlyguard)
 
 **Production-ready security layer for AI model interactions via the Model Context Protocol (MCP)**
 
 ## 🚀 Quick Start (30 seconds)
 
-### npm (Recommended)
+### Quick Install Scripts (New!)
+**Shell (macOS/Linux):**
+```bash
+curl -LsSf https://github.com/samduchaine/kindly-guard/releases/latest/download/kindly-guard-installer.sh | sh
+```
+
+**PowerShell (Windows):**
+```powershell
+irm https://github.com/samduchaine/kindly-guard/releases/latest/download/kindly-guard-installer.ps1 | iex
+```
+
+### npm (Recommended for Node.js users)
 ```bash
 npm install -g kindlyguard && kindlyguard --stdio
 ```
+
+### Homebrew (macOS/Linux)
+```bash
+brew install samduchaine/tap/kindly-guard
+```
+
+### Native Installers
+- **Windows:** [Download MSI installer](https://github.com/samduchaine/kindly-guard/releases/latest)
+- **macOS:** [Download PKG installer](https://github.com/samduchaine/kindly-guard/releases/latest)
+- **Linux:** [Download .deb or .rpm](https://github.com/samduchaine/kindly-guard/releases/latest)
 
 ### Cargo
 ```bash
@@ -238,6 +262,12 @@ Once configured, KindlyGuard:
 - [Architecture](ARCHITECTURE.md) - System design and patterns
 - [Testing Guide](TESTING.md) - Comprehensive testing documentation
 
+### Development Guides
+- **[Development Workflow](docs/DEVELOPMENT_WORKFLOW.md)** - Modern Rust development workflow
+- **[Tooling Guide](docs/TOOLING.md)** - Detailed documentation for all tools
+- **[Quick Reference](docs/QUICK_REFERENCE.md)** - Command cheatsheet
+- [Contributing Guide](CONTRIBUTING.md) - How to contribute
+
 ### Deployment Guides
 - [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md) - Complete Docker deployment documentation
 - [Docker Security Guide](docs/DOCKER_SECURITY.md) - Docker security best practices
@@ -353,24 +383,53 @@ spec:
 We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
 ### Development Setup
+
+#### Requirements
+- **Rust**: 1.80 or newer ([MSRV Policy](docs/MSRV_POLICY.md))
+- **Operating System**: Linux, macOS, or Windows
+- **Optional**: Docker for containerized development
+
 ```bash
 # Clone repository
 git clone https://github.com/kindlyguard/kindlyguard
 cd kindlyguard
 
-# Install dependencies
-cargo build
+# Verify Rust version (must be 1.80+)
+rustc --version
 
-# Run tests
-cargo test
+# Install dependencies and dev tools
+cargo build
+./scripts/install-dev-tools.sh
+
+# Start development (with automatic compilation)
+bacon
+
+# Run tests (60% faster with nextest)
+cargo nextest run
+
+# Run security checks
+cargo deny check
+cargo audit
 
 # Run with debug logging
 RUST_LOG=debug cargo run -- --stdio
 ```
 
+#### Modern Development Tools
+
+We use cutting-edge Rust tooling for security and productivity:
+- **cargo-nextest** - 60% faster test runner with better output
+- **cargo-deny** - Supply chain security auditing
+- **bacon** - Instant feedback during development
+- **cargo-audit** - CVE vulnerability scanning
+- **typos** - Lightning-fast spell checker
+- **committed** - Conventional commit enforcement
+
+📚 See our [Development Workflow Guide](docs/DEVELOPMENT_WORKFLOW.md) for complete tooling documentation.
+
 ## 📈 Roadmap
 
-### v0.9.2 (Current Release)
+### v0.9.7 (Current Release)
 - ✅ Core security scanning engine
 - ✅ MCP protocol implementation
 - ✅ OAuth 2.0 authentication

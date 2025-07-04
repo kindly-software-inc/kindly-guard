@@ -15,8 +15,9 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.9.5"
+version = "0.9.7"
 edition = "2021"
+rust-version = "1.80"  # MSRV - Minimum Supported Rust Version
 authors = ["samduchaine"]
 license = "Apache-2.0"
 repository = "https://github.com/samduchaine/kindly-guard"
@@ -70,3 +71,46 @@ debug-assertions = true
 [profile.bench]
 inherits = "release"
 debug = true
+
+# cargo-dist configuration
+[workspace.metadata.dist]
+# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+cargo-dist-version = "0.25.1"
+# CI backends to support
+ci = ["github"]
+# The installers to generate
+installers = ["shell", "powershell", "npm", "homebrew", "msi", "pkg"]
+# Target platforms to build for
+targets = [
+    "aarch64-apple-darwin",
+    "x86_64-apple-darwin",
+    "x86_64-unknown-linux-gnu",
+    "x86_64-unknown-linux-musl",
+    "x86_64-pc-windows-msvc",
+]
+# Publish jobs to run in CI
+publish-jobs = ["homebrew"]
+# Publish prereleases to package managers
+pr-run-mode = "plan"
+# Whether to install an updater program
+install-updater = true
+
+# Config for building installers
+[workspace.metadata.dist.github-custom-runners]
+aarch64-apple-darwin = "macos-14"
+x86_64-apple-darwin = "macos-13"
+
+# The archive format to use for windows builds (defaults .zip)
+[workspace.metadata.dist.windows-archive]
+format = ".zip"
+include-symbols = false
+
+# The archive format to use for non-windows builds (defaults .tar.xz)
+[workspace.metadata.dist.unix-archive]
+format = ".tar.gz"
+compression = "gzip"
+
+# Extra static files to include in each App (path relative to Cargo.toml)
+[workspace.metadata.dist.extra-artifacts]
+artifacts = ["LICENSE", "README.md", "SECURITY.md"]
+auto = false

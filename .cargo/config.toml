@@ -1,0 +1,254 @@
+# KindlyGuard Cargo Configuration
+# Security-focused build settings and aliases
+
+[build]
+# Always generate debug info for security analysis
+# Even in release builds (can strip later if needed)
+rustflags = [
+    "-C", "debuginfo=2",
+    # Enable overflow checks even in release
+    "-C", "overflow-checks=yes",
+    # Link-time optimization for smaller, faster binaries
+    "-C", "lto=thin",
+    # Abort on panic - no unwinding in production
+    "-C", "panic=abort",
+    # CPU features for better performance
+    "-C", "target-cpu=native",
+]
+
+# Default target directory
+target-dir = "target"
+
+# Incremental compilation for faster builds
+incremental = true
+
+[target.x86_64-unknown-linux-gnu]
+# Linux-specific security flags
+rustflags = [
+    "-C", "link-arg=-z", "-C", "link-arg=relro",
+    "-C", "link-arg=-z", "-C", "link-arg=now",
+    # Stack protection
+    "-C", "link-arg=-fstack-protector-strong",
+]
+
+[target.x86_64-apple-darwin]
+# macOS-specific security flags
+rustflags = [
+    # Hardened runtime
+    "-C", "link-arg=-Wl,-bind_at_load",
+]
+
+# Aliases for common tasks
+[alias]
+# Formatting checks
+fmt-check = "fmt -- --check"
+fmt-all = "fmt --all"
+
+# Comprehensive linting with all features
+lint = [
+    "clippy",
+    "--all-features",
+    "--tests",
+    "--examples",
+    "--benches",
+    "--",
+    # Deny critical security lints
+    "-D", "clippy::unwrap_used",
+    "-D", "clippy::expect_used",
+    "-D", "clippy::panic",
+    "-D", "clippy::unimplemented",
+    "-D", "clippy::todo",
+    "-D", "clippy::dbg_macro",
+    "-D", "clippy::print_stdout",
+    "-D", "clippy::print_stderr",
+    # Warn on other important lints
+    "-W", "clippy::pedantic",
+    "-W", "clippy::missing_errors_doc",
+    "-W", "clippy::missing_panics_doc",
+    "-W", "clippy::missing_safety_doc",
+    "-W", "clippy::cargo",
+    # Allow some pedantic lints that don't help security
+    "-A", "clippy::module_name_repetitions",
+    "-A", "clippy::must_use_candidate",
+    "-A", "clippy::missing_const_for_fn",
+]
+
+# Quick security check - just the critical stuff
+sec = [
+    "clippy",
+    "--",
+    "-D", "clippy::unwrap_used",
+    "-D", "clippy::expect_used", 
+    "-D", "clippy::panic",
+    "-D", "clippy::mem_forget",
+    "-D", "clippy::large_stack_arrays",
+    "-D", "clippy::large_heap_allocations",
+]
+
+# Pedantic mode for deep review
+pedantic = [
+    "clippy",
+    "--all-features",
+    "--",
+    "-W", "clippy::all",
+    "-W", "clippy::pedantic",
+    "-W", "clippy::nursery",
+    "-W", "clippy::cargo",
+    "-W", "clippy::restriction",
+]
+
+# Check for unsafe code
+unsafe-check = [
+    "rustc",
+    "--crate-type=lib",
+    "-",
+    "-F", "unsafe_code",
+]
+
+# Run all checks (for CI)
+check-all = [
+    "check",
+    "--all-features",
+    "--all-targets",
+]
+
+# Test with all features
+test-all = [
+    "test",
+    "--all-features",
+    "--all-targets",
+]
+
+# Security audit
+audit = "audit --deny warnings"
+
+# Generate docs with private items (for internal review)
+doc-internal = "doc --no-deps --document-private-items"
+
+# Release build with security profile
+release-secure = [
+    "build",
+    "--release",
+    "--features", "secure",
+]
+
+# Quick benchmarks
+bench-quick = "bench --all-features -- --quick"
+
+# Update with security audit
+update-secure = "update --dry-run"
+
+# Check dependencies for security issues
+deps-check = "tree --duplicate"
+
+# Clean build with fresh dependencies
+clean-build = "clean && cargo build --all-features"
+
+# Coverage report (requires cargo-tarpaulin)
+coverage = [
+    "tarpaulin",
+    "--all-features",
+    "--out", "Html",
+    "--output-dir", "target/coverage",
+]
+
+# Expand macros for security review
+expand = "expand --theme=GitHub --tests"
+
+# Check minimum supported Rust version
+msrv = "msrv --min 1.80.0"
+
+# Profile-guided optimization build
+pgo-build = [
+    "build",
+    "--release",
+    "--features", "pgo",
+]
+
+# Fuzzing shortcut (requires cargo-fuzz)
+fuzz-all = "fuzz run fuzz_scanner"
+
+[env]
+# Always enable backtraces for debugging
+RUST_BACKTRACE = "1"
+
+# Colored output
+CARGO_TERM_COLOR = "always"
+
+# Security-focused test configuration
+RUST_TEST_THREADS = "4"
+RUST_TEST_NOCAPTURE = "0"
+
+# Enable source maps for better debugging
+CARGO_PROFILE_RELEASE_DEBUG = "true"
+
+[net]
+# Use git CLI for better SSH key support
+git-fetch-with-cli = true
+
+# Retry network operations
+retry = 3
+
+[http]
+# Security timeout for downloads
+timeout = 30
+
+# Check SSL certificates
+check-revoke = true
+
+[registries.crates-io]
+# Use HTTPS protocol
+protocol = "sparse"
+
+[profile.release]
+# Security-optimized release profile
+opt-level = 3
+lto = true
+codegen-units = 1
+panic = "abort"
+overflow-checks = true
+debug-assertions = false
+debug = true  # Keep debug info
+rpath = false
+strip = false  # Don't strip, we want symbols for analysis
+
+[profile.release-stripped]
+# Stripped release for distribution
+inherits = "release"
+strip = true
+debug = false
+
+[profile.secure]
+# Maximum security profile
+inherits = "release"
+opt-level = "z"  # Optimize for size
+lto = "fat"     # Maximum LTO
+panic = "abort"
+overflow-checks = true
+debug-assertions = true  # Keep assertions in secure build
+
+[profile.dev]
+# Development profile with security checks
+opt-level = 0
+overflow-checks = true
+debug-assertions = true
+panic = "unwind"
+incremental = true
+
+[profile.test]
+# Test profile with maximum checks
+opt-level = 0
+overflow-checks = true
+debug-assertions = true
+debug = true
+lto = false
+incremental = true
+
+[profile.bench]
+# Benchmark profile
+opt-level = 3
+lto = true
+debug = false
+debug-assertions = false
+overflow-checks = false
+incremental = false

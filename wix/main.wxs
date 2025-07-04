@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+    <!-- This is a template that cargo-dist will use for MSI generation -->
+    <!-- cargo-dist will automatically populate product info, files, and features -->
+    
+    <Product Id="*" 
+             Name="KindlyGuard" 
+             Language="1033" 
+             Version="$(var.Version)" 
+             Manufacturer="KindlyGuard Team"
+             UpgradeCode="A7B9C4E2-3F87-4D89-B215-6A8E9F3C2D41">
+        
+        <Package InstallerVersion="200" 
+                 Compressed="yes" 
+                 InstallScope="perMachine"
+                 Description="Security-focused MCP server protecting against unicode attacks and injection attempts"
+                 Comments="KindlyGuard - Secure your Model Context Protocol communications" />
+        
+        <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+        
+        <MediaTemplate EmbedCab="yes" />
+        
+        <!-- Application Settings -->
+        <Property Id="APPLICATIONFOLDER" Value="KindlyGuard" />
+        <Property Id="DISABLEADVTSHORTCUTS" Value="1" />
+        
+        <!-- Add to PATH -->
+        <Property Id="ADDTOPATH" Value="1" />
+        
+        <!-- Custom icon -->
+        <Icon Id="KindlyGuard.ico" SourceFile="assets/kindlyguard.ico" />
+        <Property Id="ARPPRODUCTICON" Value="KindlyGuard.ico" />
+        
+        <!-- Feature tree (cargo-dist will populate) -->
+        <Feature Id="ProductFeature" Title="KindlyGuard" Level="1">
+            <ComponentGroupRef Id="ProductComponents" />
+            <ComponentRef Id="ApplicationShortcut" />
+            <ComponentRef Id="PathComponent" />
+        </Feature>
+        
+        <!-- Start Menu Shortcut -->
+        <DirectoryRef Id="ApplicationProgramsFolder">
+            <Component Id="ApplicationShortcut" Guid="B8C9D4F1-2A56-4E78-9D12-7A5E8C9B3F42">
+                <Shortcut Id="ApplicationStartMenuShortcut"
+                          Name="KindlyGuard"
+                          Description="Security-focused MCP server"
+                          Target="[INSTALLDIR]kindly-guard.exe"
+                          WorkingDirectory="INSTALLDIR" />
+                <RemoveFolder Id="ApplicationProgramsFolder" On="uninstall" />
+                <RegistryValue Root="HKCU" 
+                               Key="Software\KindlyGuard" 
+                               Name="installed" 
+                               Type="integer" 
+                               Value="1" 
+                               KeyPath="yes" />
+            </Component>
+        </DirectoryRef>
+        
+        <!-- PATH Environment Variable -->
+        <DirectoryRef Id="TARGETDIR">
+            <Component Id="PathComponent" Guid="C9E8F3A2-4B67-5D89-A234-8B6D7E4C5F31">
+                <Environment Id="PATH"
+                             Name="PATH"
+                             Value="[INSTALLDIR]"
+                             Permanent="no"
+                             Part="last"
+                             Action="set"
+                             System="yes" />
+                <RegistryValue Root="HKLM" 
+                               Key="Software\KindlyGuard" 
+                               Name="InstallPath" 
+                               Type="string" 
+                               Value="[INSTALLDIR]" 
+                               KeyPath="yes" />
+            </Component>
+        </DirectoryRef>
+        
+        <!-- UI Configuration -->
+        <UIRef Id="WixUI_InstallDir" />
+        <Property Id="WIXUI_INSTALLDIR" Value="INSTALLDIR" />
+        
+        <!-- License -->
+        <WixVariable Id="WixUILicenseRtf" Value="LICENSE.rtf" />
+        
+        <!-- Custom Actions for Security Setup -->
+        <CustomAction Id="ConfigureFirewall"
+                      Directory="INSTALLDIR"
+                      ExeCommand="netsh advfirewall firewall add rule name=&quot;KindlyGuard MCP Server&quot; dir=in action=allow program=&quot;[INSTALLDIR]kindly-guard.exe&quot; enable=yes"
+                      Execute="deferred"
+                      Return="ignore"
+                      Impersonate="no" />
+        
+        <InstallExecuteSequence>
+            <Custom Action="ConfigureFirewall" After="InstallFiles">NOT Installed</Custom>
+        </InstallExecuteSequence>
+    </Product>
+    
+    <!-- Directory structure (cargo-dist will populate) -->
+    <Fragment>
+        <Directory Id="TARGETDIR" Name="SourceDir">
+            <Directory Id="ProgramFilesFolder">
+                <Directory Id="INSTALLDIR" Name="KindlyGuard" />
+            </Directory>
+            <Directory Id="ProgramMenuFolder">
+                <Directory Id="ApplicationProgramsFolder" Name="KindlyGuard" />
+            </Directory>
+        </Directory>
+    </Fragment>
+</Wix>

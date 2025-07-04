@@ -1,0 +1,25 @@
+Source: kindlyguard
+Section: utils
+Priority: optional
+Maintainer: KindlyGuard Team <support@kindlyguard.dev>
+Build-Depends: debhelper (>= 9), cargo, rustc (>= 1.75)
+Standards-Version: 4.6.0
+Homepage: https://github.com/samduchaine/kindly-guard
+Vcs-Git: https://github.com/samduchaine/kindly-guard.git
+Vcs-Browser: https://github.com/samduchaine/kindly-guard
+
+Package: kindlyguard
+Architecture: amd64 arm64
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Security-focused MCP server protecting against unicode attacks
+ KindlyGuard is a security-focused Model Context Protocol (MCP) server that
+ protects against unicode attacks, injection attempts, and other threats.
+ .
+ Features:
+  - Unicode security threat detection (homographs, bidi, zero-width)
+  - Injection prevention (SQL, command, LDAP, XSS)
+  - Real-time threat monitoring dashboard
+  - MCP protocol integration
+  - High-performance scanning with SIMD optimization
+ .
+ This package includes both the MCP server and CLI tools.

@@ -21,6 +21,44 @@ KindlyGuard maintains comprehensive test coverage across all security features, 
 - **XSS Scanner**: 187.2 MB/s (↑ 8% from v0.9.0)
 - **End-to-end Latency**: 0.43ms p50, 0.89ms p99
 
+## 🚀 Nextest Integration
+
+KindlyGuard uses [cargo-nextest](https://nexte.st/) for faster, more reliable test execution with enhanced isolation for security tests.
+
+### Quick Start with Nextest
+
+```bash
+# Install nextest
+cargo install cargo-nextest
+
+# Run all tests with nextest
+cargo nextest run
+
+# Run with security profile (sequential, no retries)
+cargo nextest run --profile=security
+
+# Use our test runner script
+./scripts/run-tests-nextest.sh
+```
+
+### Nextest Benefits for Security Testing
+
+1. **Process Isolation**: Each test runs in its own process, preventing memory corruption spread
+2. **Parallel Execution**: 2-3x faster test runs encourage frequent security testing
+3. **Deterministic Ordering**: Helps identify test dependencies and race conditions
+4. **Better Failure Reporting**: Immediate visibility of security test failures
+5. **Retry Mechanism**: Distinguishes between flaky tests and real security issues
+
+### Available Nextest Profiles
+
+| Profile | Use Case | Key Features |
+|---------|----------|-------------|
+| `default` | Local development | Balanced parallelism, 2 retries |
+| `security` | Security validation | Sequential only, no retries, extended timeouts |
+| `ci` | CI/CD pipelines | Fixed 4 threads, JUnit output |
+| `quick` | Rapid feedback | Max parallelism, skip slow tests |
+| `release` | Pre-release validation | Conservative, full archival |
+
 ## 🧪 Test Categories
 
 ### 1. Security Tests (`tests/security_tests.rs`)
@@ -46,7 +84,7 @@ cargo test --test security_tests
 - `test_sql_injection_detection` - All SQL dialects
 - `test_command_injection_cross_platform` - Windows/Linux/macOS
 - `test_dos_protection` - Resource exhaustion
-- `test_compression_bomb_detection` - Zip bombs
+- `test_resource_exhaustion_protection` - Resource limits
 
 ### 2. Unit Tests
 Module-level testing for each component:
@@ -111,13 +149,22 @@ cargo bench
 ### Quick Test Commands
 
 ```bash
-# Run all tests
+# Run all tests with nextest (recommended)
+cargo nextest run --all-features
+
+# Run all tests with standard cargo test
 cargo test --all-features
 
-# Run specific test suite
-cargo test --test security_tests
+# Run specific test suite with nextest
+cargo nextest run --test security_tests
 
-# Run with coverage
+# Run security tests with isolation
+cargo nextest run --profile=security -E 'test(security)'
+
+# Run with coverage using nextest
+cargo llvm-cov nextest --html
+
+# Run with coverage using tarpaulin
 cargo tarpaulin --out Html
 
 # Run benchmarks
@@ -128,12 +175,27 @@ cargo bench unicode_scanner
 
 # Run fuzz tests
 cargo fuzz run scanner_fuzzer
+
+# Quick test run (skip slow tests)
+cargo nextest run --profile=quick
 ```
 
-### Comprehensive Test Script
+### Comprehensive Test Scripts
 
 ```bash
-# Run complete test suite with all checks
+# Run complete test suite with nextest
+./scripts/run-tests-nextest.sh
+
+# Run with specific profile
+./scripts/run-tests-nextest.sh -p security
+
+# Filter specific tests
+./scripts/run-tests-nextest.sh -f unicode
+
+# List tests without running
+./scripts/run-tests-nextest.sh -l
+
+# Legacy: Run complete test suite with cargo test
 ./run-all-tests.sh
 
 # With coverage report
@@ -228,7 +290,7 @@ fn bench_unicode_scanner(b: &mut Bencher) {
 3. **DoS Protection**
    - Added resource limits
    - Implemented scan depth limits
-   - Added compression bomb detection
+   - Added resource exhaustion protection
    - Tests: `test_dos_protection_suite`
 
 4. **Cross-Platform Security**
@@ -299,7 +361,7 @@ Before each release, ensure:
 
 ## 🚀 Continuous Testing
 
-### CI Pipeline
+### CI Pipeline with Nextest
 ```yaml
 test:
   strategy:
@@ -307,7 +369,12 @@ test:
       os: [ubuntu-latest, windows-latest, macos-latest]
       rust: [stable, nightly]
   steps:
-    - cargo test --all-features
+    - name: Install nextest
+      uses: taiki-e/install-action@v2
+      with:
+        tool: nextest
+    - cargo nextest run --all-features --profile=ci
+    - cargo test --doc  # Doc tests still need cargo test
     - cargo bench --no-run
     - cargo clippy -- -D warnings
     - cargo audit
@@ -346,8 +413,10 @@ cargo outdated --aggressive
 1. **Security First**: Always test security properties
 2. **Deterministic**: Tests must be reproducible
 3. **Fast**: Unit tests < 10ms, integration < 100ms
-4. **Isolated**: No test interdependencies
+4. **Isolated**: No test interdependencies (enforced by nextest)
 5. **Documented**: Clear test names and comments
+6. **Named for Nextest**: Include "security", "unicode", or "integration" in test names for automatic profile selection
+7. **No Shared State**: Each test should create its own fixtures
 
 ## 🔮 Future Testing Plans
 

@@ -1,0 +1,148 @@
+# KindlyGuard Nextest Configuration
+# Optimized for security-critical testing with proper isolation
+
+# Default profile for local development
+[profile.default]
+# Number of parallel test threads
+# Limited to prevent resource exhaustion during security tests
+test-threads = "num-cpus"
+
+# Retry configuration for handling transient failures
+# Security tests should be deterministic, but network/timing issues can occur
+retries = { count = 2, backoff = "exponential", delay = "1s", max-delay = "10s" }
+
+# Don't fail fast - we want to see all security test failures
+fail-fast = false
+
+# Output settings for clear visibility
+failure-output = "immediate"
+success-output = "immediate"
+status-level = "pass"
+
+# Slow test threshold - security tests may take longer
+slow-timeout = { period = "30s", terminate-after = 3 }
+
+# Test groups for organizing different test types
+[[profile.default.overrides]]
+filter = "test(security)"
+test-threads = 1  # Security tests run sequentially for isolation
+retries = { count = 0 }  # No retries for security tests - must be deterministic
+
+[[profile.default.overrides]]
+filter = "test(integration)"
+test-threads = 2  # Limited parallelism for integration tests
+slow-timeout = { period = "60s", terminate-after = 2 }
+
+[[profile.default.overrides]]
+filter = "test(unicode)"
+test-threads = 1  # Unicode security tests need isolation
+retries = { count = 0 }
+
+# CI profile for automated testing
+[profile.ci]
+# Inherit from default
+inherits = "default"
+
+# More conservative settings for CI
+test-threads = 4  # Fixed thread count for reproducibility
+retries = { count = 1, backoff = "fixed", delay = "5s" }
+
+# Archive test results for debugging
+archive.include = ["**/*.log", "**/test-results/*"]
+
+# JUnit output for CI integration
+reporter = "junit"
+junit.path = "target/nextest/junit.xml"
+
+# Capture test output for debugging
+capture-stdout = true
+capture-stderr = true
+
+# Fail fast in CI to save resources
+fail-fast = true
+
+# Security profile for thorough security testing
+[profile.security]
+# No parallelism for security tests
+test-threads = 1
+
+# No retries - security tests must be deterministic
+retries = { count = 0 }
+
+# Extended timeout for thorough checks
+slow-timeout = { period = "120s", terminate-after = 1 }
+
+# Capture all output for security audit trail
+capture-stdout = true
+capture-stderr = true
+failure-output = "final"
+success-output = "final"
+status-level = "all"
+
+# No fail fast - run all security tests
+fail-fast = false
+
+# Override for fuzzing tests
+[[profile.security.overrides]]
+filter = "test(fuzz)"
+slow-timeout = { period = "300s", terminate-after = 1 }  # Fuzzing takes time
+
+# Performance profile for benchmarking
+[profile.perf]
+# Maximum parallelism for performance testing
+test-threads = "num-cpus"
+
+# No retries for performance consistency
+retries = { count = 0 }
+
+# Minimal output for performance
+failure-output = "immediate"
+success-output = "never"
+status-level = "fail"
+
+# Quick profile for rapid feedback during development
+[profile.quick]
+# Maximum parallelism
+test-threads = "num-cpus"
+
+# Fail fast for quick feedback
+fail-fast = true
+
+# Minimal output
+failure-output = "immediate"
+success-output = "never"
+status-level = "fail"
+
+# Skip slow tests
+[[profile.quick.overrides]]
+filter = "not test(slow)"
+
+# Release testing profile
+[profile.release]
+# Conservative settings for release validation
+test-threads = 2
+
+# No retries for release testing
+retries = { count = 0 }
+
+# Extended timeouts for thorough testing
+slow-timeout = { period = "180s", terminate-after = 1 }
+
+# Full output capture
+capture-stdout = true
+capture-stderr = true
+failure-output = "immediate"
+success-output = "final"
+status-level = "all"
+
+# Archive everything for release records
+archive.include = ["**/*"]
+archive.directory = "target/nextest/release-archive"
+
+# Test partitioning for distributed testing
+[profile.shard]
+inherits = "ci"
+test-threads = 8
+
+# Partition tests across multiple machines
+partition = "hash"

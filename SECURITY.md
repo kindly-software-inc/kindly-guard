@@ -23,7 +23,7 @@ This repository uses pre-commit hooks to prevent accidental disclosure of propri
 
 The hooks will prevent commits containing references to:
 - Advanced rate limiting implementations
-- Proprietary event buffer designs
+- Advanced event buffer designs
 - Internal performance metrics
 - Patented algorithms
 
@@ -47,6 +47,52 @@ Technical details about advanced features should only be documented in:
 2. **Document Wisely**: Don't reveal implementation secrets in public docs
 3. **Test Security**: Always run security tests before committing
 4. **Review Carefully**: Have security-sensitive changes reviewed by team
+
+### Dependency Security with cargo-deny
+
+KindlyGuard uses [cargo-deny](https://github.com/EmbarkStudios/cargo-deny) for comprehensive supply chain security. Our policies enforce:
+
+#### Security Advisories
+- **Zero tolerance** for known vulnerabilities (RUSTSEC database)
+- **Deny** unmaintained crates
+- **Warn** on security notices
+- Daily automated vulnerability scans
+
+#### License Compliance
+- **Allowed licenses**: Apache-2.0, MIT, BSD-2-Clause, BSD-3-Clause, ISC, CC0-1.0, Unlicense
+- **Explicitly denied**: All copyleft licenses (GPL, LGPL, AGPL, MPL)
+- All dependencies must be license-compatible with Apache-2.0
+
+#### Banned Crates
+- `openssl`, `native-tls` - Use `rustls` for better security
+- `reqwest`, `diesel`, `actix-web` - Too heavy for our requirements
+- Deprecated crates like `tempdir`, `term`
+- Old versions with CVEs (e.g., `time < 0.2`)
+
+#### Source Restrictions
+- Only crates.io registry allowed
+- No Git dependencies in production
+- All sources must be explicitly approved
+
+#### Running Supply Chain Checks
+```bash
+# Install cargo-deny
+cargo install cargo-deny
+
+# Run all checks
+cargo deny check
+
+# Run specific checks
+cargo deny check advisories  # Security vulnerabilities
+cargo deny check licenses    # License compliance
+cargo deny check bans        # Banned crates
+cargo deny check sources     # Source validation
+```
+
+These checks are automatically run:
+- On every pull request
+- Daily via scheduled GitHub Actions
+- As part of the pre-release checklist
 
 ### Security Features
 

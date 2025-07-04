@@ -1,0 +1,20 @@
+# cargo-machete configuration
+# This file configures cargo-machete to ignore false positives
+
+# Dependencies that appear unused but are actually needed
+ignored = [
+    # Example: proptest is used in tests but might appear unused
+    # "proptest",
+    
+    # Example: criterion is used for benchmarks
+    # "criterion",
+    
+    # Add any false positives here with a comment explaining why they're needed
+]
+
+# Per-crate ignores (if needed)
+# [kindly-guard-server]
+# ignored = ["some-crate"]
+
+# [kindly-guard-cli]  
+# ignored = ["another-crate"]

@@ -1,6 +1,6 @@
 {
   "name": "kindlyguard",
-  "version": "0.9.5",
+  "version": "0.9.7",
   "description": "Security-focused MCP server protecting against unicode attacks, injection threats, and other AI vulnerabilities",
   "main": "lib/main.js",
   "types": "lib/main.d.ts",

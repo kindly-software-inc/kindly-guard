@@ -1,0 +1,131 @@
+# Security-first pre-commit hooks for KindlyGuard
+# These hooks catch security issues before they enter the repository
+
+repos:
+  # Rust formatting - prevents unicode hiding attacks
+  - repo: local
+    hooks:
+      - id: rustfmt
+        name: rustfmt
+        entry: cargo fmt --
+        language: system
+        types: [rust]
+        pass_filenames: false
+        description: "Ensures consistent formatting, preventing hidden unicode attacks"
+
+  # Rust linting with security-focused checks
+  - repo: local
+    hooks:
+      - id: clippy
+        name: clippy security lints
+        entry: cargo clippy -- -D warnings -W clippy::all -W clippy::pedantic -W clippy::cargo -A clippy::module_name_repetitions
+        language: system
+        types: [rust]
+        pass_filenames: false
+        description: "Catches common security vulnerabilities and code quality issues"
+
+  # Check for unsafe without SAFETY comment
+  - repo: local
+    hooks:
+      - id: unsafe-code-check
+        name: Check unsafe blocks have SAFETY comments
+        entry: bash -c 'if grep -r "unsafe\s*{" --include="*.rs" . | grep -v "SAFETY:" | grep -v "target/"; then echo "❌ Found unsafe blocks without SAFETY comments"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        description: "Ensures all unsafe code is documented with security rationale"
+
+  # Detect secrets and credentials
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.4.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: .*\.lock$
+        description: "Prevents API keys, passwords, and secrets from being committed"
+
+  # Check for large files (prevent binary smuggling)
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+        description: "Prevents large binary files that could hide malicious code"
+      - id: check-case-conflict
+        description: "Prevents case conflicts that could be security issues on case-insensitive filesystems"
+      - id: check-executables-have-shebangs
+        description: "Ensures executable files are properly marked"
+      - id: check-merge-conflict
+        description: "Prevents merge conflict markers from being committed"
+      - id: check-symlinks
+        description: "Validates symlinks don't point outside repo"
+      - id: check-toml
+        description: "Validates TOML syntax"
+      - id: check-yaml
+        description: "Validates YAML syntax"
+      - id: end-of-file-fixer
+        description: "Ensures files end with newline"
+      - id: mixed-line-ending
+        description: "Prevents line ending inconsistencies"
+      - id: trailing-whitespace
+        description: "Removes trailing whitespace"
+
+  # Conventional commits for audit trail
+  - repo: https://github.com/compilerla/conventional-pre-commit
+    rev: v3.0.0
+    hooks:
+      - id: conventional-pre-commit
+        stages: [commit-msg]
+        args: []
+        description: "Enforces conventional commit format for security audit trails"
+
+  # Security-specific: Check Cargo.toml dependencies
+  - repo: local
+    hooks:
+      - id: cargo-audit
+        name: cargo audit
+        entry: cargo audit
+        language: system
+        pass_filenames: false
+        stages: [push]
+        description: "Checks for known vulnerabilities in dependencies"
+
+  # Version consistency check
+  - repo: local
+    hooks:
+      - id: version-consistency
+        name: Check version consistency
+        entry: bash scripts/validate-versions.sh
+        language: system
+        pass_filenames: false
+        description: "Ensures version numbers are consistent across all manifests"
+
+  # Check for TODO/FIXME/HACK in security-critical files
+  - repo: local
+    hooks:
+      - id: no-todos-in-security
+        name: No TODOs in security-critical code
+        entry: bash -c 'if grep -r "TODO\|FIXME\|HACK" --include="*.rs" src/scanner/ src/security/ src/auth.rs 2>/dev/null; then echo "❌ Found TODO/FIXME/HACK in security-critical code"; exit 1; fi'
+        language: system
+        pass_filenames: false
+        description: "Prevents unfinished security code from being committed"
+
+  # License header check
+  - repo: local
+    hooks:
+      - id: license-header
+        name: Check license headers
+        entry: bash -c 'for f in $(find . -name "*.rs" -not -path "./target/*" -not -path "./node_modules/*"); do if ! head -10 "$f" | grep -q "Apache"; then echo "Missing license header in $f"; exit 1; fi; done || true'
+        language: system
+        pass_filenames: false
+        description: "Ensures all Rust files have proper license headers"
+
+# Configuration
+default_stages: [commit]
+fail_fast: false
+exclude: |
+  (?x)^(
+    target/|
+    node_modules/|
+    dist/|
+    .*\.lock$
+  )

@@ -1,0 +1,58 @@
+# Release Orchestrator Configuration
+# Copy this file to release-config.yml and customize as needed
+
+# Interactive mode - prompts for confirmation at each stage
+interactive: true
+
+# Skip all confirmations (useful for CI/CD)
+skip_confirmation: false
+
+# Number of retry attempts for failed operations
+retry_attempts: 3
+
+# Delay between retry attempts (seconds)
+retry_delay: 5
+
+# Maximum time to wait for GitHub workflow (seconds)
+workflow_timeout: 1800
+
+# Registry configuration
+registries:
+  crates_io:
+    enabled: true
+    verify_timeout: 60
+  
+  npm:
+    enabled: true
+    verify_timeout: 60
+    scope: "@kindly-guard"
+  
+  docker_hub:
+    enabled: true
+    verify_timeout: 120
+    organization: "kindlyguard"
+
+# Notification settings
+notifications:
+  slack:
+    enabled: false
+    webhook_url: ""
+  
+  email:
+    enabled: false
+    smtp_server: ""
+    from: ""
+    to: []
+
+# Advanced settings
+advanced:
+  # Clean up old releases
+  cleanup_old_releases: false
+  keep_releases: 10
+  
+  # Parallel operations
+  parallel_verification: true
+  
+  # Backup before release
+  create_backup: true
+  backup_dir: ".release-backups"

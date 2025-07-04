@@ -1,0 +1,108 @@
+# KindlyGuard rustfmt configuration
+# Conservative formatting for security-focused code review
+
+# Edition and version stability
+edition = "2021"
+version = "Two"
+
+# Line width - 100 chars for complex security expressions
+max_width = 100
+# Keep error chains readable
+error_on_line_overflow = false
+# But warn about very long lines
+error_on_unformatted = false
+
+# Import formatting - critical for security review
+imports_granularity = "Module"  # Group imports by module
+imports_layout = "HorizontalVertical"  # Mixed layout for readability
+group_imports = "StdExternalCrate"  # std, external, internal
+# Ensure we can trace where everything comes from
+imports_indent = "Block"
+reorder_imports = true
+reorder_modules = true
+
+# Keep code readable and reviewable
+# Avoid cramming too much on one line
+use_small_heuristics = "Default"
+# Explicit rather than implicit
+use_field_init_shorthand = false
+# Always use blocks for clarity in security code
+force_multiline_blocks = true
+# Consistent spacing
+space_after_colon = true
+space_before_colon = false
+
+# Match arms should be clear
+match_arm_blocks = true
+match_block_trailing_comma = true
+# Keep pattern matching readable
+overflow_delimited_expr = true
+
+# Function formatting for reviewability
+fn_params_layout = "Tall"  # One param per line when many
+# Keep function signatures clear
+fn_single_line = false  # when they're complex
+
+# Chain formatting - security code often has long error chains
+chain_width = 60  # Force chains to wrap for readability
+# Keep method chains clear
+indent_style = "Block"
+
+# Struct formatting
+struct_field_align_threshold = 0  # Don't align, it hides changes
+# Explicit is better for security review
+use_try_shorthand = false
+
+# Comment formatting
+normalize_comments = false  # Preserve security notes formatting
+wrap_comments = true
+comment_width = 80  # Slightly narrower for readability
+# Format code in doc comments (examples should be correct)
+format_code_in_doc_comments = true
+
+# String formatting
+format_strings = false  # Don't break security error messages
+# But do format macros
+format_macro_matchers = true
+format_macro_bodies = true
+
+# Misc readability
+blank_lines_upper_bound = 2
+blank_lines_lower_bound = 0
+# Remove trailing commas for cleaner diffs
+trailing_comma = "Vertical"
+# Consistent semicolons
+trailing_semicolon = true
+# Keep attributes readable
+inline_attribute_width = 0  # Always separate line
+
+# Don't hide complexity
+combine_control_expr = false
+# Explicit returns can be clearer in security code
+use_try_shorthand = false
+
+# Binary operator formatting
+binop_separator = "Front"  # Operator at start of line
+
+# Where clause formatting - keep generic bounds clear
+brace_style = "SameLineWhere"
+where_single_line = false
+
+# Don't format generated code
+format_generated_files = false
+
+# Keep TODO/FIXME visible
+report_todo = "Always"
+report_fixme = "Always"
+
+# Preserve blank lines that separate logical sections
+blank_lines_upper_bound = 2
+
+# Don't hide control flow
+control_brace_style = "AlwaysSameLine"
+
+# Make unsafe blocks highly visible
+# (rustfmt doesn't have this directly, but our style helps)
+
+# License header formatting
+license_template_path = ""  # Add if we have standard header

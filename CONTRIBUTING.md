@@ -17,9 +17,10 @@ Thank you for your interest in contributing to KindlyGuard! We're excited to hav
 
 ### Prerequisites
 
-- **Rust toolchain** (1.75 or newer)
+- **Rust toolchain** (1.80 or newer - see [MSRV Policy](docs/MSRV_POLICY.md))
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+  rustup install 1.80  # Install our MSRV
   ```
 - **Git** for version control
 - **SQLite3** development libraries (for storage features)
@@ -64,16 +65,99 @@ Thank you for your interest in contributing to KindlyGuard! We're excited to hav
 
 ### Recommended Development Tools
 
+Essential tools for KindlyGuard development:
+
 - **rust-analyzer** - IDE support for VS Code, Vim, Emacs
-- **cargo-watch** - Auto-rebuild on file changes
+- **cargo-nextest** - Next-generation test runner (60% faster)
   ```bash
-  cargo install cargo-watch
-  cargo watch -x test -x run
+  cargo install cargo-nextest
+  cargo nextest run  # Instead of cargo test
   ```
-- **cargo-audit** - Security vulnerability scanner
+- **bacon** - Background compiler with instant feedback
+  ```bash
+  cargo install bacon
+  bacon  # Runs in terminal, shows errors as you code
+  ```
+- **cargo-deny** - Supply chain security auditing
+  ```bash
+  cargo install cargo-deny
+  cargo deny check  # Run before every PR
+  ```
+- **cargo-audit** - CVE vulnerability scanner
   ```bash
   cargo install cargo-audit
+  cargo audit  # Check for known vulnerabilities
   ```
+- **typos** - Fast spell checker for code and docs
+  ```bash
+  cargo install typos-cli
+  typos  # Check for typos before committing
+  ```
+- **committed** - Conventional commit linter
+  ```bash
+  cargo install committed
+  committed --install  # Install as git hook
+  ```
+
+See [docs/DEVELOPMENT_WORKFLOW.md](docs/DEVELOPMENT_WORKFLOW.md) for complete tool documentation.
+
+### Pre-commit Hooks (Security Shift-Left)
+
+KindlyGuard uses pre-commit hooks to catch security issues before they enter the repository. This "security shift-left" approach makes secure coding the default path.
+
+**Install pre-commit hooks:**
+```bash
+# Run the installation script
+./scripts/install-hooks.sh
+
+# Or manually install pre-commit
+pip install --user pre-commit
+pre-commit install --install-hooks
+pre-commit install --hook-type commit-msg
+```
+
+**What the hooks check:**
+- **rustfmt** - Prevents unicode hiding in weird formatting
+- **clippy** - Catches common security vulnerabilities  
+- **unsafe code** - Ensures all `unsafe` blocks have `SAFETY:` comments
+- **detect-secrets** - Prevents API keys/passwords in commits
+- **file size limits** - Prevents binary smuggling (>1MB files)
+- **conventional commits** - Enables security audit trails
+- **cargo audit** (pre-push) - Scans for known vulnerabilities
+
+**Using the hooks:**
+```bash
+# Test all hooks manually
+pre-commit run --all-files
+
+# Skip hooks in emergency (document why in PR)
+git commit --no-verify -m "fix: emergency fix for production"
+
+# Update hooks to latest versions
+pre-commit autoupdate
+```
+
+**Manual fallback:** If pre-commit isn't available, use the shell scripts in `.git-hooks/`
+
+### Dependency Management
+
+We use cargo-machete to detect unused dependencies, reducing attack surface:
+
+```bash
+# Install cargo-machete
+cargo install cargo-machete
+
+# Check for unused dependencies
+cargo machete
+
+# CI runs this weekly and on all PRs touching Cargo.toml
+```
+
+**Security implications of dependencies:**
+- Every dependency is potential attack surface
+- Unused dependencies still get downloaded and compiled
+- Supply chain attacks can hide in unused code
+- Regular auditing prevents dependency creep
 
 ## Code Style
 
@@ -146,21 +230,36 @@ Testing is crucial for maintaining KindlyGuard's security guarantees.
 
 ### Running Tests
 
+We use cargo-nextest for better test output and performance:
+
 ```bash
-# Run all tests
-cargo test
+# Install nextest (one-time)
+cargo install cargo-nextest
+
+# Run all tests (replaces cargo test)
+cargo nextest run
 
 # Run tests with all features
-cargo test --all-features
+cargo nextest run --all-features
 
 # Run a specific test
-cargo test test_unicode_injection
+cargo nextest run test_unicode_injection
 
-# Run tests with output
+# Run only failed tests from last run
+cargo nextest run --failed
+
+# Run tests in CI mode (with retries)
+cargo nextest run --profile ci
+
+# Traditional cargo test (if needed)
 cargo test -- --nocapture
 
 # Run property tests (fuzzing)
 cargo test --test property_tests
+
+# Generate coverage report
+cargo nextest run --profile coverage
+grcov . -s . -t html -o target/coverage/
 ```
 
 ### Writing Tests
@@ -218,35 +317,151 @@ cargo test --test property_tests
 
 ### Commit Guidelines
 
-We follow conventional commits for clear history:
+We follow conventional commits for clear history and use git-cliff for automated changelog generation. Use the `committed` tool to ensure compliance:
 
-- `feat(module): add new feature` - New features
-- `fix(module): fix bug description` - Bug fixes
-- `perf(module): improve performance` - Performance improvements
-- `security: fix vulnerability` - Security fixes
-- `docs: update documentation` - Documentation only
-- `test: add test coverage` - Test additions
-- `refactor(module): refactor code` - Code refactoring
-- `chore: update dependencies` - Maintenance tasks
-
-**Example commit:**
 ```bash
-git commit -m "feat(scanner): add LDAP injection detection
+# Install commit linter and changelog generator
+cargo install committed git-cliff
+committed --install  # Installs git hook
 
-- Implement LDAP query validation
-- Add comprehensive test coverage
-- Update documentation"
+# Check your commit message
+committed --staged
+
+# Preview changelog generation
+git-cliff --unreleased
+```
+
+#### Commit Types
+
+**Security (Always Priority)**
+- `security: <description>` - Security fixes and improvements
+- `vuln: <description>` - Vulnerability patches
+- `cve: <description>` - CVE-related fixes
+- `audit: <description>` - Audit-related changes
+
+**Standard Types**
+- `feat(scope): <description>` - New features
+- `fix(scope): <description>` - Bug fixes
+- `perf(scope): <description>` - Performance improvements
+- `docs: <description>` - Documentation only
+- `test(scope): <description>` - Test additions or changes
+- `refactor(scope): <description>` - Code refactoring
+- `build: <description>` - Build system changes
+- `ci: <description>` - CI/CD changes
+- `deps: <description>` - Dependency updates
+- `chore: <description>` - Other maintenance tasks
+
+#### Scopes
+
+Use these scopes to identify which component is affected:
+
+**Scanner Components**
+- `scanner` - General scanner functionality
+- `unicode` - Unicode threat detection
+- `injection` - Injection prevention
+- `xss` - XSS protection
+- `patterns` - Pattern detection
+
+**Server Components**
+- `server` - Server functionality
+- `protocol` - MCP protocol handling
+- `handler` - Request handling
+
+**Other Components**
+- `shield` - Shield UI
+- `storage` - Storage layer
+- `cache` - Caching functionality
+- `resilience` - Circuit breakers, retry logic
+- `config` - Configuration
+- `cli` - Command-line interface
+- `neutralizer` - Threat neutralization
+
+#### Commit Message Format
+
+```
+<type>(<scope>): <subject>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+**Examples:**
+
+```bash
+# Security fix (no scope needed for security commits)
+git commit -m "security: fix timing attack in token validation
+
+Use constant-time comparison from subtle crate to prevent
+timing attacks on authentication tokens.
+
+Fixes: CVE-2024-XXXXX"
+
+# Feature with scope
+git commit -m "feat(scanner): add Windows command injection detection
+
+- Detect cmd.exe injection patterns
+- Add PowerShell-specific patterns
+- Support Windows path traversal detection
+
+Closes #123"
+
+# Breaking change
+git commit -m "feat(api)!: change scan endpoint response format
+
+BREAKING CHANGE: scan endpoint now returns threats array
+instead of single threat object to support multiple
+threat detection."
+
+# Performance improvement
+git commit -m "perf(scanner): optimize unicode scanning with SIMD
+
+Implement SIMD-accelerated unicode validation for 8x
+faster homograph detection on x86_64 platforms."
+```
+
+**Commit Message Rules:**
+- First line: type(scope): description (max 72 chars, 50 preferred)
+- Blank line
+- Body: detailed explanation (wrap at 72 chars)
+- Footer: issue references, breaking changes, CVE references
+
+#### Best Practices
+
+1. **Security First**: Always prioritize security-related commits
+2. **Clear Subject**: Keep the subject line under 72 characters
+3. **Use Imperative**: Write as if giving a command ("add" not "added")
+4. **Reference Issues**: Use "Fixes #123" or "Closes #123" in the footer
+5. **Breaking Changes**: Add `!` after type/scope and explain in footer
+6. **Multi-line Messages**: Use the body to explain the "why"
+
+#### Audit Trail
+
+For security and compliance, all commits are:
+- Signed with GPG when possible
+- Include author information
+- Tracked in automated changelogs
+- Subject to security review for sensitive changes
+
+Configure git for signing:
+```bash
+git config --global user.signingkey YOUR_GPG_KEY
+git config --global commit.gpgsign true
 ```
 
 ### Pull Request Process
 
 1. **Before submitting:**
-   - [ ] Run `cargo fmt`
-   - [ ] Run `cargo clippy -- -W clippy::all`
-   - [ ] Run `cargo test --all-features`
-   - [ ] Run `cargo audit`
+   - [ ] Run `cargo fmt` - Format code
+   - [ ] Run `cargo clippy -- -W clippy::all -W clippy::pedantic` - Fix lints
+   - [ ] Run `cargo nextest run --all-features` - All tests pass
+   - [ ] Run `cargo deny check` - Dependencies are secure
+   - [ ] Run `cargo audit` - No known vulnerabilities
+   - [ ] Run `cargo +nightly udeps` - No unused dependencies
+   - [ ] Run `typos` - No spelling errors
+   - [ ] Run `committed` - Commit messages follow convention
    - [ ] Update documentation if needed
-   - [ ] Add tests for new functionality
+   - [ ] Add tests for new functionality (aim for >80% coverage)
 
 2. **PR Title Format:**
    ```
@@ -397,18 +612,54 @@ git clone https://github.com/<your-username>/kindlyguard.git
 cd kindlyguard
 cargo build
 
+# Install dev tools (one-time)
+./scripts/install-dev-tools.sh
+
 # Development
-cargo fmt                                    # Format code
+bacon                                       # Start background compiler
+cargo fmt                                   # Format code
 cargo clippy -- -W clippy::all              # Lint code
-cargo test --all-features                   # Run tests
+cargo nextest run --all-features            # Run tests (faster!)
 RUST_LOG=kindly_guard=debug cargo run      # Run with debug logs
 
+# Pre-commit checks
+cargo fmt                                   # Format
+cargo clippy --fix                         # Auto-fix lints
+typos --write-changes                      # Fix typos
+cargo nextest run                          # Test
+cargo deny check                           # Security check
+committed --staged                         # Check commit message
+
 # Security checks
-cargo audit                                 # Check dependencies
-cargo geiger                               # Check for unsafe code
+cargo deny check                           # Supply chain security
+cargo audit                                # CVE scanning
+cargo geiger                              # Check for unsafe code
+cargo +nightly udeps                      # Find unused deps
+
+# Maintenance
+cargo outdated                            # Check for updates
+cargo machete                             # Find unused dependencies
+cargo msrv verify                         # Check MSRV
 
 # Benchmarks
-cargo bench                                # Run performance tests
+cargo bench                               # Run performance tests
+cargo criterion                           # Better benchmarking
+```
+
+## Pre-Push Hook
+
+Save this as `.git/hooks/pre-push` and make it executable:
+
+```bash
+#!/bin/bash
+echo "🛡️ Running pre-push security checks..."
+
+cargo fmt -- --check || { echo "❌ Format check failed"; exit 1; }
+cargo clippy -- -D warnings || { echo "❌ Clippy check failed"; exit 1; }
+cargo nextest run || { echo "❌ Tests failed"; exit 1; }
+cargo deny check || { echo "❌ Dependency check failed"; exit 1; }
+
+echo "✅ All checks passed!"
 ```
 
 Thank you for helping make KindlyGuard better and more secure! 🛡️

@@ -1,0 +1,128 @@
+# KindlyGuard clippy configuration
+# Security-focused linting for safe, maintainable code
+
+# Cognitive complexity limits for reviewable code
+cognitive-complexity-threshold = 30
+
+# Maximum number of lines for functions
+too-many-lines-threshold = 100
+
+# Maximum arguments (security functions may need more context)
+too-many-arguments-threshold = 7
+
+# Type complexity threshold
+type-complexity-threshold = 250
+
+# Avoid deeply nested code
+excessive-nesting-threshold = 5
+
+# Maximum number of single char bindings
+single-char-binding-names-threshold = 4
+
+# Enforce documentation
+missing-docs-in-crate-items = true
+
+# Disallowed names beyond the defaults
+disallowed-names = [
+    "foo", "bar", "baz",  # Default
+    "tmp", "temp",        # Use descriptive names
+    "data", "info",       # Too generic
+    "obj", "object",      # Too generic
+    "val", "value",       # Too generic
+    "res",                # Use 'result'
+    "ret",                # Use 'return_value' or similar
+    "passwd", "pwd",      # Use 'password'
+    "usr", "user",        # Spell it out
+]
+
+# Enforce MSRV
+msrv = "1.80.0"
+
+# Standard library paths to prefer
+standard-macro-braces = [
+    { name = "format", brace = "{}" },
+    { name = "format_args", brace = "{}" },
+    { name = "vec", brace = "[]" },
+    { name = "matches", brace = "()" },
+]
+
+# Enforced APIs
+enforced-import-renames = [
+    { path = "std::io::Error", rename = "IoError" },
+    { path = "std::fmt::Error", rename = "FmtError" },
+]
+
+# Allow certain usages in tests
+allow-dbg-in-tests = true
+allow-print-in-tests = true
+allow-unwrap-in-tests = true
+allow-expect-in-tests = true
+
+# Path-specific settings can be added here
+# [[disallowed-paths]]
+# path = "std::process::exit"
+# reason = "Use proper error handling instead"
+
+# Warn on these macros in production code
+warn-on-all-wildcard-imports = true
+
+# Arithmetic checks
+arithmetic-side-effects-allowed = [
+    # Allow arithmetic on these types without warnings
+    "usize", "isize",  # For indexing
+    "u64", "i64",      # For timestamps
+]
+
+# Documentation requirements
+doc-valid-idents = [
+    "KindlyGuard",
+    "MCP",
+    "URL",
+    "URI", 
+    "UTF-8",
+    "SQL",
+    "XSS",
+    "LDAP",
+    "TUI",
+    "API",
+    "JSON",
+    "TOML",
+    "CLI",
+    "SQLite",
+    "LRU",
+    "TTL",
+    "SIMD",
+    "AST",
+    "CI",
+    "CD",
+]
+
+# Maximum macro expansions
+macro-use-imports = "warn"
+
+# Avoid these types in public APIs
+avoid-breaking-exported-api = true
+
+# Enable all pedantic lints by default at crate level
+# (We'll configure specific allows in lib.rs/main.rs)
+
+# Module inception threshold (when module has same name as parent)
+module-inception-threshold = 3
+
+# Enum variant name threshold
+enum-variant-name-threshold = 3
+
+# Struct field name threshold  
+struct-field-name-threshold = 3
+
+# Large includes threshold
+large-include-file = 1000000  # 1MB
+
+# Pattern configuration
+pattern-type-mismatch = "warn"
+
+# Literal representation thresholds
+literal-representation-threshold = 16  # Hex for large numbers
+
+# Unreadable literal lint configuration
+unreadable-literal-lint-fractions = true

@@ -1,0 +1,116 @@
+name: Dependency Analysis
+
+on:
+  schedule:
+    # Run every Monday at 9 AM UTC
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+
+jobs:
+  analyze-dependencies:
+    name: Check for unused dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: ~/.cargo/registry
+          key: ${{ runner.os }}-cargo-registry-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-machete
+        run: cargo install cargo-machete
+
+      - name: Check for unused dependencies
+        id: machete
+        run: |
+          echo "Checking for unused dependencies..."
+          OUTPUT=$(cargo machete 2>&1 || true)
+          echo "$OUTPUT"
+          echo "machete_output<<EOF" >> $GITHUB_OUTPUT
+          echo "$OUTPUT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          
+          # Check if there are unused dependencies
+          if echo "$OUTPUT" | grep -q "found the following"; then
+            echo "has_unused=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_unused=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Comment PR
+        if: github.event_name == 'pull_request' && steps.machete.outputs.has_unused == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `${{ steps.machete.outputs.machete_output }}`;
+            const body = `## 🔍 Dependency Analysis Report
+            
+            cargo-machete found unused dependencies:
+            
+            \`\`\`
+            ${output}
+            \`\`\`
+            
+            ### Security Implications:
+            - Each unused dependency increases attack surface
+            - Supply chain vulnerabilities can exist in unused code
+            - Build times and binary sizes are unnecessarily increased
+            
+            Please remove unused dependencies or document why they're needed.`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: body
+            });
+
+      - name: Create Issue (Scheduled Run)
+        if: github.event_name == 'schedule' && steps.machete.outputs.has_unused == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `${{ steps.machete.outputs.machete_output }}`;
+            const body = `## 🔍 Weekly Dependency Analysis Report
+            
+            cargo-machete found unused dependencies during the scheduled scan:
+            
+            \`\`\`
+            ${output}
+            \`\`\`
+            
+            ### Security Implications:
+            - Each unused dependency increases attack surface
+            - Supply chain vulnerabilities can exist in unused code
+            - Build times and binary sizes are unnecessarily increased
+            
+            ### Action Required:
+            1. Review each unused dependency
+            2. Remove if truly unused
+            3. Add to \`ignored\` in Cargo.toml if false positive
+            
+            This issue was automatically created by the weekly dependency analysis.`;
+            
+            github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: '[Security] Unused dependencies detected',
+              body: body,
+              labels: ['security', 'dependencies', 'maintenance']
+            });
+
+      - name: Fail if unused dependencies in PR
+        if: github.event_name == 'pull_request' && steps.machete.outputs.has_unused == 'true'
+        run: |
+          echo "❌ Unused dependencies detected. Please remove them before merging."
+          exit 1
