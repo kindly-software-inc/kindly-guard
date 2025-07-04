@@ -112,20 +112,20 @@ jobs:
     
     - name: Build binary
       run: |
-        cargo build --release --target ${{ matrix.target }} --bin kindly-guard-server
+        cargo build --release --target ${{ matrix.target }} --bin kindlyguard
         cargo build --release --target ${{ matrix.target }} --bin kindly-guard-cli
     
     - name: Strip binaries (Linux/macOS)
       if: matrix.os != 'windows-latest'
       run: |
-        strip target/${{ matrix.target }}/release/kindly-guard-server
+        strip target/${{ matrix.target }}/release/kindlyguard
         strip target/${{ matrix.target }}/release/kindly-guard-cli
     
     - name: Verify static linking (musl builds)
       if: matrix.use_musl == true
       run: |
         echo "Verifying static linking for release binaries..."
-        for binary in kindly-guard-server kindly-guard-cli; do
+        for binary in kindlyguard kindly-guard-cli; do
           echo "Checking $binary..."
           if ldd target/${{ matrix.target }}/release/$binary 2>&1 | grep -q "not a dynamic executable"; then
             echo "✓ $binary is statically linked (excellent for distribution)"
@@ -142,7 +142,7 @@ jobs:
     - name: Package binaries
       run: |
         mkdir -p dist
-        cp target/${{ matrix.target }}/release/kindly-guard-server${{ matrix.suffix }} dist/
+        cp target/${{ matrix.target }}/release/kindlyguard${{ matrix.suffix }} dist/
         cp target/${{ matrix.target }}/release/kindly-guard-cli${{ matrix.suffix }} dist/
         cp README.md LICENSE dist/
         cd dist
