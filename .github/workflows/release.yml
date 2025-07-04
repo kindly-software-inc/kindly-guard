@@ -66,12 +66,15 @@ jobs:
     strategy:
       matrix:
         include:
-          # Linux
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            suffix: ''
+          # Linux - musl (static linking) as primary target
+          # Static binaries ensure maximum compatibility across Linux distributions
           - os: ubuntu-latest
             target: x86_64-unknown-linux-musl
+            suffix: ''
+            use_musl: true
+          # Linux - GNU libc (for compatibility with systems that require glibc)
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
             suffix: ''
           # Windows
           - os: windows-latest
@@ -99,7 +102,13 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         sudo apt-get update
+        # Install musl-tools for static linking support
         sudo apt-get install -y musl-tools
+        # Verify musl is available for musl builds
+        if [[ "${{ matrix.target }}" == *"musl"* ]]; then
+          echo "Verifying musl installation for static builds..."
+          musl-gcc --version
+        fi
     
     - name: Build binary
       run: |
@@ -111,6 +120,24 @@ jobs:
       run: |
         strip target/${{ matrix.target }}/release/kindly-guard-server
         strip target/${{ matrix.target }}/release/kindly-guard-cli
+    
+    - name: Verify static linking (musl builds)
+      if: matrix.use_musl == true
+      run: |
+        echo "Verifying static linking for release binaries..."
+        for binary in kindly-guard-server kindly-guard-cli; do
+          echo "Checking $binary..."
+          if ldd target/${{ matrix.target }}/release/$binary 2>&1 | grep -q "not a dynamic executable"; then
+            echo "✓ $binary is statically linked (excellent for distribution)"
+          else
+            echo "⚠ $binary has dynamic dependencies:"
+            ldd target/${{ matrix.target }}/release/$binary 2>&1 | head -5 || true
+            echo "Note: Full static linking may not be possible with all dependencies"
+          fi
+          # Show binary info
+          file target/${{ matrix.target }}/release/$binary
+          ls -lh target/${{ matrix.target }}/release/$binary
+        done
     
     - name: Package binaries
       run: |

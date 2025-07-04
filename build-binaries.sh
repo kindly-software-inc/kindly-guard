@@ -123,7 +123,7 @@ clean_builds() {
         cargo clean
     fi
     
-    for project in kindly-guard-core kindly-guard-shield/src-tauri crates-io-package/kindlyguard; do
+    for project in kindly-guard-shield/src-tauri crates-io-package/kindlyguard; do
         if [ -d "$project" ] && [ -f "$project/Cargo.toml" ]; then
             print_info "Cleaning $project"
             (cd "$project" && cargo clean)
@@ -164,13 +164,21 @@ build_all_binaries() {
     print_header "Building Binaries"
     
     # Define build targets
+    # Using musl for Linux targets to create static binaries
+    # Static binaries work across all Linux distributions without dependency issues
     declare -A TARGETS=(
-        ["linux-x64"]="x86_64-unknown-linux-gnu"
-        ["linux-arm64"]="aarch64-unknown-linux-gnu"
+        ["linux-x64"]="x86_64-unknown-linux-musl"        # musl for static linking
+        ["linux-arm64"]="aarch64-unknown-linux-musl"    # musl for static linking
         ["darwin-x64"]="x86_64-apple-darwin"
         ["darwin-arm64"]="aarch64-apple-darwin"
         ["win32-x64"]="x86_64-pc-windows-msvc"
     )
+    
+    # Alternative GNU targets (uncomment if needed for compatibility)
+    # declare -A GNU_TARGETS=(
+    #     ["linux-x64-gnu"]="x86_64-unknown-linux-gnu"
+    #     ["linux-arm64-gnu"]="aarch64-unknown-linux-gnu"
+    # )
     
     # Detect current platform
     detect_platform
@@ -201,9 +209,10 @@ copy_binaries() {
     mkdir -p "$DIST_DIR"
     
     # Define binary mappings
+    # Must match the targets defined in build_all_binaries
     declare -A TARGETS=(
-        ["linux-x64"]="x86_64-unknown-linux-gnu"
-        ["linux-arm64"]="aarch64-unknown-linux-gnu"
+        ["linux-x64"]="x86_64-unknown-linux-musl"        # musl for static linking
+        ["linux-arm64"]="aarch64-unknown-linux-musl"    # musl for static linking
         ["darwin-x64"]="x86_64-apple-darwin"
         ["darwin-arm64"]="aarch64-apple-darwin"
         ["win32-x64"]="x86_64-pc-windows-msvc"

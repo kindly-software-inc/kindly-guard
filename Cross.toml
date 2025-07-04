@@ -1,2 +1,7 @@
 [target.x86_64-pc-windows-gnu]
 image = "ghcr.io/cross-rs/x86_64-pc-windows-gnu:latest"
+
+# Configuration for musl target to create fully static Linux binaries
+# This ensures the binary works on any Linux system without dependency issues
+[target.x86_64-unknown-linux-musl]
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:latest"

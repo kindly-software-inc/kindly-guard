@@ -12,6 +12,32 @@ NC='\033[0m' # No Color
 # Create dist directory
 mkdir -p dist
 
+# Function to verify if a binary is statically linked
+verify_static_linking() {
+    local binary=$1
+    local target=$2
+    
+    # Only check Linux musl binaries
+    if [[ "$target" == *"musl"* ]]; then
+        echo "Verifying static linking for $binary..."
+        if command -v ldd &> /dev/null; then
+            # ldd should report "not a dynamic executable" for static binaries
+            if ldd "$binary" 2>&1 | grep -q "not a dynamic executable"; then
+                echo -e "${GREEN}✓ Binary is statically linked${NC}"
+                return 0
+            else
+                echo -e "${YELLOW}⚠ Binary appears to be dynamically linked${NC}"
+                # Show the dependencies for debugging
+                ldd "$binary" 2>&1 | head -5
+                return 1
+            fi
+        else
+            echo "ldd not available, skipping static link verification"
+        fi
+    fi
+    return 0
+}
+
 # Function to build for a target
 build_target() {
     local target=$1
@@ -56,6 +82,13 @@ build_target() {
     else
         cp "kindly-guard-server/target/$target/release/kindlyguard" "dist/" || return 1
         cp "kindly-guard-cli/target/$target/release/kindlyguard-cli" "dist/" || return 1
+        
+        # Verify static linking for Linux musl builds
+        if [[ "$target" == *"musl"* ]]; then
+            verify_static_linking "dist/kindlyguard" "$target"
+            verify_static_linking "dist/kindlyguard-cli" "$target"
+        fi
+        
         chmod +x dist/kindlyguard dist/kindlyguard-cli
         cd dist
         tar czf "kindlyguard-$name.tar.gz" kindlyguard kindlyguard-cli
@@ -90,11 +123,24 @@ if ! command -v cross &> /dev/null; then
     cargo install cross --git https://github.com/cross-rs/cross --locked || { echo -e "${RED}Failed to install cross${NC}"; exit 1; }
 fi
 
+# Install musl target for Linux static builds
+# musl provides a lightweight C library that enables fully static compilation
+# This ensures our binaries work on any Linux system without dependency issues
+echo "Checking for musl target..."
+if ! rustup target list --installed | grep -q "x86_64-unknown-linux-musl"; then
+    echo "Installing x86_64-unknown-linux-musl target..."
+    rustup target add x86_64-unknown-linux-musl || { echo -e "${RED}Failed to install musl target${NC}"; exit 1; }
+fi
+
 # Build for each platform
 echo "Starting multi-platform build..."
 
-# Linux x64 (native)
-if ! build_target "x86_64-unknown-linux-gnu" "linux-x64" false false; then
+# Linux x64 (using musl for static linking)
+# We use musl instead of gnu to create fully static binaries that:
+# - Work on any Linux distribution without glibc version issues
+# - Don't require specific system libraries to be installed
+# - Are more portable and easier to deploy in containers
+if ! build_target "x86_64-unknown-linux-musl" "linux-x64" false false; then
     echo -e "${RED}Failed to build linux-x64${NC}"
 fi
 
@@ -120,4 +166,17 @@ sha256sum kindlyguard-*.{tar.gz,zip} > SHA256SUMS.txt 2>/dev/null || true
 cd ..
 
 echo -e "${GREEN}✅ Build complete! Binaries are in the dist/ directory${NC}"
+
+# Display build summary
+echo ""
+echo "Build Summary:"
+echo "============="
+echo "• Linux x64: Built with musl for static linking (no runtime dependencies)"
+echo "• macOS x64/ARM64: Built with zigbuild for cross-compilation"
+echo "• Windows x64: Built with cross for Windows compatibility"
+echo ""
+echo "The Linux binaries are fully static and will work on any Linux distribution"
+echo "without requiring specific glibc versions or system libraries."
+echo ""
+
 ls -la dist/

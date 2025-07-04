@@ -44,10 +44,11 @@ colored = "2.1"
 comfy-table = "7.1"
 
 # HTTP client (for remote scanning)
-reqwest = { version = "0.12", features = ["json"] }
+# Temporarily disabled for musl build
+# reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 
 # Scanner integration
-kindly-guard-server = { version = "0.9.2", path = "../kindly-guard-server" }
+kindly-guard-server = { version = "0.9.5", path = "../kindly-guard-server" }
 
 [dev-dependencies]
 tempfile = "3.14"

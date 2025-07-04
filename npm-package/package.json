@@ -1,6 +1,6 @@
 {
   "name": "kindlyguard",
-  "version": "0.9.4",
+  "version": "0.9.5",
   "description": "Security-focused MCP server protecting against unicode attacks, injection threats, and other AI vulnerabilities",
   "main": "lib/main.js",
   "types": "lib/main.d.ts",
@@ -58,9 +58,9 @@
     "unzipper": "^0.10.14"
   },
   "optionalDependencies": {
-    "kindlyguard-linux-x64": "0.9.4",
-    "kindlyguard-darwin-x64": "0.9.4",
-    "kindlyguard-darwin-arm64": "0.9.4",
-    "kindlyguard-win32-x64": "0.9.4"
+    "kindlyguard-linux-x64": "0.9.5",
+    "kindlyguard-darwin-x64": "0.9.5",
+    "kindlyguard-darwin-arm64": "0.9.5",
+    "kindlyguard-win32-x64": "0.9.5"
   }
 }

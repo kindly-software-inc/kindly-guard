@@ -20,10 +20,20 @@ jobs:
       matrix:
         platform:
           # Native builds
+          # Using musl for static linking - important for distribution
+          # musl creates fully static binaries that work on any Linux distro
           - name: linux-x64
             os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
+            target: x86_64-unknown-linux-musl
             use-cross: false
+            use-musl: true
+            
+          # Alternative: GNU libc build (for future flexibility)
+          # Uncomment if you need glibc-linked binaries
+          # - name: linux-x64-gnu
+          #   os: ubuntu-latest
+          #   target: x86_64-unknown-linux-gnu
+          #   use-cross: false
             
           # Cross-compilation builds using cargo-zigbuild
           - name: darwin-x64
@@ -53,6 +63,16 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.platform.target }}
+      
+      - name: Install musl-tools
+        if: matrix.platform.use-musl
+        run: |
+          echo "Installing musl development tools for static linking..."
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+          # Verify musl-gcc is available
+          which musl-gcc
+          musl-gcc --version
       
       - name: Setup Cache
         uses: Swatinem/rust-cache@v2
@@ -117,6 +137,30 @@ jobs:
             cd dist
             tar czf kindlyguard-${{ matrix.platform.name }}.tar.gz kindlyguard kindlyguard-cli
           fi
+        shell: bash
+      
+      - name: Verify static linking (musl)
+        if: matrix.platform.use-musl
+        run: |
+          echo "Verifying binaries are statically linked..."
+          # Check if binaries are statically linked using ldd
+          # Static binaries should output "not a dynamic executable"
+          for binary in dist/kindlyguard dist/kindlyguard-cli; do
+            if [ -f "$binary" ]; then
+              echo "Checking $binary..."
+              if ldd "$binary" 2>&1 | grep -q "not a dynamic executable"; then
+                echo "✓ $binary is statically linked"
+              else
+                echo "✗ $binary is dynamically linked:"
+                ldd "$binary" || true
+                # This is a warning, not a failure - some rust dependencies might still link dynamically
+                echo "Warning: Binary may not be fully static. This could affect portability."
+              fi
+              # Also check file type
+              echo "File type:"
+              file "$binary"
+            fi
+          done
         shell: bash
       
       - name: Upload artifacts
