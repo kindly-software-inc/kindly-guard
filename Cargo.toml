@@ -114,7 +114,3 @@ compression = "gzip"
 [workspace.metadata.dist.extra-artifacts]
 artifacts = ["LICENSE", "README.md", "SECURITY.md"]
 auto = false
-
-# Pin dependencies to versions compatible with Rust 1.80
-[patch.crates-io]
-base64ct = "=1.6.0"  # Version 1.8.0 requires edition2024 which is not available in Rust 1.80
