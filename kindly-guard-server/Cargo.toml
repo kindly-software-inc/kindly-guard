@@ -119,3 +119,11 @@ harness = false
 [[bench]]
 name = "rate_limiter_comparison"
 harness = false
+
+[[bench]]
+name = "scanner_benchmarks"
+harness = false
+
+[[bench]]
+name = "real_world"
+harness = false

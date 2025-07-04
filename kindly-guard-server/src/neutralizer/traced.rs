@@ -62,7 +62,7 @@ impl TracedNeutralizer {
 #[async_trait]
 impl ThreatNeutralizer for TracedNeutralizer {
     async fn neutralize(&self, threat: &Threat, content: &str) -> Result<NeutralizeResult> {
-        let parent_context = self.get_parent_context().await;
+        let _parent_context = self.get_parent_context().await;
 
         // Start neutralization span
         let span = SpanBuilder::new(&self.tracing_provider, "neutralize")

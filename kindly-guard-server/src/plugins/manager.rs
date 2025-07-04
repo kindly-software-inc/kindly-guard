@@ -344,7 +344,7 @@ impl PluginManagerTrait for DefaultPluginManager {
         Ok(health)
     }
 
-    async fn reload_plugin(&self, id: &PluginId) -> Result<()> {
+    async fn reload_plugin(&self, _id: &PluginId) -> Result<()> {
         // For now, reload is not implemented for in-memory plugins
         // This would require storing the original path and reloading from disk
         Err(anyhow::anyhow!(

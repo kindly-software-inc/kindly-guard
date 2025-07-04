@@ -28,9 +28,24 @@ use mockall::{automock, predicate::*};
 #[cfg(feature = "enhanced")]
 pub use kindly_guard_core::{EndpointStats, EventBufferTrait, Priority};
 
-// For standard mode, use local definitions
+// For standard mode, define types locally
 #[cfg(not(feature = "enhanced"))]
-pub use crate::event_processor::{EndpointStats, Priority};
+/// Priority levels for events
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Priority {
+    Normal,
+    Urgent,
+}
+
+#[cfg(not(feature = "enhanced"))]
+/// Statistics for an endpoint
+#[derive(Debug, Clone)]
+pub struct EndpointStats {
+    pub success_count: u64,
+    pub failure_count: u64,
+    pub circuit_state: CircuitState,
+    pub available_tokens: u32,
+}
 
 #[cfg(not(feature = "enhanced"))]
 /// Event buffer trait for security event storage and retrieval

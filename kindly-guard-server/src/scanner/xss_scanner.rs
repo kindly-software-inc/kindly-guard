@@ -93,7 +93,7 @@ impl XssScanner for StandardXssScanner {
         let mut threats = Vec::new();
 
         // Check standard patterns
-        for (idx, pattern) in self.patterns.iter().enumerate() {
+        for (_idx, pattern) in self.patterns.iter().enumerate() {
             if let Some(mat) = pattern.find(text) {
                 let threat = Threat {
                     threat_type: ThreatType::CrossSiteScripting,
@@ -116,7 +116,7 @@ impl XssScanner for StandardXssScanner {
         }
 
         // Check encoded patterns
-        for (idx, pattern) in self.encoded_patterns.iter().enumerate() {
+        for (_idx, pattern) in self.encoded_patterns.iter().enumerate() {
             if let Some(mat) = pattern.find(text) {
                 let threat = Threat {
                     threat_type: ThreatType::CrossSiteScripting,

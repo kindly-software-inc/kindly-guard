@@ -277,7 +277,7 @@ impl RetryBuilder {
 
 // Helper functions
 
-const fn extract_status_code(error: &anyhow::Error) -> Option<u16> {
+const fn extract_status_code(_error: &anyhow::Error) -> Option<u16> {
     // This would need to be implemented based on your HTTP client
     // For now, return None
     None
