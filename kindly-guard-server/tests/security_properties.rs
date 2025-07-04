@@ -1,8 +1,21 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Security property-based tests for KindlyGuard
-//! 
+//!
 //! These tests verify that critical security properties hold across all implementations
 //! using property-based testing with proptest. The tests ensure:
-//! 
+//!
 //! 1. No injection bypasses are possible
 //! 2. All malicious inputs are neutralized
 //! 3. Neutralized content is always safe
@@ -47,6 +60,7 @@ fn create_test_scanner(enhanced: bool) -> Result<Arc<SecurityScanner>> {
         enable_event_buffer: enhanced,
         xss_detection: Some(true),
         enhanced_mode: Some(enhanced),
+        max_content_size: 5 * 1024 * 1024, // 5MB
     };
     Ok(Arc::new(SecurityScanner::new(config)?))
 }
@@ -161,7 +175,7 @@ prop_compose! {
         complexity in 1usize..5,
     ) -> String {
         let mut result = base.clone();
-        
+
         for _ in 0..complexity {
             match attack_type {
                 "homograph" => {
@@ -192,7 +206,7 @@ prop_compose! {
                 _ => {}
             }
         }
-        
+
         result
     }
 }
@@ -204,18 +218,18 @@ proptest! {
         input in adversarial_input(),
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 // First scan for threats
                 let scanner = create_test_scanner(false).unwrap();
                 let threats = scanner.scan_text(&input).unwrap_or_default();
-                
+
                 // If threats detected, ensure they're neutralized
                 if !threats.is_empty() {
                     for threat in &threats {
                         let result = neutralizer.neutralize(threat, &input).await.unwrap();
-                        
+
                         // Verify threat was handled
                         prop_assert!(
                             result.action_taken != NeutralizeAction::NoAction,
@@ -223,12 +237,12 @@ proptest! {
                             threat.threat_type,
                             input
                         );
-                        
+
                         // If content was sanitized, verify it's safe
                         if let Some(sanitized) = &result.sanitized_content {
                             // Re-scan sanitized content
                             let new_threats = scanner.scan_text(sanitized).unwrap_or_default();
-                            
+
                             // Should not contain the same threat type
                             prop_assert!(
                                 !new_threats.iter().any(|t| t.threat_type == threat.threat_type),
@@ -248,28 +262,28 @@ proptest! {
         inputs in prop::collection::vec(adversarial_input(), 1..10),
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 for input in &inputs {
                     let scanner = create_test_scanner(false).unwrap();
                     let threats = scanner.scan_text(input).unwrap_or_default();
-                    
+
                     if !threats.is_empty() {
                         // Batch neutralize all threats
                         let batch_result = neutralizer.batch_neutralize(&threats, input).await.unwrap();
-                        
+
                         // Verify all threats were addressed
                         prop_assert_eq!(
                             batch_result.individual_results.len(),
                             threats.len(),
                             "Not all threats were processed"
                         );
-                        
+
                         // Verify final content is safe
                         let final_threats = scanner.scan_text(&batch_result.final_content).unwrap_or_default();
                         prop_assert!(
-                            final_threats.is_empty() || 
+                            final_threats.is_empty() ||
                             final_threats.iter().all(|t| t.severity == Severity::Low),
                             "High severity threats remain in final content"
                         );
@@ -286,7 +300,7 @@ proptest! {
         threat_count in 1usize..5,
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 // Create synthetic threats
@@ -298,7 +312,7 @@ proptest! {
                             _ => ThreatType::CrossSiteScripting,
                         },
                         severity: Severity::High,
-                        location: Location::Text { 
+                        location: Location::Text {
                             offset: i * 10,
                             length: 5,
                         },
@@ -306,20 +320,20 @@ proptest! {
                         remediation: None,
                     })
                     .collect();
-                
+
                 // Neutralize threats
                 let result = neutralizer.batch_neutralize(&threats, &base_content).await.unwrap();
-                
+
                 // Verify properties of neutralized content
                 prop_assert!(
                     !result.final_content.is_empty() || base_content.is_empty(),
                     "Content was completely removed"
                 );
-                
+
                 // Ensure no high-severity threats remain
                 let scanner = create_test_scanner(false).unwrap();
                 let remaining_threats = scanner.scan_text(&result.final_content).unwrap_or_default();
-                
+
                 prop_assert!(
                     remaining_threats.iter().all(|t| t.severity != Severity::Critical),
                     "Critical threats remain after neutralization"
@@ -334,40 +348,40 @@ proptest! {
         input in unicode_attack_string(),
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 let scanner = create_test_scanner(false).unwrap();
                 let threats = scanner.scan_text(&input).unwrap_or_default();
-                
+
                 // Unicode attacks should be detected
                 let unicode_threats: Vec<_> = threats.iter()
                     .filter(|t| matches!(
                         t.threat_type,
-                        ThreatType::UnicodeInvisible | 
+                        ThreatType::UnicodeInvisible |
                         ThreatType::UnicodeBiDi |
                         ThreatType::UnicodeHomograph |
                         ThreatType::UnicodeControl
                     ))
                     .collect();
-                
+
                 if !unicode_threats.is_empty() {
                     for threat in unicode_threats {
                         let result = neutralizer.neutralize(threat, &input).await.unwrap();
-                        
+
                         prop_assert!(
                             result.action_taken != NeutralizeAction::NoAction,
                             "Unicode threat not neutralized: {:?}",
                             threat.threat_type
                         );
-                        
+
                         // Verify sanitized content doesn't contain the threat
                         if let Some(sanitized) = &result.sanitized_content {
                             let new_threats = scanner.scan_text(sanitized).unwrap_or_default();
                             prop_assert!(
-                                !new_threats.iter().any(|t| 
-                                    matches!(t.threat_type, 
-                                        ThreatType::UnicodeInvisible | 
+                                !new_threats.iter().any(|t|
+                                    matches!(t.threat_type,
+                                        ThreatType::UnicodeInvisible |
                                         ThreatType::UnicodeBiDi |
                                         ThreatType::UnicodeHomograph |
                                         ThreatType::UnicodeControl
@@ -394,7 +408,7 @@ proptest! {
         ]),
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 let threat = Threat {
@@ -404,18 +418,18 @@ proptest! {
                     description: "Test threat".to_string(),
                     remediation: None,
                 };
-                
+
                 // Run neutralization multiple times
                 let result1 = neutralizer.neutralize(&threat, &input).await.unwrap();
                 let result2 = neutralizer.neutralize(&threat, &input).await.unwrap();
-                
+
                 // Results should be identical
                 prop_assert_eq!(
                     result1.action_taken,
                     result2.action_taken,
                     "Non-deterministic action"
                 );
-                
+
                 prop_assert_eq!(
                     result1.sanitized_content,
                     result2.sanitized_content,
@@ -432,11 +446,11 @@ proptest! {
         pattern in prop::sample::select(vec!["a", "😀", "\u{200B}", "SELECT", "<script>"]),
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             // Create large input
             let input: String = pattern.repeat(size_mb * 1024 * 1024 / pattern.len());
-            
+
             for neutralizer in get_all_neutralizers() {
                 // Should handle large inputs without panic or OOM
                 let threat = Threat {
@@ -446,7 +460,7 @@ proptest! {
                     description: "Large input test".to_string(),
                     remediation: None,
                 };
-                
+
                 let result = neutralizer.neutralize(&threat, &input).await;
                 prop_assert!(result.is_ok(), "Failed to handle large input");
             }
@@ -460,21 +474,21 @@ proptest! {
         base in prop::string::string_regex("[a-zA-Z0-9]{10,20}").unwrap(),
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             // Create nested payload
             let mut payload = base.clone();
             for _ in 0..depth {
                 payload = format!("' OR '{}'='{}", payload, payload);
             }
-            
+
             for neutralizer in get_all_neutralizers() {
                 let scanner = create_test_scanner(false).unwrap();
                 let threats = scanner.scan_text(&payload).unwrap_or_default();
-                
+
                 if !threats.is_empty() {
                     let result = neutralizer.batch_neutralize(&threats, &payload).await.unwrap();
-                    
+
                     // Verify nested threats are neutralized
                     let final_threats = scanner.scan_text(&result.final_content).unwrap_or_default();
                     prop_assert!(
@@ -502,30 +516,30 @@ proptest! {
         ),
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             // Create polyglot payload
             let polyglot = components.join("");
-            
+
             for neutralizer in get_all_neutralizers() {
                 let scanner = create_test_scanner(false).unwrap();
                 let threats = scanner.scan_text(&polyglot).unwrap_or_default();
-                
+
                 // Should detect multiple threat types
                 prop_assert!(
                     threats.len() >= 2,
                     "Polyglot payload should trigger multiple detections"
                 );
-                
+
                 // All should be neutralized
                 let result = neutralizer.batch_neutralize(&threats, &polyglot).await.unwrap();
-                
+
                 // Final content should be significantly different
                 prop_assert!(
                     result.final_content != polyglot,
                     "Polyglot payload unchanged after neutralization"
                 );
-                
+
                 // And safe
                 let final_threats = scanner.scan_text(&result.final_content).unwrap_or_default();
                 prop_assert!(
@@ -551,14 +565,14 @@ proptest! {
         ),
     ) {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 let capabilities = neutralizer.get_capabilities();
-                
+
                 for threat_type in &threat_types {
                     let can_handle = neutralizer.can_neutralize(threat_type);
-                    
+
                     // Create a threat of this type
                     let threat = Threat {
                         threat_type: threat_type.clone(),
@@ -567,9 +581,9 @@ proptest! {
                         description: "Test".to_string(),
                         remediation: None,
                     };
-                    
+
                     let result = neutralizer.neutralize(&threat, "test content").await;
-                    
+
                     if can_handle {
                         prop_assert!(
                             result.is_ok(),
@@ -577,7 +591,7 @@ proptest! {
                             threat_type
                         );
                     }
-                    
+
                     // Verify capabilities are consistent
                     prop_assert!(
                         capabilities.real_time || capabilities.batch_mode,
@@ -594,11 +608,11 @@ proptest! {
 #[cfg(test)]
 mod security_invariants {
     use super::*;
-    
+
     #[test]
     fn test_no_content_amplification() {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 let test_inputs = vec![
@@ -607,18 +621,21 @@ mod security_invariants {
                     "SQL: ' OR '1'='1",
                     "Path: ../../../etc/passwd",
                 ];
-                
+
                 for input in test_inputs {
                     let threat = Threat {
                         threat_type: ThreatType::Custom("Generic".to_string()),
                         severity: Severity::High,
-                        location: Location::Text { offset: 0, length: input.len() },
+                        location: Location::Text {
+                            offset: 0,
+                            length: input.len(),
+                        },
                         description: "Test".to_string(),
                         remediation: None,
                     };
-                    
+
                     let result = neutralizer.neutralize(&threat, input).await.unwrap();
-                    
+
                     if let Some(sanitized) = &result.sanitized_content {
                         // Sanitized content should not be significantly larger
                         assert!(
@@ -632,32 +649,36 @@ mod security_invariants {
             }
         });
     }
-    
+
     #[test]
     fn test_no_infinite_loops() {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 // Create pathological input that might cause loops
                 let circular_ref = "{{{{{{{{{{";
                 let recursive_payload = "';exec(';exec(';exec(';exec(';exec(";
-                
+
                 for input in [circular_ref, recursive_payload] {
                     let threat = Threat {
                         threat_type: ThreatType::Custom("Generic".to_string()),
                         severity: Severity::High,
-                        location: Location::Text { offset: 0, length: input.len() },
+                        location: Location::Text {
+                            offset: 0,
+                            length: input.len(),
+                        },
                         description: "Loop test".to_string(),
                         remediation: None,
                     };
-                    
+
                     // Should complete in reasonable time
                     let result = tokio::time::timeout(
                         std::time::Duration::from_secs(5),
-                        neutralizer.neutralize(&threat, input)
-                    ).await;
-                    
+                        neutralizer.neutralize(&threat, input),
+                    )
+                    .await;
+
                     assert!(
                         result.is_ok(),
                         "Neutralization timed out - possible infinite loop"
@@ -666,27 +687,30 @@ mod security_invariants {
             }
         });
     }
-    
+
     #[test]
     fn test_memory_safety() {
         let runtime = Runtime::new().unwrap();
-        
+
         runtime.block_on(async {
             for neutralizer in get_all_neutralizers() {
                 // Test with inputs that might cause memory issues
                 let null_bytes = "test\0\0\0content";
                 let high_unicode = "test\u{10FFFF}content";
                 let mixed_encoding = "test\u{202E}\u{200B}\u{202C}content";
-                
+
                 for input in [null_bytes, high_unicode, mixed_encoding] {
                     let threat = Threat {
                         threat_type: ThreatType::Custom("Generic".to_string()),
                         severity: Severity::High,
-                        location: Location::Text { offset: 0, length: input.len() },
+                        location: Location::Text {
+                            offset: 0,
+                            length: input.len(),
+                        },
                         description: "Memory safety test".to_string(),
                         remediation: None,
                     };
-                    
+
                     // Should not cause memory errors
                     let result = neutralizer.neutralize(&threat, input).await;
                     assert!(result.is_ok(), "Memory safety issue detected");

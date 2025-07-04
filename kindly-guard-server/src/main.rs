@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! `KindlyGuard` MCP Security Server
 //!
 //! A focused security server for the Model Context Protocol that protects
@@ -172,9 +185,10 @@ async fn main() -> Result<()> {
         .await?;
     } else if args.http {
         info!("Running HTTP API server on {}", args.bind);
-        
+
         // Start periodic telemetry flush if configured
-        let telemetry_flush_handle = start_telemetry_flush(telemetry_enabled, telemetry_interval, server.clone());
+        let telemetry_flush_handle =
+            start_telemetry_flush(telemetry_enabled, telemetry_interval, server.clone());
 
         match server.run_http(&args.bind).await {
             Ok(()) => {
@@ -192,9 +206,10 @@ async fn main() -> Result<()> {
         }
     } else if args.proxy {
         info!("Running as HTTPS proxy on {}", args.bind);
-        
+
         // Start periodic telemetry flush if configured
-        let telemetry_flush_handle = start_telemetry_flush(telemetry_enabled, telemetry_interval, server.clone());
+        let telemetry_flush_handle =
+            start_telemetry_flush(telemetry_enabled, telemetry_interval, server.clone());
 
         match server.run_proxy(&args.bind).await {
             Ok(()) => {
@@ -215,7 +230,8 @@ async fn main() -> Result<()> {
         info!("Running in stdio mode (default)");
 
         // Start periodic telemetry flush if configured
-        let telemetry_flush_handle = start_telemetry_flush(telemetry_enabled, telemetry_interval, server.clone());
+        let telemetry_flush_handle =
+            start_telemetry_flush(telemetry_enabled, telemetry_interval, server.clone());
 
         match server.run_stdio().await {
             Ok(()) => {
@@ -243,11 +259,11 @@ async fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    
 
     #[test]
     fn test_main_compiles() {
         // Simple compilation test
-        assert!(true);
+        // This test ensures the main module compiles properly
     }
 }

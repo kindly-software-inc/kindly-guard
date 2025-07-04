@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Trait compliance tests for ThreatNeutralizer implementations
 //!
 //! These tests ensure that all neutralizer implementations correctly implement
@@ -8,8 +21,7 @@
 use anyhow::Result;
 use kindly_guard_server::neutralizer::{
     create_neutralizer, AttackPattern, BatchNeutralizeResult, NeutralizationConfig,
-    NeutralizeAction, NeutralizeResult, NeutralizerCapabilities,
-    ThreatNeutralizer,
+    NeutralizeAction, NeutralizeResult, NeutralizerCapabilities, ThreatNeutralizer,
 };
 use kindly_guard_server::scanner::{Location, Severity, Threat, ThreatType};
 use std::sync::Arc;
@@ -201,7 +213,7 @@ async fn test_neutralizer_compliance(
 
     // Test 5: Edge cases
     println!("Test 5: Testing edge cases...");
-    
+
     // Empty content
     let threat = create_test_threats()[0].clone();
     let result = neutralizer.neutralize(&threat, "").await?;
@@ -217,7 +229,9 @@ async fn test_neutralizer_compliance(
         offset: 1000,
         length: 10,
     };
-    let result = neutralizer.neutralize(&out_of_bounds_threat, "short").await?;
+    let result = neutralizer
+        .neutralize(&out_of_bounds_threat, "short")
+        .await?;
     assert_eq!(
         result.action_taken,
         NeutralizeAction::NoAction,
@@ -328,29 +342,33 @@ fn validate_action_for_threat(action: &NeutralizeAction, threat_type: &ThreatTyp
         (ThreatType::SqlInjection, NeutralizeAction::Parameterized) => Ok(()),
         (ThreatType::SqlInjection, NeutralizeAction::Escaped) => Ok(()),
         (ThreatType::SqlInjection, NeutralizeAction::Sanitized) => Ok(()),
-        
+
         // Command injection should be escaped or sanitized
         (ThreatType::CommandInjection, NeutralizeAction::Escaped) => Ok(()),
         (ThreatType::CommandInjection, NeutralizeAction::Sanitized) => Ok(()),
-        
+
         // Path traversal should be normalized
         (ThreatType::PathTraversal, NeutralizeAction::Normalized) => Ok(()),
         (ThreatType::PathTraversal, NeutralizeAction::Sanitized) => Ok(()),
-        
+
         // Unicode threats should be removed, escaped, or sanitized
-        (ThreatType::UnicodeBiDi | ThreatType::UnicodeInvisible | ThreatType::UnicodeHomograph, 
-         NeutralizeAction::Removed | NeutralizeAction::Escaped | NeutralizeAction::Sanitized) => Ok(()),
-        
+        (
+            ThreatType::UnicodeBiDi | ThreatType::UnicodeInvisible | ThreatType::UnicodeHomograph,
+            NeutralizeAction::Removed | NeutralizeAction::Escaped | NeutralizeAction::Sanitized,
+        ) => Ok(()),
+
         // XSS should be escaped or sanitized
-        (ThreatType::CrossSiteScripting,
-         NeutralizeAction::Escaped | NeutralizeAction::Sanitized) => Ok(()),
-        
+        (
+            ThreatType::CrossSiteScripting,
+            NeutralizeAction::Escaped | NeutralizeAction::Sanitized,
+        ) => Ok(()),
+
         // NoAction is always valid (might be out of bounds, etc.)
         (_, NeutralizeAction::NoAction) => Ok(()),
-        
+
         // Quarantine is valid for any high-severity threat
         (_, NeutralizeAction::Quarantined) => Ok(()),
-        
+
         _ => {
             // Log unexpected combinations but don't fail
             eprintln!(
@@ -378,7 +396,7 @@ fn validate_batch_result(result: &BatchNeutralizeResult, threats: &[Threat]) -> 
     );
 
     // Each individual result should be valid
-    for (_, individual_result) in result.individual_results.iter().enumerate() {
+    for individual_result in result.individual_results.iter() {
         // Individual results should have reasonable processing times
         assert!(
             individual_result.processing_time_us < 1_000_000,
@@ -404,14 +422,14 @@ async fn test_enhanced_neutralizer_compliance() -> Result<()> {
     // For now, we test that the factory creates a valid neutralizer
     let config = NeutralizationConfig::default();
     let neutralizer = create_neutralizer(&config, None);
-    
+
     // The factory should give us an enhanced neutralizer when the feature is enabled
     let capabilities = neutralizer.get_capabilities();
     assert!(
         capabilities.predictive || capabilities.correlation,
         "With enhanced feature, should have advanced capabilities"
     );
-    
+
     test_neutralizer_compliance(neutralizer, "Enhanced Neutralizer (via factory)").await
 }
 
@@ -436,14 +454,13 @@ async fn test_neutralizer_with_decorators() -> Result<()> {
     test_neutralizer_compliance(with_recovery, "Neutralizer with Recovery").await?;
 
     // Test with rollback wrapper
-    let with_rollback = RollbackNeutralizer::new(base_neutralizer.clone(), RollbackConfig::default());
+    let with_rollback =
+        RollbackNeutralizer::new(base_neutralizer.clone(), RollbackConfig::default());
     test_neutralizer_compliance(with_rollback, "Neutralizer with Rollback").await?;
 
     // Test with health monitoring
-    let with_health = HealthMonitoredNeutralizer::new(
-        base_neutralizer,
-        NeutralizationHealthConfig::default(),
-    );
+    let with_health =
+        HealthMonitoredNeutralizer::new(base_neutralizer, NeutralizationHealthConfig::default());
     test_neutralizer_compliance(with_health, "Neutralizer with Health Monitoring").await?;
 
     Ok(())
@@ -452,8 +469,10 @@ async fn test_neutralizer_with_decorators() -> Result<()> {
 #[tokio::test]
 async fn test_neutralizer_mode_behavior() -> Result<()> {
     use kindly_guard_server::neutralizer::security_aware::SecurityAwareNeutralizer;
-    use kindly_guard_server::security::{CommandSource, NeutralizationMode as SecurityNeutralizationMode};
-    
+    use kindly_guard_server::security::{
+        CommandSource, NeutralizationMode as SecurityNeutralizationMode,
+    };
+
     // Test different neutralization modes using SecurityAwareNeutralizer
     let test_modes = vec![
         SecurityNeutralizationMode::ReportOnly,
@@ -463,7 +482,7 @@ async fn test_neutralizer_mode_behavior() -> Result<()> {
     for mode in test_modes {
         let config = NeutralizationConfig::default();
         let base_neutralizer = create_neutralizer(&config, None);
-        
+
         // Wrap with security-aware neutralizer that respects mode
         let neutralizer = Arc::new(SecurityAwareNeutralizer::with_new_context(
             base_neutralizer,
@@ -471,7 +490,7 @@ async fn test_neutralizer_mode_behavior() -> Result<()> {
             false,
             mode,
         ));
-        
+
         let threat = Threat {
             threat_type: ThreatType::SqlInjection,
             severity: Severity::Critical,
@@ -482,11 +501,11 @@ async fn test_neutralizer_mode_behavior() -> Result<()> {
             description: "Test SQL injection".to_string(),
             remediation: None,
         };
-        
+
         let result = neutralizer
             .neutralize(&threat, "SELECT * FROM users")
             .await?;
-        
+
         match mode {
             SecurityNeutralizationMode::ReportOnly => {
                 // In report-only mode, no action should be taken
@@ -540,13 +559,13 @@ async fn test_concurrent_neutralization() -> Result<()> {
 
     // Verify all operations completed successfully
     assert!(!results.is_empty(), "Should have completed some operations");
-    
+
     // Count successful neutralizations
     let successful_count = results
         .iter()
         .filter(|(_, r)| r.action_taken != NeutralizeAction::NoAction)
         .count();
-    
+
     assert!(
         successful_count > 0,
         "At least some threats should have been neutralized"
@@ -571,11 +590,14 @@ fn test_neutralize_action_display() {
     for action in actions {
         let display = format!("{}", action);
         assert!(!display.is_empty(), "Display string should not be empty");
-        
+
         // Verify the display string matches expected format
         match action {
             NeutralizeAction::NoAction => assert_eq!(display, "No Action"),
-            _ => assert!(!display.contains('_'), "Display should not contain underscores"),
+            _ => assert!(
+                !display.contains('_'),
+                "Display should not contain underscores"
+            ),
         }
     }
 }
@@ -618,11 +640,11 @@ async fn test_neutralization_performance_baseline() -> Result<()> {
         // Use 5 different threats
         if neutralizer.can_neutralize(&threat.threat_type) {
             let content = get_test_content_for_threat(&threat.threat_type);
-            
+
             let start = Instant::now();
             let result = neutralizer.neutralize(threat, content).await?;
             let elapsed = start.elapsed();
-            
+
             total_time_us += elapsed.as_micros() as u64;
             operation_count += 1;
 

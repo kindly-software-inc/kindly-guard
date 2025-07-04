@@ -1,0 +1,286 @@
+# KindlyGuard Production Configuration
+# 
+# This is a production-ready configuration template with security best practices.
+# Copy this file to production.toml and adjust values for your environment.
+
+# Server Configuration
+[server]
+# Bind to localhost by default for security. Change to "0.0.0.0" for network access
+host = "127.0.0.1"
+port = 3000
+# Connection limits to prevent resource exhaustion
+max_connections = 1000
+# Request timeout in seconds
+request_timeout = 30
+# Maximum request body size (bytes)
+max_body_size = 10485760  # 10MB
+
+# Scanner Configuration
+[scanner]
+# Enable all security scanners
+unicode_detection = true
+injection_detection = true
+path_traversal_detection = true
+xss_detection = true
+# Enhanced mode uses proprietary algorithms (requires license)
+enhanced_mode = false
+# Maximum recursion depth for nested content scanning
+max_scan_depth = 10
+# Maximum content size to scan (bytes)
+max_content_size = 10485760  # 10MB
+# Parallel scanning threads (0 = number of CPU cores)
+scan_threads = 0
+
+# Pattern Detection
+[scanner.patterns]
+# Custom threat patterns (regex)
+custom_patterns = [
+    # Add custom patterns here
+    # { pattern = "(?i)eval\\s*\\(", severity = "high", description = "Potential code execution" }
+]
+# Enable machine learning-based detection
+ml_detection = false
+# Pattern cache size
+pattern_cache_size = 1000
+
+# Shield UI Configuration (disable in production unless needed)
+[shield]
+enabled = false
+update_interval_ms = 1000
+show_metrics = true
+show_threats = true
+show_status = true
+
+# Authentication Configuration
+[auth]
+enabled = true
+# JWT validation
+algorithm = "RS256"
+# List of trusted JWT issuers
+trusted_issuers = [
+    # "https://auth.example.com",
+    # "https://accounts.google.com"
+]
+# Token expiration tolerance (seconds)
+expiration_tolerance = 60
+# API key authentication (alternative to JWT)
+api_keys_enabled = false
+# api_keys = [
+#     { key = "hash_of_api_key", name = "service-1", permissions = ["read", "write"] }
+# ]
+
+# Rate Limiting
+[rate_limit]
+enabled = true
+# Default requests per minute
+default_rpm = 120
+# Burst capacity
+default_burst = 20
+# Per-endpoint overrides
+endpoints = [
+    { path = "/api/scan", rpm = 60, burst = 10 },
+    { path = "/api/validate", rpm = 300, burst = 50 }
+]
+# IP-based rate limiting
+ip_based = true
+# User-based rate limiting (requires auth)
+user_based = true
+
+# Storage Configuration
+[storage]
+# Storage backend: "memory", "sqlite", "postgres"
+type = "sqlite"
+# SQLite configuration
+sqlite_path = "/var/lib/kindly-guard/kindly-guard.db"
+# Connection pool size
+pool_size = 10
+# Enable write-ahead logging for better performance
+wal_mode = true
+# Vacuum interval (hours)
+vacuum_interval = 24
+
+# Metrics and Monitoring
+[metrics]
+enabled = true
+# Prometheus metrics endpoint
+prometheus_enabled = true
+prometheus_port = 9090
+# StatsD integration
+statsd_enabled = false
+# statsd_host = "localhost"
+# statsd_port = 8125
+# statsd_prefix = "kindly_guard"
+# Enable enhanced metrics (uses more memory)
+enhanced_mode = false
+
+# Logging Configuration
+[logging]
+# Log level: "error", "warn", "info", "debug", "trace"
+level = "info"
+# Log format: "json", "pretty", "compact"
+format = "json"
+# Log targets
+targets = [
+    { type = "stdout", level = "info" },
+    { type = "file", path = "/var/log/kindly-guard/server.log", level = "info", rotation = "daily" }
+]
+# Include caller location in logs
+include_location = false
+# Include thread IDs in logs
+include_thread_ids = true
+
+# Telemetry Configuration
+[telemetry]
+enabled = true
+# Anonymous usage statistics
+anonymous_stats = true
+# Telemetry endpoint (for commercial license holders)
+# endpoint = "https://telemetry.kindlyguard.com"
+# Flush interval (seconds)
+flush_interval = 300
+# Local telemetry storage
+local_storage = "/var/lib/kindly-guard/telemetry"
+
+# Security Policies
+[security]
+# Enable security headers in HTTP responses
+security_headers = true
+# Content Security Policy
+csp_header = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'"
+# CORS configuration
+cors_enabled = true
+cors_origins = ["https://trusted-app.example.com"]
+# Enable request signing verification
+request_signing = false
+# signing_algorithm = "hmac-sha256"
+# Audit logging
+audit_log_enabled = true
+audit_log_path = "/var/log/kindly-guard/audit.log"
+
+# Circuit Breaker Configuration
+[resilience.circuit_breaker]
+# Failure threshold before opening circuit
+failure_threshold = 5
+# Success threshold in half-open state
+success_threshold = 3
+# Timeout before attempting recovery (seconds)
+timeout = 30
+# Enable enhanced circuit breaker (atomic operations)
+enhanced_mode = false
+
+# Retry Configuration
+[resilience.retry]
+# Maximum retry attempts
+max_attempts = 3
+# Initial retry delay (milliseconds)
+initial_delay = 100
+# Maximum retry delay (milliseconds)
+max_delay = 10000
+# Exponential backoff multiplier
+multiplier = 2.0
+# Jitter factor (0.0 to 1.0)
+jitter = 0.1
+
+# Cache Configuration
+[cache]
+# Enable caching
+enabled = true
+# Cache backend: "memory", "redis"
+type = "memory"
+# Maximum cache size (MB)
+max_size = 100
+# Default TTL (seconds)
+default_ttl = 300
+# Cache key prefix
+prefix = "kindly_guard"
+# Redis configuration (if using redis backend)
+# redis_url = "redis://localhost:6379"
+# redis_pool_size = 10
+
+# Performance Tuning
+[performance]
+# Worker threads (0 = number of CPU cores)
+worker_threads = 0
+# Blocking threads for CPU-intensive tasks
+blocking_threads = 16
+# Keep-alive timeout (seconds)
+keep_alive = 60
+# TCP nodelay
+tcp_nodelay = true
+# Buffer sizes (bytes)
+read_buffer_size = 8192
+write_buffer_size = 8192
+
+# Event Processing (for enhanced features)
+[event_processor]
+enabled = true
+# Use enhanced atomic event buffer
+enhanced_mode = false
+# Buffer size (MB)
+buffer_size_mb = 20
+# Maximum endpoints to track
+max_endpoints = 1000
+# Events per second limit
+rate_limit = 10000.0
+# Circuit breaker failure threshold
+failure_threshold = 5
+
+# Health Check Configuration
+[health]
+# Enable health check endpoint
+enabled = true
+# Health check path
+path = "/health"
+# Include detailed health information
+detailed = false
+# Component health checks
+check_database = true
+check_cache = true
+check_scanner = true
+
+# Feature Flags
+[features]
+# Enable experimental features
+experimental = false
+# Enable beta features
+beta = false
+# Feature-specific flags
+unicode_normalization = true
+advanced_pattern_matching = false
+ml_threat_detection = false
+
+# Compliance and Regulations
+[compliance]
+# Enable GDPR compliance features
+gdpr_enabled = false
+# Data retention period (days)
+data_retention_days = 90
+# Enable data anonymization
+anonymize_data = false
+# Compliance audit trail
+audit_trail = true
+
+# Integration Configuration
+[integrations]
+# Webhook notifications
+webhooks_enabled = false
+# webhooks = [
+#     { url = "https://hooks.slack.com/...", events = ["threat_detected", "scan_completed"] }
+# ]
+# SIEM integration
+siem_enabled = false
+# siem_format = "cef"  # Common Event Format
+# siem_endpoint = "syslog://siem.example.com:514"
+
+# Advanced Configuration
+[advanced]
+# Enable debug mode (DO NOT use in production)
+debug_mode = false
+# Memory allocator: "system", "jemalloc"
+allocator = "system"
+# Enable CPU profiling
+cpu_profiling = false
+# Enable memory profiling
+memory_profiling = false
+# Panic behavior: "abort", "unwind"
+panic = "abort"

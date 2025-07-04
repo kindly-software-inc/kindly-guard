@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Audit logging system for compliance and security monitoring
 //!
 //! This module provides a trait-based audit architecture that allows
@@ -107,7 +120,7 @@ pub enum AuditSeverity {
     /// - SOC2: Required for access tracking
     /// - Retention: Typically 30-90 days
     Info,
-    
+
     /// Warning events that may indicate potential issues
     ///
     /// **When to use:**
@@ -121,7 +134,7 @@ pub enum AuditSeverity {
     /// - SOC2: Requires monitoring and trend analysis
     /// - Retention: Minimum 90 days
     Warning,
-    
+
     /// Error events indicating operational problems
     ///
     /// **When to use:**
@@ -135,7 +148,7 @@ pub enum AuditSeverity {
     /// - ISO 27001: Requires root cause analysis
     /// - Retention: Minimum 1 year
     Error,
-    
+
     /// Critical security events requiring immediate attention
     ///
     /// **When to use:**
@@ -174,7 +187,6 @@ pub enum AuditSeverity {
 #[serde(rename_all = "snake_case")]
 pub enum AuditEventType {
     // ==================== Authentication Events ====================
-    
     /// Successful authentication event
     ///
     /// **Triggered when:** User successfully authenticates to the system
@@ -196,10 +208,8 @@ pub enum AuditEventType {
     /// - ISO 27001: Required for access control (A.9.2.1)
     ///
     /// **Typical severity:** Info
-    AuthSuccess {
-        user_id: String,
-    },
-    
+    AuthSuccess { user_id: String },
+
     /// Failed authentication attempt
     ///
     /// **Triggered when:** Authentication attempt fails for any reason
@@ -227,7 +237,6 @@ pub enum AuditEventType {
     },
 
     // ==================== Authorization Events ====================
-    
     /// Successful resource access
     ///
     /// **Triggered when:** User successfully accesses a protected resource
@@ -248,11 +257,8 @@ pub enum AuditEventType {
     /// - PCI DSS: Required for cardholder data access (10.2.1)
     ///
     /// **Typical severity:** Info
-    AccessGranted {
-        user_id: String,
-        resource: String,
-    },
-    
+    AccessGranted { user_id: String, resource: String },
+
     /// Denied resource access attempt
     ///
     /// **Triggered when:** User is denied access to a protected resource
@@ -281,7 +287,6 @@ pub enum AuditEventType {
     },
 
     // ==================== Security Events ====================
-    
     /// Security threat detected
     ///
     /// **Triggered when:** System detects potential security threats
@@ -307,7 +312,7 @@ pub enum AuditEventType {
         client_id: String,
         threat_count: u32,
     },
-    
+
     /// Security threat blocked
     ///
     /// **Triggered when:** System successfully blocks a security threat
@@ -334,7 +339,6 @@ pub enum AuditEventType {
     },
 
     // ==================== Neutralization Events ====================
-    
     /// Threat neutralization initiated
     ///
     /// **Triggered when:** System begins automated threat neutralization
@@ -359,7 +363,7 @@ pub enum AuditEventType {
         threat_id: String,
         threat_type: String,
     },
-    
+
     /// Threat neutralization completed successfully
     ///
     /// **Triggered when:** Threat neutralization completes successfully
@@ -386,7 +390,7 @@ pub enum AuditEventType {
         action: String,
         duration_ms: u64,
     },
-    
+
     /// Threat neutralization failed
     ///
     /// **Triggered when:** Neutralization attempt fails
@@ -411,7 +415,7 @@ pub enum AuditEventType {
         threat_id: String,
         error: String,
     },
-    
+
     /// Neutralization skipped by policy
     ///
     /// **Triggered when:** Neutralization skipped due to policy/configuration
@@ -434,7 +438,7 @@ pub enum AuditEventType {
         threat_id: String,
         reason: String,
     },
-    
+
     /// Neutralization action rolled back
     ///
     /// **Triggered when:** Previous neutralization is reversed
@@ -461,7 +465,6 @@ pub enum AuditEventType {
     },
 
     // ==================== Rate Limiting Events ====================
-    
     /// Rate limit exceeded
     ///
     /// **Triggered when:** Client exceeds configured rate limits
@@ -487,7 +490,6 @@ pub enum AuditEventType {
     },
 
     // ==================== Configuration Events ====================
-    
     /// Configuration modified
     ///
     /// **Triggered when:** System configuration is changed
@@ -512,7 +514,7 @@ pub enum AuditEventType {
         changed_by: String,
         changes: HashMap<String, String>,
     },
-    
+
     /// Configuration reloaded
     ///
     /// **Triggered when:** Configuration is reloaded from source
@@ -536,7 +538,6 @@ pub enum AuditEventType {
     },
 
     // ==================== Plugin Events ====================
-    
     /// Plugin loaded
     ///
     /// **Triggered when:** Security plugin is loaded
@@ -560,7 +561,7 @@ pub enum AuditEventType {
         plugin_id: String,
         plugin_name: String,
     },
-    
+
     /// Plugin unloaded
     ///
     /// **Triggered when:** Security plugin is unloaded
@@ -577,11 +578,8 @@ pub enum AuditEventType {
     /// - SOC2: Required for component lifecycle tracking
     ///
     /// **Typical severity:** Info (Warning if error-triggered)
-    PluginUnloaded {
-        plugin_id: String,
-        reason: String,
-    },
-    
+    PluginUnloaded { plugin_id: String, reason: String },
+
     /// Plugin error
     ///
     /// **Triggered when:** Plugin encounters an error
@@ -599,13 +597,9 @@ pub enum AuditEventType {
     /// - SOC2: Required for third-party monitoring
     ///
     /// **Typical severity:** Error
-    PluginError {
-        plugin_id: String,
-        error: String,
-    },
+    PluginError { plugin_id: String, error: String },
 
     // ==================== System Events ====================
-    
     /// Server started
     ///
     /// **Triggered when:** Security server starts up
@@ -624,10 +618,8 @@ pub enum AuditEventType {
     /// - ISO 27001: Required for operational procedures
     ///
     /// **Typical severity:** Info
-    ServerStarted {
-        version: String,
-    },
-    
+    ServerStarted { version: String },
+
     /// Server stopped
     ///
     /// **Triggered when:** Security server shuts down
@@ -645,10 +637,8 @@ pub enum AuditEventType {
     /// - ISO 27001: Required for operational procedures
     ///
     /// **Typical severity:** Info (Error if unexpected)
-    ServerStopped {
-        reason: String,
-    },
-    
+    ServerStopped { reason: String },
+
     /// System error
     ///
     /// **Triggered when:** System-level error occurs
@@ -667,13 +657,9 @@ pub enum AuditEventType {
     /// - ISO 27001: Required for incident management
     ///
     /// **Typical severity:** Error to Critical
-    SystemError {
-        component: String,
-        error: String,
-    },
+    SystemError { component: String, error: String },
 
     // ==================== Custom Events ====================
-    
     /// Custom audit event
     ///
     /// **Triggered when:** Application needs to log custom security events

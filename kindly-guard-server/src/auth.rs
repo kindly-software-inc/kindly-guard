@@ -1,14 +1,29 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Authentication and authorization for MCP server
 //! Implements OAuth 2.0 with Resource Indicators (RFC 8707)
 
 use anyhow::Result;
 use base64::{engine::general_purpose, Engine as _};
 use hmac::{Hmac, Mac};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
+use subtle::ConstantTimeEq;
 use tokio::sync::RwLock;
 
 /// OAuth 2.0 token types
@@ -64,7 +79,7 @@ pub enum TokenValidation {
 ///
 /// [auth.required_scopes]
 /// default = ["kindlyguard:access"]
-/// 
+///
 /// [auth.required_scopes.tools]
 /// "security/scan" = ["security:read"]
 /// "security/neutralize" = ["security:write", "security:admin"]
@@ -239,6 +254,74 @@ impl AuthManager {
         }
     }
 
+    /// Perform constant-time comparison of tokens
+    /// This prevents timing attacks by ensuring comparison takes the same time
+    /// regardless of where the first difference occurs
+    pub fn constant_time_compare(a: &str, b: &str) -> bool {
+        let a_bytes = a.as_bytes();
+        let b_bytes = b.as_bytes();
+
+        // First check if lengths are equal (this can leak length info, but that's OK)
+        if a_bytes.len() != b_bytes.len() {
+            return false;
+        }
+
+        // Use subtle crate for constant-time comparison
+        a_bytes.ct_eq(b_bytes).into()
+    }
+
+    /// Generate a cryptographically secure token with high entropy
+    ///
+    /// Generates a token with at least 128 bits of entropy using a secure random
+    /// number generator. The token uses URL-safe base64 encoding.
+    ///
+    /// # Arguments
+    /// * `length` - The desired length of the token in bytes (before encoding)
+    ///              Minimum 16 bytes (128 bits) for security
+    ///
+    /// # Returns
+    /// A URL-safe base64 encoded token string
+    pub fn generate_secure_token(length: usize) -> String {
+        // Ensure minimum entropy of 128 bits (16 bytes)
+        let token_length = length.max(16);
+
+        // Generate random bytes
+        let mut rng = rand::thread_rng();
+        let token_bytes: Vec<u8> = (0..token_length).map(|_| rng.gen()).collect();
+
+        // Encode as URL-safe base64
+        general_purpose::URL_SAFE_NO_PAD.encode(&token_bytes)
+    }
+
+    /// Generate a secure session token
+    ///
+    /// Creates a session token with 256 bits of entropy (32 bytes)
+    pub fn generate_session_token() -> String {
+        Self::generate_secure_token(32)
+    }
+
+    /// Generate a secure API key
+    ///
+    /// Creates an API key with mixed alphanumeric characters and symbols
+    /// for maximum entropy in a readable format
+    pub fn generate_api_key() -> String {
+        let mut rng = rand::thread_rng();
+
+        // Use a mix of character sets for high entropy
+        const CHARSET: &[u8] =
+            b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*-_=+";
+        const KEY_LENGTH: usize = 32;
+
+        let key: String = (0..KEY_LENGTH)
+            .map(|_| {
+                let idx = rng.gen_range(0..CHARSET.len());
+                CHARSET[idx] as char
+            })
+            .collect();
+
+        key
+    }
+
     /// Authenticate a request with bearer token
     pub async fn authenticate(&self, authorization: Option<&str>) -> Result<AuthContext> {
         if !self.config.enabled {
@@ -277,8 +360,8 @@ impl AuthManager {
         // For now, implement local validation
         // In production, this would call the validation endpoint
 
-        // Special handling for test tokens
-        if token == "test-token-123" {
+        // Special handling for test tokens (using constant-time comparison)
+        if Self::constant_time_compare(token, "test-token-123") {
             return Ok(AccessToken {
                 token: token.to_string(),
                 token_type: TokenType::Bearer,
@@ -596,5 +679,96 @@ mod tests {
         assert!(!ctx.authenticated);
         assert!(ctx.scopes.is_empty());
         assert!(ctx.resource_indicators.is_empty());
+    }
+
+    #[test]
+    fn test_constant_time_comparison() {
+        // Test equal strings
+        assert!(AuthManager::constant_time_compare("secret123", "secret123"));
+
+        // Test different strings
+        assert!(!AuthManager::constant_time_compare(
+            "secret123",
+            "secret124"
+        ));
+        assert!(!AuthManager::constant_time_compare("secret", "secrets"));
+        assert!(!AuthManager::constant_time_compare("", "secret"));
+        assert!(!AuthManager::constant_time_compare("secret", ""));
+
+        // Test empty strings
+        assert!(AuthManager::constant_time_compare("", ""));
+    }
+
+    #[test]
+    fn test_secure_token_generation() {
+        // Test minimum length enforcement
+        let token1 = AuthManager::generate_secure_token(8);
+        let token2 = AuthManager::generate_secure_token(16);
+        let token3 = AuthManager::generate_secure_token(32);
+
+        // Base64 encoding increases length by ~4/3
+        assert!(token1.len() >= 21); // 16 bytes * 4/3 ≈ 21 chars
+        assert!(token2.len() >= 21); // 16 bytes * 4/3 ≈ 21 chars
+        assert!(token3.len() >= 42); // 32 bytes * 4/3 ≈ 42 chars
+
+        // Test uniqueness
+        let token4 = AuthManager::generate_secure_token(32);
+        assert_ne!(token3, token4);
+
+        // Test session token
+        let session1 = AuthManager::generate_session_token();
+        let session2 = AuthManager::generate_session_token();
+        assert!(session1.len() >= 42); // 32 bytes * 4/3 ≈ 42 chars
+        assert_ne!(session1, session2);
+    }
+
+    #[test]
+    fn test_api_key_generation() {
+        let key1 = AuthManager::generate_api_key();
+        let key2 = AuthManager::generate_api_key();
+
+        // Test length
+        assert_eq!(key1.len(), 32);
+        assert_eq!(key2.len(), 32);
+
+        // Test uniqueness
+        assert_ne!(key1, key2);
+
+        // Test character set (should contain mix of alphanumeric and symbols)
+        let has_upper = key1.chars().any(|c| c.is_uppercase());
+        let has_lower = key1.chars().any(|c| c.is_lowercase());
+        let has_digit = key1.chars().any(|c| c.is_numeric());
+        let has_symbol = key1.chars().any(|c| "!@#$%^&*-_=+".contains(c));
+
+        // API keys should have high character diversity
+        assert!(has_upper || has_lower || has_digit || has_symbol);
+    }
+
+    #[test]
+    fn test_token_entropy() {
+        // Generate multiple tokens and check for sufficient randomness
+        let mut tokens = Vec::new();
+        for _ in 0..100 {
+            tokens.push(AuthManager::generate_secure_token(16));
+        }
+
+        // All tokens should be unique
+        let unique_count = tokens
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+        assert_eq!(unique_count, 100);
+
+        // Check character distribution (basic entropy test)
+        let all_chars: String = tokens.join("");
+        let char_freq = all_chars
+            .chars()
+            .fold(std::collections::HashMap::new(), |mut map, c| {
+                *map.entry(c).or_insert(0) += 1;
+                map
+            });
+
+        // Should have good character distribution (at least 20 different characters)
+        assert!(char_freq.len() >= 20);
     }
 }

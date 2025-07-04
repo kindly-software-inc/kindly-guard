@@ -1,40 +1,53 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Security scanner module for threat detection
-//! 
+//!
 //! This module provides comprehensive security scanning capabilities for detecting
 //! various types of threats in text and JSON inputs. It combines multiple specialized
 //! scanners to provide defense-in-depth protection.
-//! 
+//!
 //! # Architecture
-//! 
+//!
 //! The scanner module follows a modular architecture with specialized sub-scanners:
-//! 
+//!
 //! - **Unicode Scanner** (`unicode`): Detects Unicode-based attacks including:
 //!   - Invisible characters (zero-width spaces, joiners)
 //!   - BiDi override attacks for text spoofing
 //!   - Homograph attacks using similar-looking characters
 //!   - Dangerous control characters
-//! 
+//!
 //! - **Injection Scanner** (`injection`): Detects various injection attacks:
 //!   - SQL injection patterns
 //!   - Command injection attempts
 //!   - Prompt injection for LLMs
 //!   - Path traversal attempts
 //!   - LDAP, XML, and NoSQL injections
-//! 
+//!
 //! - **XSS Scanner** (`xss_scanner`): Detects cross-site scripting:
 //!   - Script tags and event handlers
 //!   - JavaScript URLs and data URIs
 //!   - HTML entity encoding bypasses
-//! 
+//!
 //! - **Pattern Scanner** (`patterns`): Customizable threat patterns:
 //!   - MCP-specific threats (session IDs, tokens)
 //!   - Tool poisoning attempts
 //!   - Custom patterns from configuration
-//! 
+//!
 //! # Configuration
-//! 
+//!
 //! The scanner behavior is controlled through `ScannerConfig`:
-//! 
+//!
 //! ```toml
 //! [scanner]
 //! # Enable/disable specific threat detection types
@@ -42,30 +55,30 @@
 //! injection_detection = true        # Detect injection attempts
 //! path_traversal_detection = true   # Detect directory traversal
 //! xss_detection = true             # Detect XSS patterns
-//! 
+//!
 //! # Performance and limits
 //! max_scan_depth = 20              # Max recursion for JSON scanning
 //! enhanced_mode = false            # Enable advanced detection algorithms
 //! enable_event_buffer = false      # Enable event correlation (requires enhanced feature)
-//! 
+//!
 //! # Custom patterns
 //! custom_patterns = "/etc/kindly-guard/patterns.toml"  # Optional custom patterns file
 //! ```
-//! 
+//!
 //! # Security Principles
-//! 
+//!
 //! 1. **Defense in Depth**: Multiple scanners provide overlapping protection
 //! 2. **Type Safety**: All threats are represented as typed enums, not strings
 //! 3. **Fail Safe**: Errors in one scanner don't affect others
 //! 4. **Performance**: Zero-copy scanning where possible, SIMD optimizations available
 //! 5. **Extensibility**: Plugin system allows custom threat detection
-//! 
+//!
 //! # Usage Example
-//! 
+//!
 //! ```no_run
 //! use kindly_guard_server::config::ScannerConfig;
 //! use kindly_guard_server::scanner::{SecurityScanner, Severity};
-//! 
+//!
 //! // Configure scanner
 //! let config = ScannerConfig {
 //!     unicode_detection: true,
@@ -74,13 +87,13 @@
 //!     max_scan_depth: 20,
 //!     ..Default::default()
 //! };
-//! 
+//!
 //! // Create scanner instance
 //! let scanner = SecurityScanner::new(config)?;
-//! 
+//!
 //! // Scan text input
 //! let threats = scanner.scan_text("SELECT * FROM users WHERE id = '1' OR '1'='1'")?;
-//! 
+//!
 //! // Handle detected threats
 //! for threat in threats {
 //!     if threat.severity >= Severity::High {
@@ -98,32 +111,32 @@ use thiserror::Error;
 
 pub mod injection;
 pub mod patterns;
+pub mod sync_wrapper;
 pub mod unicode;
 pub mod xss_scanner;
-pub mod sync_wrapper;
 
 pub use injection::InjectionScanner;
 pub use patterns::ThreatPatterns;
 pub use unicode::UnicodeScanner;
-pub use xss_scanner::{XssScanner, create_xss_scanner};
+pub use xss_scanner::{create_xss_scanner, XssScanner};
 
 /// Main security scanner combining all threat detection
-/// 
+///
 /// The `SecurityScanner` is the central component for detecting security threats in text and JSON inputs.
 /// It combines multiple specialized scanners (Unicode, Injection, XSS) and supports plugin-based extensions.
-/// 
+///
 /// # Architecture
 /// - **Unicode Scanner**: Detects invisible characters, BiDi spoofing, homograph attacks
 /// - **Injection Scanner**: Detects SQL, command, prompt, and other injection attempts
 /// - **XSS Scanner**: Detects cross-site scripting patterns
 /// - **Plugin System**: Allows custom threat detection via external plugins
-/// 
+///
 /// # Security Considerations
 /// - All scanners run with configurable depth limits to prevent DoS attacks
 /// - Pattern matching uses size-limited regex to prevent ReDoS attacks
 /// - Results are type-safe using enums, never raw strings for security decisions
 /// - Enhanced mode provides additional correlation and pattern analysis
-/// 
+///
 /// # Performance
 /// - Scanners use zero-copy operations where possible
 /// - Text is scanned in a single pass per scanner
@@ -282,6 +295,14 @@ pub enum ThreatType {
     /// **Recommended Response**: Implement token rotation, use secure storage
     TokenTheft,
 
+    /// Denial of Service attempt through oversized content
+    ///
+    /// **Detection**: Content exceeding configured size limits
+    /// **Security Impact**: Resource exhaustion, service unavailability
+    /// **Common Vectors**: Large file uploads, oversized API payloads
+    /// **Recommended Response**: Reject oversized content, implement rate limiting
+    DosPotential,
+
     // Plugin-detected threats
     /// Custom threat detected by a security plugin
     ///
@@ -378,6 +399,9 @@ pub enum ScanError {
 
     #[error("Pattern compilation failed: {0}")]
     PatternError(String),
+
+    #[error("Runtime error: {0}")]
+    RuntimeError(String),
 }
 
 /// Result type for scanner operations
@@ -385,18 +409,18 @@ pub type ScanResult = Result<Vec<Threat>, ScanError>;
 
 impl SecurityScanner {
     /// Set the plugin manager for this scanner
-    /// 
+    ///
     /// Enables plugin-based threat detection by attaching a plugin manager to the scanner.
     /// Plugins can detect custom threats specific to your application or domain.
-    /// 
+    ///
     /// # Arguments
     /// * `plugin_manager` - The plugin manager that will coordinate plugin scanning
-    /// 
+    ///
     /// # Plugin Security
     /// - Plugins run in isolated contexts with limited permissions
     /// - Plugin errors are logged but don't fail the main scan
     /// - Each plugin has configurable timeouts to prevent DoS
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// # use std::sync::Arc;
@@ -415,12 +439,12 @@ impl SecurityScanner {
     }
 
     /// Create a new security scanner with the given configuration
-    /// 
+    ///
     /// Initializes all sub-scanners and loads threat patterns based on the provided configuration.
-    /// 
+    ///
     /// # Arguments
     /// * `config` - Scanner configuration controlling detection features and limits
-    /// 
+    ///
     /// # Configuration Options
     /// - `unicode_detection`: Enable/disable Unicode threat detection
     /// - `injection_detection`: Enable/disable injection attack detection
@@ -428,25 +452,25 @@ impl SecurityScanner {
     /// - `max_scan_depth`: Maximum recursion depth for JSON scanning (default: 20)
     /// - `custom_patterns`: Optional path to custom threat pattern file
     /// - `enhanced_mode`: Enable enhanced detection with advanced correlation
-    /// 
+    ///
     /// # Returns
     /// - `Ok(SecurityScanner)` - Configured scanner ready for threat detection
     /// - `Err(ScanError)` - If pattern loading or scanner initialization fails
-    /// 
+    ///
     /// # Errors
     /// - `ScanError::PatternError` - If custom patterns file is invalid
     /// - `ScanError::InvalidInput` - If scanner initialization fails
-    /// 
+    ///
     /// # Security Best Practices
     /// - Always validate the custom patterns file path if provided
     /// - Set appropriate `max_scan_depth` to prevent stack exhaustion
     /// - Enable all detection types unless you have specific requirements
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// use kindly_guard_server::config::ScannerConfig;
     /// use kindly_guard_server::scanner::SecurityScanner;
-    /// 
+    ///
     /// // Basic configuration with all protections enabled
     /// let config = ScannerConfig {
     ///     unicode_detection: true,
@@ -457,11 +481,11 @@ impl SecurityScanner {
     ///     enhanced_mode: Some(false),
     ///     enable_event_buffer: false,
     /// };
-    /// 
+    ///
     /// let scanner = SecurityScanner::new(config)?;
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    /// 
+    ///
     /// # Performance Notes
     /// - Scanner initialization is relatively expensive due to pattern compilation
     /// - Reuse scanner instances across multiple scans for better performance
@@ -471,21 +495,21 @@ impl SecurityScanner {
     }
 
     /// Create a new security scanner with an optional event processor
-    /// 
+    ///
     /// This method allows creation of a scanner with enhanced capabilities through
     /// an event processor for advanced threat correlation and pattern analysis.
-    /// 
+    ///
     /// # Arguments
     /// * `config` - Scanner configuration
     /// * `event_processor` - Optional processor for enhanced threat analysis
-    /// 
+    ///
     /// # Enhanced Mode Features
     /// When an event processor is provided and `enable_event_buffer` is true:
     /// - Real-time threat correlation across multiple scans
     /// - Pattern analysis for identifying attack campaigns
     /// - Performance optimizations through event batching
     /// - Advanced metrics and analytics
-    /// 
+    ///
     /// # Implementation Note
     /// This follows the trait-based architecture pattern where enhanced implementations
     /// are hidden behind trait abstractions, allowing for both standard and optimized
@@ -512,9 +536,9 @@ impl SecurityScanner {
         let event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>> = None;
 
         // Create scanners with optional enhancement
-        let mut unicode_scanner = UnicodeScanner::new();
-        let mut injection_scanner = InjectionScanner::new(&patterns)?;
-        
+        let unicode_scanner = UnicodeScanner::new();
+        let injection_scanner = InjectionScanner::new(&patterns)?;
+
         // Create XSS scanner with trait-based architecture
         let xss_scanner = create_xss_scanner(
             patterns.xss_patterns().to_vec(),
@@ -545,6 +569,111 @@ impl SecurityScanner {
     pub fn scan_text(&self, text: &str) -> ScanResult {
         let mut threats = Vec::new();
 
+        // Check for oversized content to prevent DoS
+        if text.len() > self.config.max_content_size {
+            threats.push(Threat {
+                threat_type: ThreatType::DosPotential,
+                severity: Severity::High,
+                location: Location::Text {
+                    offset: 0,
+                    length: text.len(),
+                },
+                description: format!(
+                    "Content size ({} bytes) exceeds maximum allowed size ({} bytes)",
+                    text.len(),
+                    self.config.max_content_size
+                ),
+                remediation: Some(
+                    "Reduce content size or increase max_content_size configuration".to_string(),
+                ),
+            });
+            return Ok(threats);
+        }
+
+        // For large content, use chunk-based scanning with timeout
+        const CHUNK_SIZE: usize = 1024 * 1024; // 1MB chunks
+        const MAX_SCAN_TIME: std::time::Duration = std::time::Duration::from_secs(5);
+
+        // If content is large, scan in chunks with early termination
+        if text.len() > CHUNK_SIZE {
+            return self.scan_text_chunked(text, CHUNK_SIZE, MAX_SCAN_TIME);
+        }
+
+        // For smaller content, use regular scanning
+        self.scan_text_regular(text)
+    }
+
+    /// Scan large text in chunks with timeout protection
+    fn scan_text_chunked(
+        &self,
+        text: &str,
+        chunk_size: usize,
+        max_scan_time: std::time::Duration,
+    ) -> ScanResult {
+        let mut all_threats = Vec::new();
+        let scan_start = std::time::Instant::now();
+
+        // Process text in chunks
+        for (chunk_offset, chunk) in text.as_bytes().chunks(chunk_size).enumerate() {
+            // Check timeout
+            if scan_start.elapsed() > max_scan_time {
+                tracing::warn!(
+                    "Scan timeout reached after {} seconds, processed {} bytes of {}",
+                    max_scan_time.as_secs(),
+                    chunk_offset * chunk_size,
+                    text.len()
+                );
+                all_threats.push(Threat {
+                    threat_type: ThreatType::DosPotential,
+                    severity: Severity::Medium,
+                    location: Location::Text {
+                        offset: chunk_offset * chunk_size,
+                        length: text.len() - (chunk_offset * chunk_size),
+                    },
+                    description: "Scan timeout - content too large to scan completely".to_string(),
+                    remediation: Some(
+                        "Consider reducing content size or increasing scan timeout".to_string(),
+                    ),
+                });
+                break;
+            }
+
+            // Convert chunk back to str safely
+            let chunk_str = match std::str::from_utf8(chunk) {
+                Ok(s) => s,
+                Err(e) => {
+                    // If chunk boundary splits a UTF-8 sequence, try to find a valid boundary
+                    let valid_up_to = e.valid_up_to();
+                    if valid_up_to == 0 {
+                        continue; // Skip this chunk if we can't find any valid UTF-8
+                    }
+                    match std::str::from_utf8(&chunk[..valid_up_to]) {
+                        Ok(s) => s,
+                        Err(_) => continue, // Skip invalid chunk
+                    }
+                }
+            };
+
+            // Scan this chunk
+            let chunk_threats = self.scan_text_regular(chunk_str)?;
+
+            // Adjust threat locations to account for chunk offset
+            let byte_offset = chunk_offset * chunk_size;
+            for mut threat in chunk_threats {
+                if let Location::Text { ref mut offset, .. } = threat.location {
+                    *offset += byte_offset;
+                }
+                all_threats.push(threat);
+            }
+        }
+
+        Ok(all_threats)
+    }
+
+    /// Regular scan implementation (extracted from original scan_text)
+    fn scan_text_regular(&self, text: &str) -> ScanResult {
+        let mut threats = Vec::new();
+
         // Use enhanced scanning when available
         #[cfg(feature = "enhanced")]
         if let Some(processor) = &self.event_processor {
@@ -560,9 +689,29 @@ impl SecurityScanner {
                     "preview": &text[..text.len().min(100)]
                 }),
             };
-            let _ = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current().block_on(processor.process_event(event))
-            });
+            // Check if we're already in a runtime context
+            if let Ok(_handle) = tokio::runtime::Handle::try_current() {
+                // We're in a runtime, use std::thread::spawn to avoid blocking
+                let processor_clone = processor.clone();
+                std::thread::spawn(move || {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build();
+                    if let Ok(rt) = rt {
+                        let _ = rt.block_on(processor_clone.process_event(event));
+                    }
+                })
+                .join()
+                .ok();
+            } else {
+                // Not in a runtime, create a new one
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build();
+                if let Ok(rt) = rt {
+                    let _ = rt.block_on(processor.process_event(event));
+                }
+            }
 
             tracing::trace!("Optimized scanning active");
         }
@@ -571,16 +720,57 @@ impl SecurityScanner {
             threats.extend(self.unicode_scanner.scan_text(text)?);
         }
 
-        if self.config.injection_detection {
-            threats.extend(self.injection_scanner.scan_text(text)?);
+        if self.config.injection_detection || self.config.path_traversal_detection {
+            // Get all threats from injection scanner
+            let injection_threats = self.injection_scanner.scan_text(text)?;
+
+            // Filter based on configuration
+            for threat in injection_threats {
+                match threat.threat_type {
+                    ThreatType::PathTraversal => {
+                        if self.config.path_traversal_detection {
+                            threats.push(threat);
+                        }
+                    }
+                    _ => {
+                        if self.config.injection_detection {
+                            threats.push(threat);
+                        }
+                    }
+                }
+            }
         }
 
         // Run XSS scanner (async scanner in sync context)
         if self.config.xss_detection.unwrap_or(true) {
-            let xss_threats = tokio::task::block_in_place(|| {
-                tokio::runtime::Handle::current()
-                    .block_on(self.xss_scanner.scan_xss(text))
-            })?;
+            // Check if we're already in a runtime context
+            let xss_threats = if let Ok(_handle) = tokio::runtime::Handle::try_current() {
+                // We're in a runtime, use std::thread::spawn to run in a separate thread
+                let text_clone = text.to_string();
+                let xss_scanner = self.xss_scanner.clone();
+                std::thread::spawn(move || {
+                    let rt = tokio::runtime::Builder::new_current_thread()
+                        .enable_all()
+                        .build()
+                        .map_err(|e| {
+                            ScanError::RuntimeError(format!("Failed to create runtime: {}", e))
+                        })?;
+
+                    rt.block_on(xss_scanner.scan_xss(&text_clone))
+                })
+                .join()
+                .map_err(|_| ScanError::RuntimeError("Thread panic".to_string()))??
+            } else {
+                // Not in a runtime, create a new one
+                let rt = tokio::runtime::Builder::new_current_thread()
+                    .enable_all()
+                    .build()
+                    .map_err(|e| {
+                        ScanError::RuntimeError(format!("Failed to create runtime: {}", e))
+                    })?;
+
+                rt.block_on(self.xss_scanner.scan_xss(text))?
+            };
             threats.extend(xss_threats);
         }
 
@@ -639,9 +829,29 @@ impl SecurityScanner {
                             "severity": format!("{:?}", threat.severity)
                         }),
                     };
-                    let _ = tokio::task::block_in_place(|| {
-                        tokio::runtime::Handle::current().block_on(processor.process_event(event))
-                    });
+                    // Check if we're already in a runtime context
+                    if let Ok(_handle) = tokio::runtime::Handle::try_current() {
+                        // We're in a runtime, use std::thread::spawn to avoid blocking
+                        let processor_clone = processor.clone();
+                        std::thread::spawn(move || {
+                            let rt = tokio::runtime::Builder::new_current_thread()
+                                .enable_all()
+                                .build();
+                            if let Ok(rt) = rt {
+                                let _ = rt.block_on(processor_clone.process_event(event));
+                            }
+                        })
+                        .join()
+                        .ok();
+                    } else {
+                        // Not in a runtime, create a new one
+                        let rt = tokio::runtime::Builder::new_current_thread()
+                            .enable_all()
+                            .build();
+                        if let Ok(rt) = rt {
+                            let _ = rt.block_on(processor.process_event(event));
+                        }
+                    }
                 }
             }
         }
@@ -650,40 +860,40 @@ impl SecurityScanner {
     }
 
     /// Scan JSON value for security threats
-    /// 
+    ///
     /// Recursively scans a JSON structure for threats in all string values and object keys.
     /// This method is essential for securing API endpoints that accept JSON payloads.
-    /// 
+    ///
     /// # Arguments
     /// * `value` - The JSON value to scan (can be any valid JSON type)
-    /// 
+    ///
     /// # Returns
     /// - `Ok(Vec<Threat>)` - List of detected threats with JSON path locations
     /// - `Err(ScanError)` - If scanning fails or depth limit is exceeded
-    /// 
+    ///
     /// # Security Considerations
     /// - **Depth Limiting**: Prevents stack exhaustion from deeply nested JSON
     /// - **Key Scanning**: Object keys are scanned as they can contain payloads
     /// - **Path Tracking**: Each threat includes the JSON path for precise location
     /// - **Type Safety**: Only string values are scanned (numbers/bools are safe)
-    /// 
+    ///
     /// # JSON Path Format
     /// Threats are reported with JSON paths for easy identification:
     /// - Root: `$`
     /// - Object field: `$.field` or `$.parent.child`
     /// - Array element: `$[0]` or `$.array[2]`
     /// - Nested: `$.users[0].name`
-    /// 
+    ///
     /// # Error Handling
     /// - `ScanError::MaxDepthExceeded` - If nesting exceeds `max_scan_depth`
     /// - `ScanError::InvalidInput` - If JSON serialization fails
     /// - Plugin errors are logged but don't fail the scan
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// use kindly_guard_server::scanner::{SecurityScanner, Location};
     /// use serde_json::json;
-    /// 
+    ///
     /// # let scanner = SecurityScanner::new(Default::default())?;
     /// // Scan a JSON API request
     /// let request = json!({
@@ -693,9 +903,9 @@ impl SecurityScanner {
     ///         "tags": ["safe", "<script>alert(1)</script>"]
     ///     }
     /// });
-    /// 
+    ///
     /// let threats = scanner.scan_json(&request)?;
-    /// 
+    ///
     /// for threat in threats {
     ///     if let Location::Json { path } = &threat.location {
     ///         eprintln!("Threat at {}: {}", path, threat.description);
@@ -707,13 +917,13 @@ impl SecurityScanner {
     /// }
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
-    /// 
+    ///
     /// # Performance and Security Trade-offs
     /// - **Depth vs Security**: Lower `max_scan_depth` prevents DoS but may miss threats
     /// - **Memory Usage**: Large JSON structures consume memory proportional to depth
     /// - **Scan Time**: O(n) where n is total number of string values in JSON
     /// - **Recommendation**: Set depth limit based on expected legitimate nesting
-    /// 
+    ///
     /// # Best Practices
     /// - Validate JSON schema before scanning for structural attacks
     /// - Consider rate limiting based on JSON size/complexity
@@ -773,13 +983,13 @@ impl SecurityScanner {
     }
 
     /// Recursively scan JSON values with depth tracking
-    /// 
+    ///
     /// # Implementation Details
     /// - Depth is tracked to prevent stack exhaustion from malicious deeply nested JSON
     /// - Object keys are scanned as they can contain injection payloads
     /// - Arrays are indexed numerically in the path (e.g., `$[0]`, `$[1]`)
     /// - Only string values are scanned; numbers, booleans, and null are inherently safe
-    /// 
+    ///
     /// # Security Note
     /// This method is private to ensure depth tracking is always enforced. Public API
     /// must use `scan_json()` which initializes depth tracking correctly.
@@ -835,16 +1045,16 @@ impl SecurityScanner {
     }
 
     /// Get scanner statistics for monitoring and analysis
-    /// 
+    ///
     /// Returns current statistics from all enabled scanners including:
     /// - Total number of scans performed
     /// - Number of threats detected by type
     /// - Performance metrics when enhanced mode is enabled
-    /// 
+    ///
     /// # Thread Safety
     /// Statistics are collected using atomic operations and are safe to read
     /// while scanning is in progress on other threads.
-    /// 
+    ///
     /// # Example
     /// ```no_run
     /// # use kindly_guard_server::scanner::SecurityScanner;
@@ -856,7 +1066,7 @@ impl SecurityScanner {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn stats(&self) -> ScannerStats {
-        let mut stats = ScannerStats {
+        let stats = ScannerStats {
             unicode_threats_detected: self.unicode_scanner.threats_detected(),
             injection_threats_detected: self.injection_scanner.threats_detected(),
             total_scans: self.unicode_scanner.total_scans() + self.injection_scanner.total_scans(),
@@ -901,6 +1111,7 @@ impl fmt::Display for ThreatType {
             Self::SessionIdExposure => write!(f, "Session ID Exposure"),
             Self::ToolPoisoning => write!(f, "Tool Poisoning"),
             Self::TokenTheft => write!(f, "Token Theft Risk"),
+            Self::DosPotential => write!(f, "Denial of Service Potential"),
             Self::Custom(name) => write!(f, "{name}"),
         }
     }
@@ -922,10 +1133,7 @@ impl fmt::Display for Threat {
         write!(
             f,
             "{} [{}] at {}: {}",
-            self.threat_type,
-            self.severity,
-            self.location,
-            self.description
+            self.threat_type, self.severity, self.location, self.description
         )
     }
 }
@@ -941,6 +1149,18 @@ impl fmt::Display for Location {
 }
 
 // Implement the trait for compatibility with the trait-based architecture
+/// Create a security scanner wrapped in Arc for thread-safe usage
+pub fn create_security_scanner(
+    config: &crate::config::ScannerConfig,
+) -> Arc<dyn crate::traits::SecurityScannerTrait> {
+    let scanner = SecurityScanner::new(config.clone()).unwrap_or_else(|e| {
+        tracing::error!("Failed to create security scanner: {}", e);
+        // Return a basic scanner with default config on error
+        SecurityScanner::new(Default::default()).expect("Default scanner creation should not fail")
+    });
+    Arc::new(scanner)
+}
+
 impl crate::traits::SecurityScannerTrait for SecurityScanner {
     fn scan_text(&self, text: &str) -> Vec<Threat> {
         self.scan_text(text).unwrap_or_default()

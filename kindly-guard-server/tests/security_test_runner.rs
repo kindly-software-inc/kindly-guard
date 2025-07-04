@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Comprehensive security test runner for KindlyGuard
 //! Executes all security tests and generates detailed reports
 
@@ -6,9 +19,9 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
+use std::io::Write;
 use std::time::{Duration, Instant};
 use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
-use std::io::Write;
 
 mod attack_patterns;
 mod security;
@@ -154,12 +167,12 @@ impl SecurityTestRunner {
             start_time: Instant::now(),
         }
     }
-    
+
     /// Run all security tests
     pub async fn run_all_tests(&mut self) -> Result<SecurityTestReport> {
         println!("🔒 KindlyGuard Security Test Suite v0.2.0");
         println!("==========================================\n");
-        
+
         let categories = if self.config.run_all_tests {
             vec![
                 TestCategory::Scanner,
@@ -175,27 +188,27 @@ impl SecurityTestRunner {
         } else {
             self.config.categories.clone()
         };
-        
+
         for category in categories {
             if self.config.fail_fast && self.has_critical_failures() {
                 println!("❌ Stopping due to critical failure (fail-fast mode)");
                 break;
             }
-            
+
             self.run_category_tests(category).await?;
         }
-        
+
         let report = self.generate_report();
         self.output_report(&report)?;
-        
+
         Ok(report)
     }
-    
+
     async fn run_category_tests(&mut self, category: TestCategory) -> Result<()> {
         let category_name = format!("{:?}", category);
         println!("🧪 Running {} Security Tests", category_name);
         println!("{}", "-".repeat(50));
-        
+
         let test_results = match category {
             TestCategory::Scanner => self.run_scanner_tests().await?,
             TestCategory::Neutralizer => self.run_neutralizer_tests().await?,
@@ -207,21 +220,21 @@ impl SecurityTestRunner {
             TestCategory::Validation => self.run_validation_tests().await?,
             TestCategory::Integration => self.run_integration_tests().await?,
         };
-        
+
         // Display results
         for result in &test_results {
             self.display_test_result(result);
         }
-        
+
         self.results.extend(test_results);
         println!();
-        
+
         Ok(())
     }
-    
+
     async fn run_scanner_tests(&self) -> Result<Vec<TestResult>> {
         let mut results = Vec::new();
-        
+
         // SQL Injection Detection
         let start = Instant::now();
         let passed = true; // Simulate test execution
@@ -238,7 +251,7 @@ impl SecurityTestRunner {
                 vec![]
             },
         });
-        
+
         // XSS Detection
         results.push(TestResult {
             name: "XSS Detection with Evasion".to_string(),
@@ -249,7 +262,7 @@ impl SecurityTestRunner {
             severity: TestSeverity::Critical,
             recommendations: vec![],
         });
-        
+
         // Unicode Attack Detection
         results.push(TestResult {
             name: "Unicode Attack Detection".to_string(),
@@ -260,7 +273,7 @@ impl SecurityTestRunner {
             severity: TestSeverity::High,
             recommendations: vec![],
         });
-        
+
         // Prompt Injection Detection
         results.push(TestResult {
             name: "Prompt Injection Detection".to_string(),
@@ -271,7 +284,7 @@ impl SecurityTestRunner {
             severity: TestSeverity::Critical,
             recommendations: vec![],
         });
-        
+
         // False Positive Rate
         results.push(TestResult {
             name: "False Positive Rate Test".to_string(),
@@ -282,13 +295,13 @@ impl SecurityTestRunner {
             severity: TestSeverity::Medium,
             recommendations: vec![],
         });
-        
+
         Ok(results)
     }
-    
+
     async fn run_neutralizer_tests(&self) -> Result<Vec<TestResult>> {
         let mut results = Vec::new();
-        
+
         results.push(TestResult {
             name: "SQL Injection Neutralization".to_string(),
             category: TestCategory::Neutralizer,
@@ -298,7 +311,7 @@ impl SecurityTestRunner {
             severity: TestSeverity::Critical,
             recommendations: vec![],
         });
-        
+
         results.push(TestResult {
             name: "XSS Neutralization".to_string(),
             category: TestCategory::Neutralizer,
@@ -308,7 +321,7 @@ impl SecurityTestRunner {
             severity: TestSeverity::Critical,
             recommendations: vec![],
         });
-        
+
         results.push(TestResult {
             name: "Neutralization Rollback".to_string(),
             category: TestCategory::Neutralizer,
@@ -318,13 +331,13 @@ impl SecurityTestRunner {
             severity: TestSeverity::Medium,
             recommendations: vec![],
         });
-        
+
         Ok(results)
     }
-    
+
     async fn run_auth_tests(&self) -> Result<Vec<TestResult>> {
         let mut results = Vec::new();
-        
+
         results.push(TestResult {
             name: "JWT Attack Pattern Detection".to_string(),
             category: TestCategory::Authentication,
@@ -334,7 +347,7 @@ impl SecurityTestRunner {
             severity: TestSeverity::Critical,
             recommendations: vec![],
         });
-        
+
         results.push(TestResult {
             name: "Timing Attack Resistance".to_string(),
             category: TestCategory::Authentication,
@@ -344,10 +357,10 @@ impl SecurityTestRunner {
             severity: TestSeverity::High,
             recommendations: vec![],
         });
-        
+
         Ok(results)
     }
-    
+
     async fn run_rate_limit_tests(&self) -> Result<Vec<TestResult>> {
         Ok(vec![TestResult {
             name: "Rate Limiting Effectiveness".to_string(),
@@ -359,7 +372,7 @@ impl SecurityTestRunner {
             recommendations: vec![],
         }])
     }
-    
+
     async fn run_audit_tests(&self) -> Result<Vec<TestResult>> {
         Ok(vec![TestResult {
             name: "Audit Integrity Verification".to_string(),
@@ -371,7 +384,7 @@ impl SecurityTestRunner {
             recommendations: vec![],
         }])
     }
-    
+
     async fn run_circuit_breaker_tests(&self) -> Result<Vec<TestResult>> {
         Ok(vec![TestResult {
             name: "Circuit Breaker Activation".to_string(),
@@ -383,7 +396,7 @@ impl SecurityTestRunner {
             recommendations: vec![],
         }])
     }
-    
+
     async fn run_permission_tests(&self) -> Result<Vec<TestResult>> {
         Ok(vec![TestResult {
             name: "Permission Enforcement".to_string(),
@@ -395,7 +408,7 @@ impl SecurityTestRunner {
             recommendations: vec![],
         }])
     }
-    
+
     async fn run_validation_tests(&self) -> Result<Vec<TestResult>> {
         Ok(vec![TestResult {
             name: "Input Validation Security".to_string(),
@@ -407,7 +420,7 @@ impl SecurityTestRunner {
             recommendations: vec![],
         }])
     }
-    
+
     async fn run_integration_tests(&self) -> Result<Vec<TestResult>> {
         Ok(vec![TestResult {
             name: "End-to-End Security Flow".to_string(),
@@ -419,26 +432,29 @@ impl SecurityTestRunner {
             recommendations: vec![],
         }])
     }
-    
+
     fn display_test_result(&self, result: &TestResult) {
         let mut stdout = StandardStream::stdout(ColorChoice::Always);
-        
+
         let (symbol, color) = if result.passed {
             ("✓", Color::Green)
         } else {
             ("✗", Color::Red)
         };
-        
-        stdout.set_color(ColorSpec::new().set_fg(Some(color))).unwrap();
+
+        stdout
+            .set_color(ColorSpec::new().set_fg(Some(color)))
+            .unwrap();
         write!(&mut stdout, "  {} ", symbol).unwrap();
         stdout.reset().unwrap();
-        
-        println!("{} ({:?}ms) - {}", 
-            result.name, 
+
+        println!(
+            "{} ({:?}ms) - {}",
+            result.name,
             result.duration.as_millis(),
             result.details
         );
-        
+
         if self.config.verbose && !result.recommendations.is_empty() {
             println!("    Recommendations:");
             for rec in &result.recommendations {
@@ -446,41 +462,46 @@ impl SecurityTestRunner {
             }
         }
     }
-    
+
     fn has_critical_failures(&self) -> bool {
-        self.results.iter().any(|r| !r.passed && r.severity == TestSeverity::Critical)
+        self.results
+            .iter()
+            .any(|r| !r.passed && r.severity == TestSeverity::Critical)
     }
-    
+
     fn generate_report(&self) -> SecurityTestReport {
         let total_tests = self.results.len();
         let passed_tests = self.results.iter().filter(|r| r.passed).count();
         let failed_tests = total_tests - passed_tests;
-        let critical_failures = self.results.iter()
+        let critical_failures = self
+            .results
+            .iter()
             .filter(|r| !r.passed && r.severity == TestSeverity::Critical)
             .count();
-        
+
         // Calculate security score (0-100)
         let base_score = (passed_tests as f64 / total_tests as f64) * 100.0;
         let critical_penalty = critical_failures as f64 * 10.0;
         let security_score = (base_score - critical_penalty).max(0.0);
-        
+
         // Generate recommendations
         let mut recommendations = Vec::new();
-        
+
         if critical_failures > 0 {
             recommendations.push(SecurityRecommendation {
                 priority: RecommendationPriority::Critical,
                 category: "Overall Security".to_string(),
                 issue: format!("{} critical security tests failed", critical_failures),
-                recommendation: "Address critical failures immediately before deployment".to_string(),
+                recommendation: "Address critical failures immediately before deployment"
+                    .to_string(),
                 impact: "System is vulnerable to severe security threats".to_string(),
             });
         }
-        
+
         // Attack coverage analysis
         let attack_library = AttackLibrary::new();
         let total_patterns = attack_library.get_all_patterns().len();
-        
+
         SecurityTestReport {
             timestamp: Utc::now(),
             version: "0.2.0".to_string(),
@@ -506,7 +527,7 @@ impl SecurityTestRunner {
             recommendations,
         }
     }
-    
+
     fn output_report(&self, report: &SecurityTestReport) -> Result<()> {
         match self.config.output_format {
             OutputFormat::Terminal => self.output_terminal_report(report),
@@ -515,7 +536,7 @@ impl SecurityTestRunner {
             OutputFormat::Markdown => self.output_markdown_report(report),
         }
     }
-    
+
     fn output_terminal_report(&self, report: &SecurityTestReport) -> Result<()> {
         println!("\n📊 Security Test Report");
         println!("======================");
@@ -530,58 +551,64 @@ impl SecurityTestRunner {
         println!();
         println!("Security Score: {:.1}/100", report.security_score);
         println!();
-        
+
         if !report.recommendations.is_empty() {
             println!("🔍 Security Recommendations:");
             for rec in &report.recommendations {
-                println!("  [{:?}] {}: {}", rec.priority, rec.category, rec.recommendation);
+                println!(
+                    "  [{:?}] {}: {}",
+                    rec.priority, rec.category, rec.recommendation
+                );
             }
         }
-        
-        println!("\n✅ Security test suite completed in {:?}", report.performance_metrics.total_test_duration);
-        
+
+        println!(
+            "\n✅ Security test suite completed in {:?}",
+            report.performance_metrics.total_test_duration
+        );
+
         Ok(())
     }
-    
+
     fn output_json_report(&self, report: &SecurityTestReport) -> Result<()> {
         let json = serde_json::to_string_pretty(report)?;
-        
+
         if let Some(path) = &self.config.output_path {
             fs::write(path, json)?;
             println!("Report saved to: {}", path);
         } else {
             println!("{}", json);
         }
-        
+
         Ok(())
     }
-    
+
     fn output_html_report(&self, report: &SecurityTestReport) -> Result<()> {
         let html = self.generate_html_report(report);
-        
+
         if let Some(path) = &self.config.output_path {
             fs::write(path, html)?;
             println!("HTML report saved to: {}", path);
         } else {
             println!("{}", html);
         }
-        
+
         Ok(())
     }
-    
+
     fn output_markdown_report(&self, report: &SecurityTestReport) -> Result<()> {
         let md = self.generate_markdown_report(report);
-        
+
         if let Some(path) = &self.config.output_path {
             fs::write(path, md)?;
             println!("Markdown report saved to: {}", path);
         } else {
             println!("{}", md);
         }
-        
+
         Ok(())
     }
-    
+
     fn generate_html_report(&self, report: &SecurityTestReport) -> String {
         format!(r#"<!DOCTYPE html>
 <html>
@@ -648,9 +675,10 @@ impl SecurityTestRunner {
                 .join("\n")
         )
     }
-    
+
     fn generate_markdown_report(&self, report: &SecurityTestReport) -> String {
-        format!(r#"# KindlyGuard Security Test Report
+        format!(
+            r#"# KindlyGuard Security Test Report
 
 **Generated:** {}  
 **Version:** {}
@@ -696,7 +724,9 @@ impl SecurityTestRunner {
             report.passed_tests,
             report.failed_tests,
             report.critical_failures,
-            report.test_results.iter()
+            report
+                .test_results
+                .iter()
                 .map(|r| format!(
                     "| {} | {:?} | {} | {:?}ms | {} |",
                     r.name,
@@ -711,13 +741,20 @@ impl SecurityTestRunner {
             report.performance_metrics.avg_neutralization_time_ms,
             report.performance_metrics.avg_auth_time_ms,
             report.performance_metrics.total_test_duration,
-            report.recommendations.iter()
-                .map(|r| format!("- **[{:?}]** {}: {}", r.priority, r.category, r.recommendation))
+            report
+                .recommendations
+                .iter()
+                .map(|r| format!(
+                    "- **[{:?}]** {}: {}",
+                    r.priority, r.category, r.recommendation
+                ))
                 .collect::<Vec<_>>()
                 .join("\n"),
             report.attack_coverage.total_patterns,
             report.attack_coverage.tested_patterns,
-            (report.attack_coverage.detected_patterns as f64 / report.attack_coverage.total_patterns as f64) * 100.0
+            (report.attack_coverage.detected_patterns as f64
+                / report.attack_coverage.total_patterns as f64)
+                * 100.0
         )
     }
 }
@@ -725,7 +762,7 @@ impl SecurityTestRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_security_runner() {
         let config = SecurityTestConfig {
@@ -733,10 +770,10 @@ mod tests {
             verbose: true,
             ..Default::default()
         };
-        
+
         let mut runner = SecurityTestRunner::new(config);
         let report = runner.run_all_tests().await.unwrap();
-        
+
         assert!(report.total_tests > 0);
         assert!(report.security_score > 0.0);
     }

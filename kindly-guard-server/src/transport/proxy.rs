@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! HTTPS proxy transport for intercepting AI API calls
 //!
 //! This transport acts as a transparent HTTPS proxy that intercepts
@@ -12,10 +25,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tokio::net::{TcpListener, TcpStream};
 use tracing::{debug, error, info, warn};
 
-use super::{
-    Transport, TransportConnection,
-    TransportStats, TransportType,
-};
+use super::{Transport, TransportConnection, TransportStats, TransportType};
 use crate::server::McpServer;
 
 /// Proxy transport configuration
@@ -67,7 +77,7 @@ impl ProxyTransport {
     fn parse_connect(&self, data: &[u8]) -> Result<(String, u16)> {
         let request = String::from_utf8_lossy(data);
         let lines: Vec<&str> = request.lines().collect();
-        
+
         if lines.is_empty() {
             return Err(anyhow!("Empty CONNECT request"));
         }
@@ -83,7 +93,8 @@ impl ProxyTransport {
         }
 
         let host = host_port[0].to_string();
-        let port = host_port[1].parse::<u16>()
+        let port = host_port[1]
+            .parse::<u16>()
             .map_err(|_| anyhow!("Invalid port number"))?;
 
         Ok((host, port))
@@ -91,9 +102,10 @@ impl ProxyTransport {
 
     /// Check if we should intercept this host
     fn should_intercept(&self, host: &str) -> bool {
-        self.config.ai_services.iter().any(|service| {
-            host == service || host.ends_with(&format!(".{}", service))
-        })
+        self.config
+            .ai_services
+            .iter()
+            .any(|service| host == service || host.ends_with(&format!(".{}", service)))
     }
 
     /// Handle a proxy connection
@@ -120,17 +132,19 @@ impl ProxyTransport {
         if !self.should_intercept(&host) {
             // Pass through without interception
             debug!("Passing through connection to {}:{}", host, port);
-            
+
             // Connect to target
-            let mut target = TcpStream::connect((host.as_str(), port)).await?;
-            
+            let target = TcpStream::connect((host.as_str(), port)).await?;
+
             // Send 200 Connection Established
-            client.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n").await?;
-            
+            client
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .await?;
+
             // Relay traffic
             let (mut client_read, mut client_write) = client.into_split();
             let (mut target_read, mut target_write) = target.into_split();
-            
+
             tokio::select! {
                 _ = tokio::io::copy(&mut client_read, &mut target_write) => {},
                 _ = tokio::io::copy(&mut target_read, &mut client_write) => {},
@@ -138,10 +152,12 @@ impl ProxyTransport {
         } else {
             // Intercept and scan
             info!("Intercepting connection to {}:{}", host, port);
-            
+
             // Send 200 Connection Established
-            client.write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n").await?;
-            
+            client
+                .write_all(b"HTTP/1.1 200 Connection Established\r\n\r\n")
+                .await?;
+
             // Create intercepting proxy connection
             let conn = ProxyConnection::new(client, host, port, server.clone());
             conn.handle().await?;
@@ -154,7 +170,7 @@ impl ProxyTransport {
     pub async fn serve(mut self, server: Arc<McpServer>) -> Result<()> {
         let listener = TcpListener::bind(&self.config.bind_addr).await?;
         info!("Proxy listening on {}", self.config.bind_addr);
-        
+
         self.listener = Some(listener);
         let self_arc = Arc::new(self);
 
@@ -164,7 +180,7 @@ impl ProxyTransport {
                 Ok((client, _)) => {
                     let self_clone = self_arc.clone();
                     let server_clone = server.clone();
-                    
+
                     tokio::spawn(async move {
                         if let Err(e) = self_clone.handle_connection(client, server_clone).await {
                             error!("Proxy connection error: {}", e);
@@ -202,21 +218,21 @@ impl ProxyConnection {
     async fn handle(self) -> Result<()> {
         // Connect to target
         let target = TcpStream::connect((self.host.as_str(), self.port)).await?;
-        
+
         // TODO: Implement TLS interception for HTTPS
         // For now, we'll do TCP-level inspection
-        
+
         let server = self.server.clone();
         let host = self.host.clone();
         let (client_read, client_write) = self.client.into_split();
         let (target_read, target_write) = target.into_split();
-        
+
         // Intercept and scan traffic in both directions
         tokio::select! {
             _ = ProxyConnection::relay_traffic(client_read, target_write, true, server.clone(), host.clone()) => {},
             _ = ProxyConnection::relay_traffic(target_read, client_write, false, server, host) => {},
         }
-        
+
         Ok(())
     }
 
@@ -228,13 +244,13 @@ impl ProxyConnection {
         host: String,
     ) -> Result<()> {
         let mut buffer = vec![0; 8192];
-        
+
         loop {
             let n = reader.read(&mut buffer).await?;
             if n == 0 {
                 break;
             }
-            
+
             // Try to parse as HTTP and scan
             if let Ok(data_str) = std::str::from_utf8(&buffer[..n]) {
                 // Look for JSON content
@@ -242,7 +258,7 @@ impl ProxyConnection {
                     if let Ok(json_value) = serde_json::from_str::<Value>(&data_str[json_start..]) {
                         // Scan JSON content
                         let threats = server.scanner().scan_json(&json_value)?;
-                        
+
                         if !threats.is_empty() {
                             warn!(
                                 "Threats detected in {} to {}: {:?}",
@@ -250,20 +266,20 @@ impl ProxyConnection {
                                 host,
                                 threats
                             );
-                            
+
                             // Record threats
                             server.shield.record_threats(&threats);
-                            
+
                             // TODO: Optionally block or modify content
                         }
                     }
                 }
             }
-            
+
             // Forward data
             writer.write_all(&buffer[..n]).await?;
         }
-        
+
         Ok(())
     }
 }

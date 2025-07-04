@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Enhanced implementations with optimized algorithms
 //! These implementations provide superior performance and reliability
 //! by leveraging advanced optimization techniques
@@ -140,9 +153,10 @@ impl EnhancedRetryStrategy {
         multiplier: f64,
     ) -> Self {
         // Import optimized components only within implementation
-        use super::stubs::ThresholdManager;
+        use super::stubs::{EventBuffer, ThresholdManager};
 
-        let threshold = ThresholdManager::new(0.9, 0.1);
+        let buffer = Arc::new(EventBuffer::new(1000));
+        let threshold = ThresholdManager::new(5, buffer); // 5 failures threshold
 
         Self {
             state: Arc::new(RetryState {
@@ -241,9 +255,10 @@ impl EnhancedHealthChecker {
         healthy_threshold: u32,
     ) -> Self {
         // Import optimized components only within implementation
-        use super::stubs::Analyzer;
+        use super::stubs::{Analyzer, EventBuffer};
 
-        let analyzer = Analyzer::new(100);
+        let buffer = Arc::new(EventBuffer::new(1000));
+        let analyzer = Analyzer::new(buffer);
 
         Self {
             state: Arc::new(HealthCheckState {
@@ -336,7 +351,7 @@ impl EnhancedRecoveryHandler {
         // Import optimized components only within implementation
         use super::stubs::Cache;
 
-        let cache = Cache::new(1000, cache_ttl.as_secs() as i64);
+        let cache = Cache::new();
 
         Self {
             state: Arc::new(RecoveryState {

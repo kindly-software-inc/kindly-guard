@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Retry logic with exponential backoff and jitter
 //!
 //! Provides configurable retry policies for handling transient failures.
@@ -195,6 +208,12 @@ pub struct RetryBuilder {
     policy: Box<dyn RetryPolicy>,
 }
 
+impl Default for RetryBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl RetryBuilder {
     /// Create a new retry builder
     pub fn new() -> Self {
@@ -362,7 +381,7 @@ mod tests {
             let delay = policy.next_delay(1, &config).unwrap();
             let millis = delay.as_millis();
             // Should be 1000ms ± 10% (900-1100ms)
-            assert!(millis >= 900 && millis <= 1100);
+            assert!((900..=1100).contains(&millis));
         }
     }
 }

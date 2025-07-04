@@ -1,30 +1,46 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Chaos engineering tests for KindlyGuard
-//! 
+//!
 //! These tests simulate various failure scenarios to ensure the system
 //! maintains security and resilience under adverse conditions.
 
 use kindly_guard_server::{
     config::Config,
-    error::{KindlyError, ErrorKind},
+    error::{ErrorKind, KindlyError},
+    metrics::MetricsCollector,
+    resilience::{CircuitBreakerTrait, RetryPolicy},
     scanner::{SecurityScanner, ThreatSeverity},
     server::Server,
-    resilience::{CircuitBreakerTrait, RetryPolicy},
     storage::StorageTrait,
-    metrics::MetricsCollector,
     transport::TransportTrait,
 };
+use rand::{distributions::Uniform, thread_rng, Rng};
 use std::{
-    sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}},
-    time::Duration,
     collections::HashMap,
+    sync::{
+        atomic::{AtomicBool, AtomicU64, Ordering},
+        Arc,
+    },
+    time::Duration,
 };
 use tokio::{
     sync::{Mutex, RwLock, Semaphore},
-    time::{sleep, timeout},
     task::JoinSet,
+    time::{sleep, timeout},
 };
-use rand::{Rng, thread_rng, distributions::Uniform};
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 /// Chaos test configuration
 #[derive(Debug, Clone)]
@@ -119,7 +135,7 @@ impl ChaosMonkey {
 
         let fault = fault_types[rng.gen_range(0..fault_types.len())];
         self.faults_injected.fetch_add(1, Ordering::Relaxed);
-        
+
         info!("Injecting fault: {:?}", fault);
         Some(fault)
     }
@@ -130,9 +146,7 @@ impl ChaosMonkey {
                 sleep(Duration::from_secs(30)).await;
                 Err(KindlyError::new(ErrorKind::Timeout, "Network timeout"))
             }
-            FaultType::NetworkError => {
-                Err(KindlyError::new(ErrorKind::Network, "Network error"))
-            }
+            FaultType::NetworkError => Err(KindlyError::new(ErrorKind::Network, "Network error")),
             FaultType::ResourceExhaustion => {
                 // Simulate resource exhaustion
                 let _memory_hog: Vec<u8> = vec![0; 100_000_000]; // 100MB
@@ -155,9 +169,7 @@ impl ChaosMonkey {
                 }
                 Ok(())
             }
-            FaultType::DiskFull => {
-                Err(KindlyError::new(ErrorKind::Storage, "Disk full"))
-            }
+            FaultType::DiskFull => Err(KindlyError::new(ErrorKind::Storage, "Disk full")),
             FaultType::RandomDelay => {
                 let mut rng = self.rng.lock().await;
                 let delay_ms = rng.gen_range(10..500);
@@ -168,12 +180,14 @@ impl ChaosMonkey {
                 // Return success but with incomplete data
                 Ok(())
             }
-            FaultType::CorruptedData => {
-                Err(KindlyError::new(ErrorKind::InvalidData, "Data corruption detected"))
-            }
-            FaultType::ServiceUnavailable => {
-                Err(KindlyError::new(ErrorKind::ServiceUnavailable, "Service temporarily unavailable"))
-            }
+            FaultType::CorruptedData => Err(KindlyError::new(
+                ErrorKind::InvalidData,
+                "Data corruption detected",
+            )),
+            FaultType::ServiceUnavailable => Err(KindlyError::new(
+                ErrorKind::ServiceUnavailable,
+                "Service temporarily unavailable",
+            )),
         }
     }
 
@@ -292,7 +306,7 @@ impl ConsistencyChecker {
     async fn verify_operation(&self, key: &str, actual: Option<&[u8]>) -> bool {
         let state = self.expected_state.read().await;
         let expected = state.get(key);
-        
+
         let consistent = match (expected, actual) {
             (Some(exp), Some(act)) => exp == act,
             (None, None) => true,
@@ -331,9 +345,17 @@ async fn test_basic_chaos_injection() {
     }
 
     // Verify faults were injected
-    assert!(chaos.get_stats() > 400, "Expected ~500 faults, got {}", chaos.get_stats());
-    assert!(chaos.get_stats() < 600, "Expected ~500 faults, got {}", chaos.get_stats());
-    
+    assert!(
+        chaos.get_stats() > 400,
+        "Expected ~500 faults, got {}",
+        chaos.get_stats()
+    );
+    assert!(
+        chaos.get_stats() < 600,
+        "Expected ~500 faults, got {}",
+        chaos.get_stats()
+    );
+
     // Verify variety of faults
     assert!(fault_counts.len() >= 5, "Expected variety of fault types");
 }
@@ -351,30 +373,30 @@ async fn test_network_resilience() {
     // Create chaos-wrapped components
     let scanner = Arc::new(SecurityScanner::new(&config.scanner));
     let metrics = Arc::new(MetricsCollector::new());
-    
+
     let mut tasks = JoinSet::new();
     let start = std::time::Instant::now();
-    
+
     // Simulate concurrent operations under chaos
     for i in 0..50 {
         let scanner = scanner.clone();
         let chaos = chaos.clone();
         let metrics = metrics.clone();
-        
+
         tasks.spawn(async move {
             let test_data = format!("Test request {}: <script>alert('xss')</script>", i);
-            
+
             // Inject potential network fault
             if let Some(fault) = chaos.inject_fault().await {
                 match chaos.apply_fault(fault).await {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(e) => {
                         metrics.record_error(&e);
                         return Err(e);
                     }
                 }
             }
-            
+
             // Try to scan with retry
             let mut attempts = 0;
             loop {
@@ -407,7 +429,7 @@ async fn test_network_resilience() {
     // Collect results
     let mut successes = 0;
     let mut failures = 0;
-    
+
     while let Some(result) = tasks.join_next().await {
         match result {
             Ok(Ok(_)) => successes += 1,
@@ -421,11 +443,20 @@ async fn test_network_resilience() {
     // Verify resilience metrics
     let success_rate = successes as f64 / (successes + failures) as f64;
     println!("Network resilience test completed in {:?}", elapsed);
-    println!("Success rate: {:.2}% ({}/{})", success_rate * 100.0, successes, successes + failures);
+    println!(
+        "Success rate: {:.2}% ({}/{})",
+        success_rate * 100.0,
+        successes,
+        successes + failures
+    );
     println!("Faults injected: {}", chaos.get_stats());
 
     // Should maintain at least 70% success rate under chaos
-    assert!(success_rate >= 0.7, "Success rate too low: {:.2}%", success_rate * 100.0);
+    assert!(
+        success_rate >= 0.7,
+        "Success rate too low: {:.2}%",
+        success_rate * 100.0
+    );
 }
 
 // Test: Storage consistency under chaos
@@ -446,21 +477,23 @@ async fn test_storage_consistency() {
     let consistency = Arc::new(ConsistencyChecker::new());
 
     let mut tasks = JoinSet::new();
-    
+
     // Concurrent read/write operations
     for i in 0..100 {
         let storage = storage.clone();
         let consistency = consistency.clone();
-        
+
         tasks.spawn(async move {
             let key = format!("test_key_{}", i % 10); // Reuse some keys
             let value = format!("value_{}", i).into_bytes();
-            
+
             // Write operation
             match storage.store(&key, &value).await {
                 Ok(_) => {
-                    consistency.record_operation(key.clone(), value.clone()).await;
-                    
+                    consistency
+                        .record_operation(key.clone(), value.clone())
+                        .await;
+
                     // Immediate read-back
                     match storage.retrieve(&key).await {
                         Ok(Some(stored)) => {
@@ -506,7 +539,11 @@ async fn test_storage_consistency() {
     // Should have zero inconsistencies
     assert_eq!(inconsistencies, 0, "Data inconsistencies detected");
     // Should complete at least 80% of operations
-    assert!(write_successes >= 80, "Too many failed operations: {}", write_successes);
+    assert!(
+        write_successes >= 80,
+        "Too many failed operations: {}",
+        write_successes
+    );
 }
 
 // Test: Resource exhaustion handling
@@ -521,7 +558,7 @@ async fn test_resource_exhaustion() {
 
     let scanner = Arc::new(SecurityScanner::new(&config.scanner));
     let semaphore = Arc::new(Semaphore::new(10)); // Limit concurrent operations
-    
+
     let mut tasks = JoinSet::new();
     let start = std::time::Instant::now();
 
@@ -530,12 +567,17 @@ async fn test_resource_exhaustion() {
         let scanner = scanner.clone();
         let chaos = chaos.clone();
         let semaphore = semaphore.clone();
-        
+
         tasks.spawn(async move {
             // Acquire permit (may block under load)
             let _permit = match timeout(Duration::from_secs(10), semaphore.acquire()).await {
                 Ok(Ok(permit)) => permit,
-                _ => return Err(KindlyError::new(ErrorKind::ResourceExhausted, "Cannot acquire permit")),
+                _ => {
+                    return Err(KindlyError::new(
+                        ErrorKind::ResourceExhausted,
+                        "Cannot acquire permit",
+                    ))
+                }
             };
 
             // Simulate resource-intensive operation
@@ -563,13 +605,11 @@ async fn test_resource_exhaustion() {
     while let Some(result) = tasks.join_next().await {
         match result {
             Ok(Ok(_)) => completed += 1,
-            Ok(Err(e)) => {
-                match e.kind() {
-                    ErrorKind::ResourceExhausted => resource_errors += 1,
-                    ErrorKind::Timeout => timeouts += 1,
-                    _ => {}
-                }
-            }
+            Ok(Err(e)) => match e.kind() {
+                ErrorKind::ResourceExhausted => resource_errors += 1,
+                ErrorKind::Timeout => timeouts += 1,
+                _ => {}
+            },
             _ => {}
         }
     }
@@ -584,8 +624,16 @@ async fn test_resource_exhaustion() {
     println!("Faults injected: {}", chaos.get_stats());
 
     // Should handle resource exhaustion gracefully
-    assert!(completed >= 100, "Too few operations completed: {}", completed);
-    assert!(elapsed < Duration::from_secs(60), "Test took too long: {:?}", elapsed);
+    assert!(
+        completed >= 100,
+        "Too few operations completed: {}",
+        completed
+    );
+    assert!(
+        elapsed < Duration::from_secs(60),
+        "Test took too long: {:?}",
+        elapsed
+    );
 }
 
 // Test: Circuit breaker under chaos
@@ -597,7 +645,8 @@ async fn test_circuit_breaker_chaos() {
         ..Default::default()
     }));
 
-    let circuit_breaker = kindly_guard_server::resilience::create_circuit_breaker(&config.resilience);
+    let circuit_breaker =
+        kindly_guard_server::resilience::create_circuit_breaker(&config.resilience);
     let failure_count = Arc::new(AtomicU64::new(0));
     let success_count = Arc::new(AtomicU64::new(0));
     let circuit_open_count = Arc::new(AtomicU64::new(0));
@@ -624,16 +673,14 @@ async fn test_circuit_breaker_chaos() {
                 Ok(_) => {
                     success_count.fetch_add(1, Ordering::Relaxed);
                 }
-                Err(e) => {
-                    match e.kind() {
-                        ErrorKind::CircuitBreakerOpen => {
-                            circuit_open_count.fetch_add(1, Ordering::Relaxed);
-                        }
-                        _ => {
-                            failure_count.fetch_add(1, Ordering::Relaxed);
-                        }
+                Err(e) => match e.kind() {
+                    ErrorKind::CircuitBreakerOpen => {
+                        circuit_open_count.fetch_add(1, Ordering::Relaxed);
                     }
-                }
+                    _ => {
+                        failure_count.fetch_add(1, Ordering::Relaxed);
+                    }
+                },
             }
 
             // Small delay between operations
@@ -658,7 +705,10 @@ async fn test_circuit_breaker_chaos() {
 
     // Circuit breaker should activate under high failure rate
     assert!(circuit_opens > 0, "Circuit breaker should have opened");
-    assert!(successes + failures + circuit_opens == 100, "All operations should be accounted for");
+    assert!(
+        successes + failures + circuit_opens == 100,
+        "All operations should be accounted for"
+    );
 }
 
 // Test: Security maintained under chaos
@@ -713,10 +763,17 @@ async fn test_security_under_chaos() {
                             security_breaches.fetch_add(1, Ordering::Relaxed);
                         } else {
                             // Verify high severity
-                            let high_severity = threats.iter()
-                                .any(|t| matches!(t.severity, ThreatSeverity::High | ThreatSeverity::Critical));
+                            let high_severity = threats.iter().any(|t| {
+                                matches!(
+                                    t.severity,
+                                    ThreatSeverity::High | ThreatSeverity::Critical
+                                )
+                            });
                             if !high_severity {
-                                warn!("Payload {} #{} detected but not marked as high severity", i, j);
+                                warn!(
+                                    "Payload {} #{} detected but not marked as high severity",
+                                    i, j
+                                );
                             }
                         }
                     }
@@ -756,7 +813,7 @@ async fn test_graceful_degradation() {
 
     let scanner = Arc::new(SecurityScanner::new(&config.scanner));
     let metrics = Arc::new(MetricsCollector::new());
-    
+
     // Track service levels
     let full_service = Arc::new(AtomicU64::new(0));
     let degraded_service = Arc::new(AtomicU64::new(0));
@@ -775,7 +832,7 @@ async fn test_graceful_degradation() {
 
         tasks.spawn(async move {
             let data = format!("Test {}: <script>alert('test')</script>", i);
-            
+
             // Try full service first
             match timeout(Duration::from_secs(2), scanner.scan_text(&data)).await {
                 Ok(Ok(threats)) if !threats.is_empty() => {
@@ -817,7 +874,11 @@ async fn test_graceful_degradation() {
 
     // Should provide some level of service for most requests
     let service_available = full + degraded;
-    assert!(service_available >= 30, "Too many requests with no service: {}", none);
+    assert!(
+        service_available >= 30,
+        "Too many requests with no service: {}",
+        none
+    );
 }
 
 // Test: Recovery after chaos
@@ -840,7 +901,7 @@ async fn test_recovery_after_chaos() {
     for i in 0..20 {
         phase1_total += 1;
         let data = format!("Phase 1 test {}: malicious content", i);
-        
+
         match timeout(Duration::from_secs(2), scanner.scan_text(&data)).await {
             Ok(Ok(_)) => {
                 phase1_success += 1;
@@ -850,7 +911,7 @@ async fn test_recovery_after_chaos() {
                 metrics.record_error(&KindlyError::new(ErrorKind::Unknown, "Scan failed"));
             }
         }
-        
+
         sleep(Duration::from_millis(50)).await;
     }
 
@@ -869,7 +930,7 @@ async fn test_recovery_after_chaos() {
     for i in 0..30 {
         phase2_total += 1;
         let data = format!("Phase 2 test {}: malicious content", i);
-        
+
         match timeout(Duration::from_secs(2), scanner.scan_text(&data)).await {
             Ok(Ok(_)) => {
                 phase2_success += 1;
@@ -879,7 +940,7 @@ async fn test_recovery_after_chaos() {
                 metrics.record_error(&KindlyError::new(ErrorKind::Unknown, "Scan failed"));
             }
         }
-        
+
         sleep(Duration::from_millis(50)).await;
     }
 
@@ -891,7 +952,10 @@ async fn test_recovery_after_chaos() {
     // Verify recovery
     assert!(phase1_rate < 0.3, "Phase 1 should have low success rate");
     assert!(phase2_rate > 0.9, "Phase 2 should have high success rate");
-    assert!(recovery_time < Duration::from_secs(5), "Recovery should be quick");
+    assert!(
+        recovery_time < Duration::from_secs(5),
+        "Recovery should be quick"
+    );
 }
 
 // Test: Multi-component chaos
@@ -931,7 +995,7 @@ async fn test_multi_component_chaos() {
         tasks.spawn(async move {
             let key = format!("scan_result_{}", i);
             let data = format!("Test {}: <script>alert('xss')</script> OR 1=1--", i);
-            
+
             // Step 1: Scan for threats
             let threats = match scanner.scan_text(&data).await {
                 Ok(t) => t,
@@ -945,7 +1009,9 @@ async fn test_multi_component_chaos() {
             let result_data = serde_json::to_vec(&threats).unwrap();
             match storage.store(&key, &result_data).await {
                 Ok(_) => {
-                    consistency.record_operation(key.clone(), result_data.clone()).await;
+                    consistency
+                        .record_operation(key.clone(), result_data.clone())
+                        .await;
                     metrics.record_storage_success();
                 }
                 Err(e) => {
@@ -961,12 +1027,16 @@ async fn test_multi_component_chaos() {
                         metrics.record_verification_success();
                         Ok(())
                     } else {
-                        Err(KindlyError::new(ErrorKind::ConsistencyViolation, "Data mismatch"))
+                        Err(KindlyError::new(
+                            ErrorKind::ConsistencyViolation,
+                            "Data mismatch",
+                        ))
                     }
                 }
-                Ok(None) => {
-                    Err(KindlyError::new(ErrorKind::NotFound, "Data not found after storage"))
-                }
+                Ok(None) => Err(KindlyError::new(
+                    ErrorKind::NotFound,
+                    "Data not found after storage",
+                )),
                 Err(e) => {
                     metrics.record_error(&e);
                     Err(e)
@@ -997,17 +1067,33 @@ async fn test_multi_component_chaos() {
     let success_rate = successes as f64 / total as f64;
 
     println!("Multi-component chaos test completed");
-    println!("Success rate: {:.2}% ({}/{})", success_rate * 100.0, successes, total);
+    println!(
+        "Success rate: {:.2}% ({}/{})",
+        success_rate * 100.0,
+        successes,
+        total
+    );
     println!("Failure breakdown:");
     for (kind, count) in &failures {
         println!("  {:?}: {}", kind, count);
     }
     println!("Faults injected: {}", chaos.get_stats());
-    println!("Consistency violations: {}", consistency.get_inconsistency_count());
+    println!(
+        "Consistency violations: {}",
+        consistency.get_inconsistency_count()
+    );
 
     // Should maintain reasonable success rate with multi-component chaos
-    assert!(success_rate >= 0.6, "Success rate too low: {:.2}%", success_rate * 100.0);
-    assert_eq!(consistency.get_inconsistency_count(), 0, "Data inconsistencies detected");
+    assert!(
+        success_rate >= 0.6,
+        "Success rate too low: {:.2}%",
+        success_rate * 100.0
+    );
+    assert_eq!(
+        consistency.get_inconsistency_count(),
+        0,
+        "Data inconsistencies detected"
+    );
 }
 
 // Helper function to simulate monitoring during chaos
@@ -1020,7 +1106,7 @@ async fn monitor_system_health(
 
     while start.elapsed() < duration {
         let snapshot = metrics.get_snapshot();
-        
+
         for (key, value) in snapshot {
             *health_samples.entry(key).or_insert(0) += value;
         }
@@ -1056,16 +1142,16 @@ async fn test_monitoring_during_chaos() {
     let alert_alerts = alerts.clone();
     let alert_handle = tokio::spawn(async move {
         let mut consecutive_errors = 0;
-        
+
         loop {
             sleep(Duration::from_millis(500)).await;
-            
+
             let snapshot = alert_metrics.get_snapshot();
             let error_rate = snapshot.get("errors").unwrap_or(&0);
-            
+
             if *error_rate > 10 {
                 consecutive_errors += 1;
-                
+
                 if consecutive_errors >= 3 {
                     let mut alerts = alert_alerts.write().await;
                     alerts.push(format!("High error rate detected: {} errors", error_rate));
@@ -1074,7 +1160,7 @@ async fn test_monitoring_during_chaos() {
             } else {
                 consecutive_errors = 0;
             }
-            
+
             if snapshot.get("circuit_breaker_open").unwrap_or(&0) > &0 {
                 let mut alerts = alert_alerts.write().await;
                 alerts.push("Circuit breaker opened".to_string());
@@ -1093,10 +1179,10 @@ async fn test_monitoring_during_chaos() {
 
         tasks.spawn(async move {
             let data = format!("Monitor test {}: potentially malicious", i);
-            
+
             if let Some(fault) = chaos.inject_fault().await {
                 match chaos.apply_fault(fault).await {
-                    Ok(_) => {},
+                    Ok(_) => {}
                     Err(e) => {
                         metrics.record_error(&e);
                         return Err(e);
@@ -1119,7 +1205,7 @@ async fn test_monitoring_during_chaos() {
 
     // Wait for operations to complete
     while let Some(_) = tasks.join_next().await {}
-    
+
     chaos.stop();
     alert_handle.abort();
 

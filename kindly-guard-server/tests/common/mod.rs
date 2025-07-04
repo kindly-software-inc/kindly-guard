@@ -1,5 +1,18 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Common test utilities for KindlyGuard integration tests
-//! 
+//!
 //! This module provides shared test setup, fixtures, and helper functions
 //! for the test suite.
 
@@ -108,7 +121,10 @@ pub mod assertions {
     }
 
     /// Assert that threats have minimum severity
-    pub fn assert_minimum_severity(threats: &[Threat], min_severity: kindly_guard_server::scanner::Severity) {
+    pub fn assert_minimum_severity(
+        threats: &[Threat],
+        min_severity: kindly_guard_server::scanner::Severity,
+    ) {
         for threat in threats {
             assert!(
                 threat.severity >= min_severity,
@@ -122,7 +138,7 @@ pub mod assertions {
 }
 
 /// Async test runtime helper
-/// 
+///
 /// Use this for property tests that need async runtime
 pub fn with_tokio_runtime<F, R>(f: F) -> R
 where
@@ -135,7 +151,7 @@ where
 
 /// Re-export WebSocket server functionality
 #[cfg(feature = "websocket")]
-pub use self::websocket::{TestWebSocketServer, create_test_websocket_server};
+pub use self::websocket::{create_test_websocket_server, TestWebSocketServer};
 
 /// WebSocket test server for integration testing
 #[cfg(feature = "websocket")]
@@ -146,9 +162,9 @@ pub mod websocket {
         routing::get,
         Router,
     };
-    use tokio::net::TcpListener;
     use std::net::SocketAddr;
     use std::sync::Arc;
+    use tokio::net::TcpListener;
     use tokio::sync::Mutex;
 
     /// Test WebSocket server for integration testing
@@ -165,24 +181,26 @@ pub mod websocket {
         }
 
         /// Create a new test WebSocket server with custom handler
-        pub async fn new_with_handler<F, Fut>(handler: F) -> Result<Self, Box<dyn std::error::Error>>
+        pub async fn new_with_handler<F, Fut>(
+            handler: F,
+        ) -> Result<Self, Box<dyn std::error::Error>>
         where
             F: Fn(WebSocket) -> Fut + Send + Sync + 'static + Clone,
             Fut: std::future::Future<Output = ()> + Send + 'static,
         {
             let listener = TcpListener::bind("127.0.0.1:0").await?;
             let addr = listener.local_addr()?;
-            
+
             let (shutdown_tx, mut shutdown_rx) = tokio::sync::oneshot::channel();
-            
-            let app = Router::new()
-                .route("/ws", get(move |ws: WebSocketUpgrade| {
+
+            let app = Router::new().route(
+                "/ws",
+                get(move |ws: WebSocketUpgrade| {
                     let handler = handler.clone();
-                    async move {
-                        ws.on_upgrade(move |socket| handler(socket))
-                    }
-                }));
-            
+                    async move { ws.on_upgrade(move |socket| handler(socket)) }
+                }),
+            );
+
             let handle = tokio::spawn(async move {
                 let serve = axum::serve(listener, app);
                 tokio::select! {
@@ -190,11 +208,15 @@ pub mod websocket {
                     _ = &mut shutdown_rx => {},
                 }
             });
-            
+
             // Give server time to start
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-            
-            Ok(TestWebSocketServer { addr, shutdown_tx, handle })
+
+            Ok(TestWebSocketServer {
+                addr,
+                shutdown_tx,
+                handle,
+            })
         }
 
         /// Shutdown the test server
@@ -206,7 +228,8 @@ pub mod websocket {
     }
 
     /// Create a test WebSocket server for integration testing
-    pub async fn create_test_websocket_server() -> Result<TestWebSocketServer, Box<dyn std::error::Error>> {
+    pub async fn create_test_websocket_server(
+    ) -> Result<TestWebSocketServer, Box<dyn std::error::Error>> {
         TestWebSocketServer::new().await
     }
 }

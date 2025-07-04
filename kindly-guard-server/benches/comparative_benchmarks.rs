@@ -1,15 +1,28 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Comparative benchmarks for standard vs enhanced implementations
-//! 
+//!
 //! These benchmarks measure relative performance between different
 //! implementation strategies without revealing internal details.
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use kindly_guard_server::{
     config::{Config, ResilienceConfig},
-    neutralizer::{create_neutralizer, NeutralizerTrait, NeutralizerMode},
+    neutralizer::{create_neutralizer, NeutralizerMode, NeutralizerTrait},
+    resilience::{create_circuit_breaker, create_retry_handler},
     scanner::{create_scanner, ScannerTrait, ThreatType},
     storage::{create_storage, StorageTrait},
-    resilience::{create_circuit_breaker, create_retry_handler},
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -41,25 +54,25 @@ impl TestInputs {
         for i in 0..size {
             // Simple ASCII text
             simple_text.push(format!("Hello world, this is message number {}", i));
-            
+
             // Unicode-heavy text with various scripts
             unicode_heavy.push(format!(
                 "Text with unicode: {} أهلا {} привет {} 你好 {}",
                 "\u{202E}", "\u{200B}", "\u{2067}", i
             ));
-            
+
             // Common injection patterns
             injection_patterns.push(format!(
                 "'; DROP TABLE users; -- {} <script>alert({})</script>",
                 i, i
             ));
-            
+
             // Mixed threat patterns
             mixed_threats.push(format!(
                 "Mixed {} \u{202E}text'; SELECT * FROM {} <img src=x onerror=alert({})>",
                 i, i, i
             ));
-            
+
             // JSON payloads with nested structures
             json_payloads.push(json!({
                 "id": i,
@@ -91,77 +104,87 @@ impl TestInputs {
 fn bench_neutralization(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("neutralization");
-    
+
     // Test different input sizes
     for size in &[SMALL_SIZE, MEDIUM_SIZE, LARGE_SIZE] {
         let inputs = TestInputs::new(*size);
-        
+
         // Standard implementation
         let config = Config::default();
-        let standard_neutralizer = rt.block_on(async {
-            create_neutralizer(&config).await.unwrap()
-        });
-        
+        let standard_neutralizer =
+            rt.block_on(async { create_neutralizer(&config).await.unwrap() });
+
         // Enhanced implementation
         let mut enhanced_config = Config::default();
         enhanced_config.resilience.enhanced_mode = true;
-        let enhanced_neutralizer = rt.block_on(async {
-            create_neutralizer(&enhanced_config).await.unwrap()
-        });
-        
+        let enhanced_neutralizer =
+            rt.block_on(async { create_neutralizer(&enhanced_config).await.unwrap() });
+
         // Benchmark simple text neutralization
         group.throughput(Throughput::Elements(*size as u64));
         group.bench_function(BenchmarkId::new("standard/simple", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for text in &inputs.simple_text {
-                    let _ = standard_neutralizer.neutralize_text(black_box(text), NeutralizerMode::Standard).await;
+                    let _ = standard_neutralizer
+                        .neutralize_text(black_box(text), NeutralizerMode::Standard)
+                        .await;
                 }
             });
         });
-        
+
         group.bench_function(BenchmarkId::new("enhanced/simple", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for text in &inputs.simple_text {
-                    let _ = enhanced_neutralizer.neutralize_text(black_box(text), NeutralizerMode::Standard).await;
+                    let _ = enhanced_neutralizer
+                        .neutralize_text(black_box(text), NeutralizerMode::Standard)
+                        .await;
                 }
             });
         });
-        
+
         // Benchmark unicode-heavy text
         group.bench_function(BenchmarkId::new("standard/unicode", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for text in &inputs.unicode_heavy {
-                    let _ = standard_neutralizer.neutralize_text(black_box(text), NeutralizerMode::Aggressive).await;
+                    let _ = standard_neutralizer
+                        .neutralize_text(black_box(text), NeutralizerMode::Aggressive)
+                        .await;
                 }
             });
         });
-        
+
         group.bench_function(BenchmarkId::new("enhanced/unicode", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for text in &inputs.unicode_heavy {
-                    let _ = enhanced_neutralizer.neutralize_text(black_box(text), NeutralizerMode::Aggressive).await;
+                    let _ = enhanced_neutralizer
+                        .neutralize_text(black_box(text), NeutralizerMode::Aggressive)
+                        .await;
                 }
             });
         });
-        
+
         // Benchmark JSON neutralization
         group.bench_function(BenchmarkId::new("standard/json", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for json in &inputs.json_payloads {
-                    let _ = standard_neutralizer.neutralize_json(black_box(json), NeutralizerMode::Standard).await;
+                    let _ = standard_neutralizer
+                        .neutralize_json(black_box(json), NeutralizerMode::Standard)
+                        .await;
                 }
             });
         });
-        
+
         group.bench_function(BenchmarkId::new("enhanced/json", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for json in &inputs.json_payloads {
-                    let _ = enhanced_neutralizer.neutralize_json(black_box(json), NeutralizerMode::Standard).await;
+                    let _ = enhanced_neutralizer
+                        .neutralize_json(black_box(json), NeutralizerMode::Standard)
+                        .await;
                 }
             });
         });
     }
-    
+
     group.finish();
 }
 
@@ -169,23 +192,20 @@ fn bench_neutralization(c: &mut Criterion) {
 fn bench_scanning(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("scanning");
-    
+
     for size in &[SMALL_SIZE, MEDIUM_SIZE, LARGE_SIZE] {
         let inputs = TestInputs::new(*size);
-        
+
         // Standard scanner
         let config = Config::default();
-        let standard_scanner = rt.block_on(async {
-            create_scanner(&config).await.unwrap()
-        });
-        
+        let standard_scanner = rt.block_on(async { create_scanner(&config).await.unwrap() });
+
         // Enhanced scanner
         let mut enhanced_config = Config::default();
         enhanced_config.resilience.enhanced_mode = true;
-        let enhanced_scanner = rt.block_on(async {
-            create_scanner(&enhanced_config).await.unwrap()
-        });
-        
+        let enhanced_scanner =
+            rt.block_on(async { create_scanner(&enhanced_config).await.unwrap() });
+
         // Benchmark text scanning
         group.throughput(Throughput::Elements(*size as u64));
         group.bench_function(BenchmarkId::new("standard/text", size), |b| {
@@ -195,7 +215,7 @@ fn bench_scanning(c: &mut Criterion) {
                 }
             });
         });
-        
+
         group.bench_function(BenchmarkId::new("enhanced/text", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for text in &inputs.mixed_threats {
@@ -203,7 +223,7 @@ fn bench_scanning(c: &mut Criterion) {
                 }
             });
         });
-        
+
         // Benchmark JSON scanning
         group.bench_function(BenchmarkId::new("standard/json", size), |b| {
             b.to_async(&rt).iter(|| async {
@@ -212,7 +232,7 @@ fn bench_scanning(c: &mut Criterion) {
                 }
             });
         });
-        
+
         group.bench_function(BenchmarkId::new("enhanced/json", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for json in &inputs.json_payloads {
@@ -221,7 +241,7 @@ fn bench_scanning(c: &mut Criterion) {
             });
         });
     }
-    
+
     group.finish();
 }
 
@@ -229,66 +249,75 @@ fn bench_scanning(c: &mut Criterion) {
 fn bench_batch_operations(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("batch_operations");
-    
+
     // Test batch sizes
     let batch_sizes = vec![10, 100, 1000];
-    
+
     for batch_size in &batch_sizes {
         let inputs = TestInputs::new(*batch_size);
-        
+
         // Standard implementations
         let config = Config::default();
-        let standard_scanner = rt.block_on(async {
-            create_scanner(&config).await.unwrap()
-        });
-        let standard_neutralizer = rt.block_on(async {
-            create_neutralizer(&config).await.unwrap()
-        });
-        
+        let standard_scanner = rt.block_on(async { create_scanner(&config).await.unwrap() });
+        let standard_neutralizer =
+            rt.block_on(async { create_neutralizer(&config).await.unwrap() });
+
         // Enhanced implementations
         let mut enhanced_config = Config::default();
         enhanced_config.resilience.enhanced_mode = true;
-        let enhanced_scanner = rt.block_on(async {
-            create_scanner(&enhanced_config).await.unwrap()
-        });
-        let enhanced_neutralizer = rt.block_on(async {
-            create_neutralizer(&enhanced_config).await.unwrap()
-        });
-        
+        let enhanced_scanner =
+            rt.block_on(async { create_scanner(&enhanced_config).await.unwrap() });
+        let enhanced_neutralizer =
+            rt.block_on(async { create_neutralizer(&enhanced_config).await.unwrap() });
+
         // Benchmark batch scanning
         group.throughput(Throughput::Elements(*batch_size as u64));
         group.bench_function(BenchmarkId::new("standard/scan_batch", batch_size), |b| {
             b.to_async(&rt).iter(|| async {
-                let _ = standard_scanner.scan_batch(black_box(&inputs.mixed_threats)).await;
+                let _ = standard_scanner
+                    .scan_batch(black_box(&inputs.mixed_threats))
+                    .await;
             });
         });
-        
+
         group.bench_function(BenchmarkId::new("enhanced/scan_batch", batch_size), |b| {
             b.to_async(&rt).iter(|| async {
-                let _ = enhanced_scanner.scan_batch(black_box(&inputs.mixed_threats)).await;
+                let _ = enhanced_scanner
+                    .scan_batch(black_box(&inputs.mixed_threats))
+                    .await;
             });
         });
-        
+
         // Benchmark batch neutralization
-        group.bench_function(BenchmarkId::new("standard/neutralize_batch", batch_size), |b| {
-            b.to_async(&rt).iter(|| async {
-                let _ = standard_neutralizer.neutralize_batch(
-                    black_box(&inputs.mixed_threats),
-                    NeutralizerMode::Standard
-                ).await;
-            });
-        });
-        
-        group.bench_function(BenchmarkId::new("enhanced/neutralize_batch", batch_size), |b| {
-            b.to_async(&rt).iter(|| async {
-                let _ = enhanced_neutralizer.neutralize_batch(
-                    black_box(&inputs.mixed_threats),
-                    NeutralizerMode::Standard
-                ).await;
-            });
-        });
+        group.bench_function(
+            BenchmarkId::new("standard/neutralize_batch", batch_size),
+            |b| {
+                b.to_async(&rt).iter(|| async {
+                    let _ = standard_neutralizer
+                        .neutralize_batch(
+                            black_box(&inputs.mixed_threats),
+                            NeutralizerMode::Standard,
+                        )
+                        .await;
+                });
+            },
+        );
+
+        group.bench_function(
+            BenchmarkId::new("enhanced/neutralize_batch", batch_size),
+            |b| {
+                b.to_async(&rt).iter(|| async {
+                    let _ = enhanced_neutralizer
+                        .neutralize_batch(
+                            black_box(&inputs.mixed_threats),
+                            NeutralizerMode::Standard,
+                        )
+                        .await;
+                });
+            },
+        );
     }
-    
+
     group.finish();
 }
 
@@ -296,69 +325,71 @@ fn bench_batch_operations(c: &mut Criterion) {
 fn bench_resilience(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("resilience");
-    
+
     // Standard resilience components
     let config = Config::default();
     let standard_circuit_breaker = create_circuit_breaker(&config);
     let standard_retry_handler = create_retry_handler(&config);
-    
+
     // Enhanced resilience components
     let mut enhanced_config = Config::default();
     enhanced_config.resilience.enhanced_mode = true;
     let enhanced_circuit_breaker = create_circuit_breaker(&enhanced_config);
     let enhanced_retry_handler = create_retry_handler(&enhanced_config);
-    
+
     // Simulate operations with different success rates
     let operation_counts = vec![100, 1000, 10000];
-    
+
     for count in &operation_counts {
         group.throughput(Throughput::Elements(*count as u64));
-        
+
         // Benchmark circuit breaker with successful operations
         group.bench_function(BenchmarkId::new("standard/circuit_breaker", count), |b| {
             b.to_async(&rt).iter(|| async {
                 for i in 0..*count {
-                    let _ = standard_circuit_breaker.call(
-                        black_box(&format!("op_{}", i)),
-                        || async { Ok::<_, Box<dyn std::error::Error>>(42) }
-                    ).await;
+                    let _ = standard_circuit_breaker
+                        .call(black_box(&format!("op_{}", i)), || async {
+                            Ok::<_, Box<dyn std::error::Error>>(42)
+                        })
+                        .await;
                 }
             });
         });
-        
+
         group.bench_function(BenchmarkId::new("enhanced/circuit_breaker", count), |b| {
             b.to_async(&rt).iter(|| async {
                 for i in 0..*count {
-                    let _ = enhanced_circuit_breaker.call(
-                        black_box(&format!("op_{}", i)),
-                        || async { Ok::<_, Box<dyn std::error::Error>>(42) }
-                    ).await;
+                    let _ = enhanced_circuit_breaker
+                        .call(black_box(&format!("op_{}", i)), || async {
+                            Ok::<_, Box<dyn std::error::Error>>(42)
+                        })
+                        .await;
                 }
             });
         });
-        
+
         // Benchmark retry handler
         group.bench_function(BenchmarkId::new("standard/retry", count), |b| {
             b.to_async(&rt).iter(|| async {
                 for _ in 0..*count {
-                    let _ = standard_retry_handler.retry(
-                        || async { Ok::<_, Box<dyn std::error::Error>>(42) }
-                    ).await;
+                    let _ = standard_retry_handler
+                        .retry(|| async { Ok::<_, Box<dyn std::error::Error>>(42) })
+                        .await;
                 }
             });
         });
-        
+
         group.bench_function(BenchmarkId::new("enhanced/retry", count), |b| {
             b.to_async(&rt).iter(|| async {
                 for _ in 0..*count {
-                    let _ = enhanced_retry_handler.retry(
-                        || async { Ok::<_, Box<dyn std::error::Error>>(42) }
-                    ).await;
+                    let _ = enhanced_retry_handler
+                        .retry(|| async { Ok::<_, Box<dyn std::error::Error>>(42) })
+                        .await;
                 }
             });
         });
     }
-    
+
     group.finish();
 }
 
@@ -366,112 +397,108 @@ fn bench_resilience(c: &mut Criterion) {
 fn bench_end_to_end(c: &mut Criterion) {
     let rt = Runtime::new().unwrap();
     let mut group = c.benchmark_group("end_to_end");
-    
+
     // Simulate realistic workloads
     let workload_sizes = vec![10, 100, 1000];
-    
+
     for size in &workload_sizes {
         let inputs = TestInputs::new(*size);
-        
+
         // Standard stack
         let config = Config::default();
-        let standard_scanner = rt.block_on(async {
-            create_scanner(&config).await.unwrap()
-        });
-        let standard_neutralizer = rt.block_on(async {
-            create_neutralizer(&config).await.unwrap()
-        });
-        let standard_storage = rt.block_on(async {
-            create_storage(&config).await.unwrap()
-        });
-        
+        let standard_scanner = rt.block_on(async { create_scanner(&config).await.unwrap() });
+        let standard_neutralizer =
+            rt.block_on(async { create_neutralizer(&config).await.unwrap() });
+        let standard_storage = rt.block_on(async { create_storage(&config).await.unwrap() });
+
         // Enhanced stack
         let mut enhanced_config = Config::default();
         enhanced_config.resilience.enhanced_mode = true;
-        let enhanced_scanner = rt.block_on(async {
-            create_scanner(&enhanced_config).await.unwrap()
-        });
-        let enhanced_neutralizer = rt.block_on(async {
-            create_neutralizer(&enhanced_config).await.unwrap()
-        });
-        let enhanced_storage = rt.block_on(async {
-            create_storage(&enhanced_config).await.unwrap()
-        });
-        
+        let enhanced_scanner =
+            rt.block_on(async { create_scanner(&enhanced_config).await.unwrap() });
+        let enhanced_neutralizer =
+            rt.block_on(async { create_neutralizer(&enhanced_config).await.unwrap() });
+        let enhanced_storage =
+            rt.block_on(async { create_storage(&enhanced_config).await.unwrap() });
+
         group.throughput(Throughput::Elements(*size as u64));
-        
+
         // Benchmark full processing pipeline - standard
         group.bench_function(BenchmarkId::new("standard/full_pipeline", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for (i, text) in inputs.mixed_threats.iter().enumerate() {
                     // Scan
                     let threats = standard_scanner.scan_text(black_box(text)).await.unwrap();
-                    
+
                     // Store threats
                     for threat in &threats {
                         let _ = standard_storage.store_threat(threat).await;
                     }
-                    
+
                     // Neutralize if threats found
                     if !threats.is_empty() {
-                        let _ = standard_neutralizer.neutralize_text(
-                            black_box(text),
-                            NeutralizerMode::Aggressive
-                        ).await;
+                        let _ = standard_neutralizer
+                            .neutralize_text(black_box(text), NeutralizerMode::Aggressive)
+                            .await;
                     }
-                    
+
                     // Store audit entry
-                    let _ = standard_storage.store_audit_entry(&format!("Processed item {}", i)).await;
+                    let _ = standard_storage
+                        .store_audit_entry(&format!("Processed item {}", i))
+                        .await;
                 }
             });
         });
-        
+
         // Benchmark full processing pipeline - enhanced
         group.bench_function(BenchmarkId::new("enhanced/full_pipeline", size), |b| {
             b.to_async(&rt).iter(|| async {
                 for (i, text) in inputs.mixed_threats.iter().enumerate() {
                     // Scan
                     let threats = enhanced_scanner.scan_text(black_box(text)).await.unwrap();
-                    
+
                     // Store threats
                     for threat in &threats {
                         let _ = enhanced_storage.store_threat(threat).await;
                     }
-                    
+
                     // Neutralize if threats found
                     if !threats.is_empty() {
-                        let _ = enhanced_neutralizer.neutralize_text(
-                            black_box(text),
-                            NeutralizerMode::Aggressive
-                        ).await;
+                        let _ = enhanced_neutralizer
+                            .neutralize_text(black_box(text), NeutralizerMode::Aggressive)
+                            .await;
                     }
-                    
+
                     // Store audit entry
-                    let _ = enhanced_storage.store_audit_entry(&format!("Processed item {}", i)).await;
+                    let _ = enhanced_storage
+                        .store_audit_entry(&format!("Processed item {}", i))
+                        .await;
                 }
             });
         });
     }
-    
+
     group.finish();
 }
 
 /// Generate comparison report
 fn generate_comparison_report() {
     println!("\n=== KindlyGuard Performance Comparison Report ===\n");
-    println!("This report shows relative performance between standard and enhanced implementations.");
+    println!(
+        "This report shows relative performance between standard and enhanced implementations."
+    );
     println!("Results are normalized to show performance ratios.\n");
-    
+
     println!("Key Metrics:");
     println!("- Throughput: Operations per second");
     println!("- Latency: Time per operation");
     println!("- Scalability: Performance at different input sizes\n");
-    
+
     println!("Summary:");
     println!("- Enhanced implementations show performance improvements across all categories");
     println!("- Batch operations benefit the most from optimizations");
     println!("- Performance gains scale with input complexity\n");
-    
+
     println!("For detailed results, see the criterion report in target/criterion/");
 }
 
@@ -482,7 +509,7 @@ criterion_group! {
         .sample_size(100)
         .measurement_time(std::time::Duration::from_secs(10))
         .warm_up_time(std::time::Duration::from_secs(3));
-    targets = 
+    targets =
         bench_neutralization,
         bench_scanning,
         bench_batch_operations,
@@ -495,7 +522,7 @@ criterion_main!(benches);
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_input_generation() {
         let inputs = TestInputs::new(10);
@@ -505,24 +532,28 @@ mod tests {
         assert_eq!(inputs.mixed_threats.len(), 10);
         assert_eq!(inputs.json_payloads.len(), 10);
     }
-    
+
     #[tokio::test]
     async fn test_benchmark_setup() {
         // Verify we can create both standard and enhanced implementations
         let config = Config::default();
         let standard_scanner = create_scanner(&config).await.unwrap();
         let standard_neutralizer = create_neutralizer(&config).await.unwrap();
-        
+
         let mut enhanced_config = Config::default();
         enhanced_config.resilience.enhanced_mode = true;
         let enhanced_scanner = create_scanner(&enhanced_config).await.unwrap();
         let enhanced_neutralizer = create_neutralizer(&enhanced_config).await.unwrap();
-        
+
         // Basic smoke test
         let text = "Test text";
         let _ = standard_scanner.scan_text(text).await;
         let _ = enhanced_scanner.scan_text(text).await;
-        let _ = standard_neutralizer.neutralize_text(text, NeutralizerMode::Standard).await;
-        let _ = enhanced_neutralizer.neutralize_text(text, NeutralizerMode::Standard).await;
+        let _ = standard_neutralizer
+            .neutralize_text(text, NeutralizerMode::Standard)
+            .await;
+        let _ = enhanced_neutralizer
+            .neutralize_text(text, NeutralizerMode::Standard)
+            .await;
     }
 }

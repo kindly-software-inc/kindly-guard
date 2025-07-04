@@ -1,0 +1,33 @@
+# Minimal configuration for testing KindlyGuard TUI
+
+[server]
+stdio = true
+
+[scanner]
+unicode_detection = true
+injection_detection = true
+
+[shield]
+enabled = true
+
+[auth]
+enabled = false
+trusted_issuers = []
+required_scopes = { tools = {}, resources = {}, default = [] }
+cache_ttl_seconds = 300
+validate_resource_indicators = false
+
+[signing]
+enabled = false
+
+[rate_limit]
+enabled = false
+
+[event_processor]
+enabled = false
+
+[telemetry]
+enabled = false
+
+[logging]
+level = "info"

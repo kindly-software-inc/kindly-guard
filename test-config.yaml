@@ -1,0 +1,16 @@
+scanner:
+  unicode_detection: true
+  injection_detection: true
+  xss_protection: true
+
+auth:
+  enabled: true
+  allowed_clients:
+    - client_id: "test-app"
+      secret: "test-secret"
+      allowed_scopes: ["tools:execute"]
+
+rate_limit:
+  enabled: true
+  default_rpm: 60
+  burst_size: 10

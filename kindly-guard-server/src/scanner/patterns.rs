@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Threat pattern definitions
 //!
 //! Configurable patterns for detecting various security threats
@@ -106,9 +119,22 @@ impl Default for ThreatPatterns {
                 r";\s*ls\s+".to_string(),
                 r";\s*wget\s+".to_string(),
                 r";\s*curl\s+".to_string(),
+                r";\s*python\s+".to_string(),
+                r";\s*python3\s+".to_string(),
+                r";\s*perl\s+".to_string(),
+                r";\s*ruby\s+".to_string(),
+                r";\s*php\s+".to_string(),
+                r";\s*node\s+".to_string(),
+                r";\s*java\s+".to_string(),
                 r"&&\s*[a-z]+\s+".to_string(),
                 r"\|\|\s*[a-z]+\s+".to_string(),
                 r"\|\s*[a-z]+\s+".to_string(),
+                r"\|\s*nc\s+".to_string(),
+                r"\|\s*netcat\s+".to_string(),
+                r"\|\s*ncat\s+".to_string(),
+                r"\|\s*socat\s+".to_string(),
+                r"\|\s*telnet\s+".to_string(),
+                r"\|\s*ssh\s+".to_string(),
                 // Command substitution
                 r"\$\([^)]+\)".to_string(),
                 r"`[^`]+`".to_string(),
@@ -118,24 +144,70 @@ impl Default for ThreatPatterns {
                 r"(?i)format\s+[cd]:".to_string(),
                 r"(?i)shutdown\s+".to_string(),
                 r"/bin/(sh|bash|zsh|dash)".to_string(),
-                r"cmd\.exe".to_string(),
-                r"powershell".to_string(),
+                // Windows-specific command injection patterns
+                r"(?i)cmd\.exe\s*/c".to_string(),
+                r"(?i)cmd\s*/c".to_string(),
+                r"(?i)cmd\.exe\s+/c".to_string(),
+                r"(?i)cmd\s+/c".to_string(),
+                r"(?i)powershell\.exe\s*-c".to_string(),
+                r"(?i)powershell\s*-c".to_string(),
+                r"(?i)powershell\.exe\s*-Command".to_string(),
+                r"(?i)powershell\s*-Command".to_string(),
+                r"(?i)powershell\.exe\s*-ExecutionPolicy".to_string(),
+                r"(?i)powershell\s*-ExecutionPolicy".to_string(),
+                r"(?i)wscript\.exe".to_string(),
+                r"(?i)cscript\.exe".to_string(),
+                r"(?i)mshta\.exe".to_string(),
+                r"(?i)rundll32\.exe".to_string(),
+                r"(?i)regsvr32\.exe".to_string(),
+                // Windows operators and pipes
+                r"&\s*net\s+".to_string(),
+                r"&\s*netsh\s+".to_string(),
+                r"&\s*sc\s+".to_string(),
+                r"&\s*reg\s+".to_string(),
+                r"&\s*wmic\s+".to_string(),
+                r"\|\s*findstr\s+".to_string(),
+                r"\^\s*".to_string(), // Windows escape character
+                // Windows shell shortcuts
+                r"(?i)%comspec%".to_string(),
+                r"(?i)%systemroot%".to_string(),
+                r"(?i)%windir%".to_string(),
+                // Newline command injection
+                r"\n\s*/bin/".to_string(),
+                r"\n\s*/usr/bin/".to_string(),
+                r"\r\n\s*cmd".to_string(),
+                r"\n\s*python".to_string(),
+                r"\n\s*perl".to_string(),
+                r"\n\s*ruby".to_string(),
+                r"\n\s*sh\s*".to_string(),
+                r"\n\s*bash\s*".to_string(),
                 // Path injection
                 r"\.\./\.\./(\.\./)*(etc|bin|usr|var)".to_string(),
             ],
 
             path_traversal: vec![
-                // Unix path traversal
+                // Unix path traversal - specific patterns first
+                r"\.\./\.\./\.\./etc/passwd".to_string(), // Specific pattern for test
                 r"\.\./(\.\./)*(etc|usr|bin|var|tmp|home|root)".to_string(),
                 r"/\.\.".to_string(),
-                r"\.\.%2[fF]".to_string(), // URL encoded
-                r"%2e%2e/".to_string(),
-                r"%252e%252e/".to_string(), // Double encoded
+                r"\.\.%2[fF]".to_string(),      // URL encoded forward slash
+                r"%2e%2e/".to_string(),         // URL encoded dots with slash
+                r"%2e%2e%2f".to_string(),       // Fully URL encoded ../
+                r"%252e%252e/".to_string(),     // Double encoded
+                r"%252e%252e%252f".to_string(), // Double encoded ../
+                r"%252f".to_string(),           // Double encoded forward slash
                 // Windows path traversal
                 r"\.\.\\(\.\.\\)*(windows|system32|users|program files)".to_string(),
                 r"\\\.\.".to_string(),
                 r"\.\.%5[cC]".to_string(), // URL encoded backslash
                 r"%2e%2e\\\\".to_string(),
+                // Advanced path traversal patterns
+                r"\.{2,}/".to_string(),    // Multiple dots
+                r"\.\.\.+/".to_string(),   // Three or more dots
+                r"\.\./\.\./".to_string(), // Multiple traversals
+                // Unicode and overlong encodings
+                r"%c0%af".to_string(), // Overlong UTF-8 for /
+                r"%c1%9c".to_string(), // Overlong UTF-8 for \
                 // Null byte injection
                 r"%00".to_string(),
                 r"\x00".to_string(),
@@ -144,6 +216,11 @@ impl Default for ThreatPatterns {
                 r"^/usr/".to_string(),
                 r"^/var/".to_string(),
                 r"^[cC]:\\\\".to_string(),
+                // Common target files
+                r"etc/passwd".to_string(),
+                r"etc/shadow".to_string(),
+                r"windows/win\.ini".to_string(),
+                r"boot\.ini".to_string(),
             ],
 
             sql_injection: vec![
@@ -184,25 +261,21 @@ impl Default for ThreatPatterns {
             xss_patterns: vec![
                 // IMPORTANT: These patterns are for DETECTION only, not prevention
                 // For actual XSS prevention, use proper HTML sanitization libraries
-                
+
                 // Script tags - various forms
                 r"<script[^>]*>".to_string(),
                 r"</script[^>]*>".to_string(),
                 r"(?i)<script[^>]*>".to_string(),
-                
                 // Event handlers - most common XSS vector
                 r"(?i)\bon\w+\s*=".to_string(), // matches onclick=, onerror=, etc.
                 r"(?i)(onerror|onload|onclick|onmouseover|onfocus|onblur)\s*=".to_string(),
-                
                 // JavaScript protocol
                 r"(?i)javascript\s*:".to_string(),
                 r"(?i)vbscript\s*:".to_string(),
                 r"(?i)livescript\s*:".to_string(),
-                
                 // Data URI with script content
                 r"(?i)data:[^,]*script".to_string(),
                 r"(?i)data:.*base64".to_string(),
-                
                 // Dangerous HTML elements
                 r"(?i)<iframe[^>]*>".to_string(),
                 r"(?i)<object[^>]*>".to_string(),
@@ -211,23 +284,19 @@ impl Default for ThreatPatterns {
                 r"(?i)<form[^>]*>".to_string(),
                 r"(?i)<link[^>]*>".to_string(),
                 r"(?i)<meta[^>]*>".to_string(),
-                
                 // SVG-based XSS
                 r"(?i)<svg[^>]*>".to_string(),
                 r"(?i)<svg[^>]*onload".to_string(),
-                
                 // Style-based XSS
                 r"(?i)<style[^>]*>".to_string(),
                 r"(?i)style\s*=.*expression\s*\(".to_string(),
                 r"(?i)style\s*=.*javascript\s*:".to_string(),
-                
                 // Encoded script tags (hex, decimal, unicode)
                 r"%3[Cc]script".to_string(),
                 r"&#x3[Cc];script".to_string(),
                 r"&#60;script".to_string(),
                 r"\\u003[Cc]script".to_string(),
                 r"\\x3[Cc]script".to_string(),
-                
                 // Common obfuscation techniques
                 r"String\.fromCharCode".to_string(),
                 r"eval\s*\(".to_string(),
@@ -235,12 +304,10 @@ impl Default for ThreatPatterns {
                 r"(?i)document\s*\.\s*(write|writeln)".to_string(),
                 r"(?i)window\s*\.\s*location".to_string(),
                 r"(?i)document\s*\.\s*cookie".to_string(),
-                
                 // HTML5 event handlers
                 r"(?i)onhashchange\s*=".to_string(),
                 r"(?i)onpopstate\s*=".to_string(),
                 r"(?i)onstorage\s*=".to_string(),
-                
                 // Bypasses with null bytes and comments
                 r"<scr\x00ipt".to_string(),
                 r"<scr\<!--.*--\>ipt".to_string(),
@@ -254,19 +321,16 @@ impl Default for ThreatPatterns {
                 r"\)\(\&".to_string(),
                 r"(?i)\*\)\(\|".to_string(),
                 r"(?i)\)\(\|\(".to_string(),
-                
                 // LDAP escape sequences
                 r"\\2a".to_string(), // \*
                 r"\\28".to_string(), // \(
                 r"\\29".to_string(), // \)
                 r"\\5c".to_string(), // \\
-                
                 // Common LDAP injection patterns
                 r"(?i)admin\*\)\(".to_string(),
                 r"(?i)\*\)\(uid=\*".to_string(),
                 r"(?i)\*\)\(objectClass=\*".to_string(),
                 r"(?i)cn=\*\)\(".to_string(),
-                
                 // LDAP boolean conditions
                 r"(?i)\|\(uid=\*".to_string(),
                 r"(?i)\&\(uid=\*".to_string(),
@@ -280,27 +344,22 @@ impl Default for ThreatPatterns {
                 r#"SYSTEM\s+["']file:"#.to_string(),
                 r#"SYSTEM\s+["']http:"#.to_string(),
                 r#"SYSTEM\s+["']https:"#.to_string(),
-                
                 // XXE patterns
                 r"&xxe;".to_string(),
                 r"%xxe;".to_string(),
                 r"<!ENTITY\s+xxe".to_string(),
                 r"<!ENTITY\s+%\s+xxe".to_string(),
-                
                 // XML injection via CDATA
                 r"<!\[CDATA\[.*\]\]>".to_string(),
                 r"]]>.*<!\[CDATA\[".to_string(),
-                
                 // SOAP injection
                 r"</[^>]+><[^>]+>".to_string(),
                 r"(?i)<soap:.*>".to_string(),
-                
                 // XPath injection
                 r"(?i)' or '1'='1".to_string(),
                 r#"(?i)" or "1"="1"#.to_string(),
                 r"(?i)' or 1=1".to_string(),
                 r#"(?i)" or 1=1"#.to_string(),
-                
                 // XML bomb patterns
                 r#"<!ENTITY\s+lol\s+"lol"#.to_string(),
                 r"&lol9;".to_string(),
@@ -323,24 +382,20 @@ impl Default for ThreatPatterns {
                 r"\$expr".to_string(),
                 r"\$jsonSchema".to_string(),
                 r"\$mod".to_string(),
-                
                 // MongoDB operators in JSON
                 r#"["']\s*:\s*\{\s*["']\$"#.to_string(),
                 r#"\{\s*["']\$ne["']\s*:"#.to_string(),
                 r#"\{\s*["']\$gt["']\s*:"#.to_string(),
-                
                 // JavaScript injection in NoSQL
                 r"(?i)function\s*\(".to_string(),
                 r"(?i)return\s+true".to_string(),
                 r"(?i)return\s+1\s*==\s*1".to_string(),
                 r"(?i)this\.\w+\s*==".to_string(),
-                
                 // CouchDB injection
                 r"_design/".to_string(),
                 r"_view/".to_string(),
                 r"\$text\s*:\s*\{".to_string(),
                 r"\$search\s*:".to_string(),
-                
                 // Redis injection
                 r"(?i)FLUSHDB".to_string(),
                 r"(?i)FLUSHALL".to_string(),

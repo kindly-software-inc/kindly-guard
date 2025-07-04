@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Rate-limited neutralization wrapper
 //!
 //! Provides rate limiting for neutralization operations to prevent
@@ -201,6 +214,34 @@ impl ThreatNeutralizer for RateLimitedNeutralizer {
         }
 
         capabilities
+    }
+
+    async fn batch_neutralize(
+        &self,
+        threats: &[crate::scanner::Threat],
+        content: &str,
+    ) -> Result<crate::neutralizer::BatchNeutralizeResult> {
+        // For batch operations, check rate limit once for the entire batch
+        let client_id = self.get_client_id();
+        let key = crate::traits::RateLimitKey {
+            client_id: client_id.clone(),
+            method: Some("neutralize_batch".to_string()),
+        };
+
+        // Check rate limit
+        let decision = self.rate_limiter.check_rate_limit(&key).await?;
+        if !decision.allowed {
+            return Err(anyhow::anyhow!(
+                "Rate limit exceeded. Try again in {:?}",
+                decision.reset_after
+            ));
+        }
+
+        // Record the batch request
+        self.rate_limiter.record_request(&key).await?;
+
+        // Delegate to inner neutralizer for sophisticated batch logic
+        self.inner.batch_neutralize(threats, content).await
     }
 }
 

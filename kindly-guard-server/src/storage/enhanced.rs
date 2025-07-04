@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Enhanced storage implementation with advanced optimizations
 //!
 //! This module provides high-performance persistent storage using
@@ -5,6 +18,48 @@
 
 use super::*;
 use tracing::{debug, info};
+
+// Missing type definitions
+#[derive(Debug, Clone)]
+struct SnapshotInfo {
+    id: String,
+    created_at: u64,
+    size_bytes: u64,
+}
+
+#[derive(Debug, Clone)]
+struct EventStoreStats {
+    total_events: u64,
+    compressed_size: u64,
+    compression_ratio: f64,
+}
+
+#[derive(Debug, Clone)]
+struct RateLimiterStats {
+    size: u64,
+    active_entries: u64,
+}
+
+#[derive(Debug, Clone)]
+struct CorrelationStats {
+    index_size: u64,
+    active_states: u64,
+    query_performance_ns: u64,
+}
+
+#[derive(Debug, Clone)]
+struct ArchivalStats {
+    total_size: u64,
+}
+
+#[derive(Debug, Clone)]
+struct ArchivalDetailedStats {
+    hot_storage_events: u64,
+    archived_events: u64,
+    archive_size_gb: f64,
+    compression_ratio: f64,
+    last_archive_time: Option<u64>,
+}
 
 // Stubs for advanced storage components
 struct EventStore;
@@ -30,11 +85,24 @@ impl EventStore {
     async fn query_compressed(&self, _filter: &EventFilter) -> Result<Vec<SecurityEvent>> {
         Ok(vec![])
     }
+    async fn query_optimized(&self, _filter: &EventFilter) -> Result<Vec<SecurityEvent>> {
+        Ok(vec![])
+    }
     async fn delete(&self, _id: &EventId) -> Result<()> {
         Ok(())
     }
     async fn clean_old_events(&self, _before: DateTime<Utc>) -> Result<u64> {
         Ok(0)
+    }
+    async fn get_stats(&self) -> Result<EventStoreStats> {
+        Ok(EventStoreStats {
+            total_events: 0,
+            compressed_size: 0,
+            compression_ratio: 1.0,
+        })
+    }
+    async fn compact(&self) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -48,6 +116,24 @@ impl RateLimiterImpl {
     }
     async fn get_state(&self, _key: &str) -> Result<Option<RateLimitState>> {
         Ok(None)
+    }
+    async fn store_atomic(&self, _key: &RateLimitKey, _state: &RateLimitState) -> Result<()> {
+        Ok(())
+    }
+    async fn get_atomic(&self, _key: &RateLimitKey) -> Result<Option<RateLimitState>> {
+        Ok(None)
+    }
+    async fn cleanup_expired(&self, _older_than: Duration) -> Result<u64> {
+        Ok(0)
+    }
+    async fn get_stats(&self) -> Result<RateLimiterStats> {
+        Ok(RateLimiterStats {
+            size: 0,
+            active_entries: 0,
+        })
+    }
+    async fn optimize(&self) -> Result<()> {
+        Ok(())
     }
 }
 
@@ -63,6 +149,28 @@ impl CorrelationIndex {
         Ok(())
     }
     async fn index_event(&self, _event_id: &EventId, _event: &SecurityEvent) -> Result<()> {
+        Ok(())
+    }
+    async fn update_state(&self, _client_id: &str, _state: &CorrelationState) -> Result<()> {
+        Ok(())
+    }
+    async fn get_state(&self, _client_id: &str) -> Result<Option<CorrelationState>> {
+        Ok(None)
+    }
+    async fn rebuild(&self) -> Result<()> {
+        Ok(())
+    }
+    async fn get_stats(&self) -> Result<CorrelationStats> {
+        Ok(CorrelationStats {
+            index_size: 0,
+            active_states: 0,
+            query_performance_ns: 100,
+        })
+    }
+    async fn rebalance(&self) -> Result<()> {
+        Ok(())
+    }
+    async fn reindex_restored(&self) -> Result<()> {
         Ok(())
     }
 }
@@ -81,6 +189,24 @@ impl SnapshotEngine {
     async fn list(&self) -> Result<Vec<String>> {
         Ok(vec![])
     }
+    async fn create_incremental(&self, _id: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn list_all(&self) -> Result<Vec<SnapshotInfo>> {
+        Ok(vec![])
+    }
+    async fn restore_atomic(&self, _id: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn delete(&self, _id: &str) -> Result<()> {
+        Ok(())
+    }
+    async fn count(&self) -> Result<u64> {
+        Ok(0)
+    }
+    async fn defragment(&self) -> Result<()> {
+        Ok(())
+    }
 }
 
 struct ArchivalSystem;
@@ -94,7 +220,7 @@ impl ArchivalSystem {
     async fn archive_events(&self, _events: Vec<SecurityEvent>) -> Result<u64> {
         Ok(0)
     }
-    fn should_archive(&self, _timestamp: DateTime<Utc>) -> bool {
+    fn should_archive(&self, _timestamp: u64) -> bool {
         false
     }
     async fn archive_old_events(&self, _store: &EventStore) -> Result<u64> {
@@ -105,6 +231,27 @@ impl ArchivalSystem {
     }
     async fn retrieve_event(&self, _id: &EventId) -> Result<Option<SecurityEvent>> {
         Ok(None)
+    }
+    async fn query_archived(&self, _filter: &EventFilter) -> Result<Vec<SecurityEvent>> {
+        Ok(vec![])
+    }
+    async fn get_stats(&self) -> Result<ArchivalStats> {
+        Ok(ArchivalStats { total_size: 0 })
+    }
+    async fn archive_before(&self, _store: &EventStore, _cutoff: DateTime<Utc>) -> Result<u64> {
+        Ok(0)
+    }
+    async fn restore_to_hot(&self, _store: &EventStore, _filter: &EventFilter) -> Result<u64> {
+        Ok(0)
+    }
+    async fn get_detailed_stats(&self) -> Result<ArchivalDetailedStats> {
+        Ok(ArchivalDetailedStats {
+            hot_storage_events: 0,
+            archived_events: 0,
+            archive_size_gb: 0.0,
+            compression_ratio: 1.0,
+            last_archive_time: None,
+        })
     }
 }
 
@@ -139,7 +286,7 @@ impl EnhancedStorage {
         )?;
 
         let rate_limiter = RateLimiterImpl::new(
-            config.max_storage_mb.unwrap_or(1024) * 1024 * 1024, // Convert to bytes
+            (config.max_storage_mb.unwrap_or(1024) * 1024 * 1024) as usize, // Convert to bytes
         )?;
 
         let correlation_index = CorrelationIndex::with_capacity(10_000)?;
@@ -256,18 +403,27 @@ impl StorageProvider for EnhancedStorage {
 
     async fn create_snapshot(&self) -> Result<SnapshotId> {
         // Use incremental snapshot engine
-        let id = self.snapshot_engine.create_incremental().await?;
-        info!("Created incremental snapshot {}", id.0);
-        Ok(id)
+        let id = format!("snap_{}", uuid::Uuid::new_v4());
+        self.snapshot_engine.create_incremental(&id).await?;
+        info!("Created incremental snapshot {}", id);
+        Ok(SnapshotId(id))
     }
 
     async fn list_snapshots(&self) -> Result<Vec<(SnapshotId, DateTime<Utc>)>> {
-        self.snapshot_engine.list_all().await
+        let snapshots = self.snapshot_engine.list_all().await?;
+        Ok(snapshots
+            .into_iter()
+            .map(|info| {
+                let timestamp = DateTime::<Utc>::from_timestamp(info.created_at as i64, 0)
+                    .unwrap_or_else(Utc::now);
+                (SnapshotId(info.id), timestamp)
+            })
+            .collect())
     }
 
     async fn restore_snapshot(&self, id: &SnapshotId) -> Result<()> {
         // Atomic restore with rollback support
-        self.snapshot_engine.restore_atomic(id).await?;
+        self.snapshot_engine.restore_atomic(&id.0).await?;
 
         // Rebuild indexes
         self.correlation_index.rebuild().await?;
@@ -277,7 +433,7 @@ impl StorageProvider for EnhancedStorage {
     }
 
     async fn delete_snapshot(&self, id: &SnapshotId) -> Result<()> {
-        self.snapshot_engine.delete(id).await
+        self.snapshot_engine.delete(&id.0).await
     }
 
     async fn get_stats(&self) -> Result<StorageStats> {
@@ -383,6 +539,12 @@ impl ArchivalStorage for EnhancedStorage {
             });
         }
 
-        self.archival.get_detailed_stats().await
+        let detailed = self.archival.get_detailed_stats().await?;
+        Ok(ArchiveStats {
+            archived_events: detailed.archived_events,
+            archive_size: (detailed.archive_size_gb * 1024.0 * 1024.0 * 1024.0) as u64,
+            oldest_event: None, // Not tracked in this implementation
+            newest_event: None, // Not tracked in this implementation
+        })
     }
 }

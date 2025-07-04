@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Standard implementations of resilience traits
 //! These provide solid reliability features for production use
 
@@ -314,6 +327,12 @@ pub struct StandardHealthChecker {
     metadata: HealthCheckMetadata,
 }
 
+impl Default for StandardHealthChecker {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StandardHealthChecker {
     pub fn new() -> Self {
         Self {
@@ -419,13 +438,39 @@ impl HealthCheckTrait for StandardHealthChecker {
     }
 
     fn register_dependency(&self, name: String, checker: Arc<dyn HealthCheckTrait>) {
-        // Since this is a sync method but we need async RwLock, we'll use block_on
-        // In production, this method should be made async in the trait
-        tokio::task::block_in_place(|| {
-            tokio::runtime::Handle::current().block_on(async {
-                self.dependencies.write().await.insert(name, checker);
-            });
-        });
+        // Since this is a sync method but we need async RwLock, we need to handle runtime context
+        // Use std::mem::replace to swap with a temporary value to avoid lifetime issues
+        use once_cell::sync::Lazy;
+        use std::sync::Mutex;
+
+        // Temporary storage for the dependency to add
+        static PENDING_DEPS: Lazy<Mutex<Option<(String, Arc<dyn HealthCheckTrait>)>>> =
+            Lazy::new(|| Mutex::new(None));
+
+        // Store the dependency temporarily
+        *PENDING_DEPS.lock().unwrap() = Some((name, checker));
+
+        // Create or use existing runtime
+        if let Ok(_handle) = tokio::runtime::Handle::try_current() {
+            // We can't block_on from within a runtime, so we'll just panic with a helpful message
+            panic!("register_dependency cannot be called from within an async runtime. Call it during initialization.");
+        } else {
+            // Not in a runtime, create a new one
+            let rt = tokio::runtime::Builder::new_current_thread()
+                .enable_all()
+                .build()
+                .expect("Failed to create runtime for register_dependency");
+
+            // Take the pending dependency and insert it
+            if let Some((dep_name, dep_checker)) = PENDING_DEPS.lock().unwrap().take() {
+                rt.block_on(async {
+                    self.dependencies
+                        .write()
+                        .await
+                        .insert(dep_name, dep_checker);
+                });
+            }
+        }
     }
 
     fn metadata(&self) -> HealthCheckMetadata {
@@ -439,6 +484,12 @@ pub struct StandardRecoveryStrategy {
     stats: RwLock<RecoveryStats>,
     cache: RwLock<HashMap<String, (Instant, Vec<u8>)>>,
     cache_ttl: Duration,
+}
+
+impl Default for StandardRecoveryStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl StandardRecoveryStrategy {

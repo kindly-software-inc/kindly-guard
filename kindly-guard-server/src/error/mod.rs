@@ -1,10 +1,23 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Error handling and recovery mechanisms for production resilience
 //!
 //! This module provides comprehensive error handling with security-aware design.
 //! All error types are designed to fail securely and prevent information leakage.
-//! 
+//!
 //! # Security Principles
-//! 
+//!
 //! 1. **Fail Closed**: Security errors always fail closed (deny by default)
 //! 2. **Information Hiding**: Never expose internal details in external errors
 //! 3. **Audit Trail**: All security errors generate audit events
@@ -46,7 +59,7 @@ pub enum KindlyError {
     // Validation errors
     /// Command validation failed. This occurs when user input doesn't meet
     /// expected format or contains forbidden patterns.
-    /// 
+    ///
     /// **Security Impact**: Medium - Could indicate probing for vulnerabilities
     /// **Recovery**: Fail fast, log attempt, increment failure counter
     /// **Safe Handling**: Never echo back the invalid input verbatim
@@ -54,7 +67,7 @@ pub enum KindlyError {
     ValidationError(String),
 
     /// Invalid input detected during parameter validation.
-    /// 
+    ///
     /// **Security Impact**: High - Often precedes injection attacks
     /// **Recovery**: Reject immediately, audit log with sanitized details
     /// **Safe Handling**: Return generic "Invalid input" without specifics
@@ -84,25 +97,25 @@ pub enum KindlyError {
     ScannerError(String),
 
     /// **CRITICAL SECURITY ERROR**: Active threat detected in input/output.
-    /// 
-    /// **When It Occurs**: 
+    ///
+    /// **When It Occurs**:
     /// - Unicode attacks (invisible characters, RTL override)
     /// - Injection attempts (SQL, command, path traversal)
     /// - Known malicious patterns
-    /// 
+    ///
     /// **Security Impact**: CRITICAL - Active attack in progress
     /// **Recovery**: ALWAYS FAIL CLOSED
     /// - Block the request immediately
     /// - Generate high-priority audit event
     /// - Increment threat counter for client
     /// - Consider temporary IP ban after repeated attempts
-    /// 
+    ///
     /// **Safe Handling**:
     /// - NEVER include threat details in user-facing messages
     /// - Log full details to secure audit log only
     /// - Return generic "Security policy violation" to client
     /// - Preserve evidence for forensic analysis
-    /// 
+    ///
     /// **Example Response**:
     /// ```json
     /// {
@@ -120,16 +133,16 @@ pub enum KindlyError {
 
     // Resource errors
     /// Resource exhaustion detected - possible DoS attempt.
-    /// 
+    ///
     /// **Security Impact**: High - Resource exhaustion attacks
     /// **Recovery**: Rate limit, circuit break, graceful degradation
     /// **Safe Handling**: Generic message, preserve service availability
-    /// 
+    ///
     /// **Common Scenarios**:
     /// - Memory limit exceeded (large file uploads)
     /// - Connection pool exhausted (connection flood)
     /// - CPU quota exceeded (computational DoS)
-    /// 
+    ///
     /// **Response Strategy**:
     /// - Apply exponential backoff to client
     /// - Shed load if necessary
@@ -138,7 +151,7 @@ pub enum KindlyError {
     ResourceError { resource: String, limit: String },
 
     /// Operation timeout - prevents indefinite resource holding.
-    /// 
+    ///
     /// **Security Impact**: Medium - Possible slowloris attack
     /// **Recovery**: Clean up resources, fail fast
     /// **Safe Handling**: No internal timing information in response
@@ -154,23 +167,23 @@ pub enum KindlyError {
 
     // Auth errors
     /// **CRITICAL**: Authentication failure - possible credential attack.
-    /// 
+    ///
     /// **Security Impact**: CRITICAL - Unauthorized access attempt
     /// **Recovery**: ALWAYS FAIL CLOSED
-    /// 
+    ///
     /// **Required Actions**:
     /// 1. Log to security audit with timestamp, IP, attempt details
     /// 2. Increment auth failure counter for IP/client
     /// 3. Apply progressive delay (2^n seconds after n failures)
     /// 4. Trigger account lockout after threshold (e.g., 5 attempts)
     /// 5. Alert on patterns (distributed attempts, timing attacks)
-    /// 
+    ///
     /// **Safe Handling**:
     /// - NEVER reveal why authentication failed
     /// - Use constant-time comparison for credentials
     /// - Return identical error for "user not found" vs "wrong password"
     /// - Generic message: "Authentication failed"
-    /// 
+    ///
     /// **Logging Requirements**:
     /// ```rust
     /// audit_log.critical(AuditEvent::AuthFailure {
@@ -184,16 +197,16 @@ pub enum KindlyError {
     AuthError { reason: String },
 
     /// **CRITICAL**: Authorization failure - privilege escalation attempt.
-    /// 
+    ///
     /// **Security Impact**: CRITICAL - Possible privilege escalation
     /// **Recovery**: DENY and audit
-    /// 
+    ///
     /// **Required Actions**:
     /// 1. Deny the action immediately
     /// 2. Log full context to security audit
     /// 3. Check for authorization probe patterns
     /// 4. Consider session termination for repeated attempts
-    /// 
+    ///
     /// **Safe Handling**:
     /// - Return minimal information: "Unauthorized"
     /// - Don't reveal what permissions are needed
@@ -505,12 +518,12 @@ pub mod degradation {
 pub mod security_patterns {
     use super::*;
     use tracing::{error, warn};
-    
+
     /// Example: Handle authentication errors securely
-    /// 
+    ///
     /// ```rust
     /// use kindly_guard_server::error::{KindlyError, security_patterns::handle_auth_error};
-    /// 
+    ///
     /// async fn authenticate(credentials: &Credentials) -> Result<User> {
     ///     match verify_credentials(credentials).await {
     ///         Ok(user) => Ok(user),
@@ -526,21 +539,21 @@ pub mod security_patterns {
             error = %error,
             "Authentication failed"
         );
-        
+
         // Audit event
         // audit_log.record(AuditEvent::AuthFailure { ... });
-        
+
         // Return generic error to client
         Err(KindlyError::AuthError {
             reason: "Authentication failed".to_string(), // Generic message
         })
     }
-    
+
     /// Example: Handle threat detection without information leakage
-    /// 
+    ///
     /// ```rust
     /// use kindly_guard_server::error::{KindlyError, security_patterns::handle_threat};
-    /// 
+    ///
     /// fn scan_input(input: &str) -> Result<()> {
     ///     let threats = scanner.scan_text(input)?;
     ///     if !threats.is_empty() {
@@ -558,19 +571,19 @@ pub mod security_patterns {
             input_hash = %sha256_hash(input), // Hash sensitive data
             "Threat detected"
         );
-        
+
         // Generic error for client
         Err(KindlyError::ThreatDetected {
             threat_type: "policy violation".to_string(), // Don't reveal attack type
-            location: "request".to_string(), // Don't reveal specific location
+            location: "request".to_string(),             // Don't reveal specific location
         })
     }
-    
+
     /// Example: Handle resource exhaustion with rate limiting
-    /// 
+    ///
     /// ```rust
     /// use kindly_guard_server::error::{KindlyError, security_patterns::handle_resource_limit};
-    /// 
+    ///
     /// async fn process_request(req: Request) -> Result<Response> {
     ///     if !rate_limiter.check_limit(&req.client_id).await? {
     ///         return handle_resource_limit("rate_limit", &req.client_id);
@@ -585,22 +598,22 @@ pub mod security_patterns {
             client_id = %client_id,
             "Resource limit exceeded"
         );
-        
+
         // Apply progressive penalties
         // rate_limiter.apply_penalty(client_id);
-        
+
         Err(KindlyError::ResourceError {
-            resource: "request".to_string(), // Generic resource name
+            resource: "request".to_string(),     // Generic resource name
             limit: "quota exceeded".to_string(), // Don't reveal specific limits
         })
     }
-    
+
     /// Example: Timeout handling that prevents timing attacks
-    /// 
+    ///
     /// ```rust
     /// use kindly_guard_server::error::{KindlyError, security_patterns::handle_timeout};
     /// use std::time::Duration;
-    /// 
+    ///
     /// async fn timed_operation() -> Result<String> {
     ///     match timeout(Duration::from_secs(30), operation()).await {
     ///         Ok(result) => result,
@@ -614,27 +627,27 @@ pub mod security_patterns {
             timeout_secs = timeout_secs,
             "Operation timed out"
         );
-        
+
         // Add random jitter to prevent timing analysis
         use rand::Rng;
         let jitter = rand::thread_rng().gen_range(0..5);
-        
+
         Err(KindlyError::TimeoutError(timeout_secs + jitter))
     }
-    
+
     /// Hash sensitive data for logging
     fn sha256_hash(data: &str) -> String {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         let mut hasher = Sha256::new();
         hasher.update(data.as_bytes());
         format!("{:x}", hasher.finalize())
     }
-    
+
     /// Example: Constant-time string comparison for security
-    /// 
+    ///
     /// ```rust
     /// use kindly_guard_server::error::security_patterns::constant_time_compare;
-    /// 
+    ///
     /// fn verify_token(provided: &str, expected: &str) -> bool {
     ///     constant_time_compare(provided.as_bytes(), expected.as_bytes())
     /// }
@@ -643,12 +656,12 @@ pub mod security_patterns {
         if a.len() != b.len() {
             return false;
         }
-        
+
         let mut result = 0u8;
         for (x, y) in a.iter().zip(b.iter()) {
             result |= x ^ y;
         }
-        
+
         result == 0
     }
 }
@@ -675,7 +688,7 @@ mod tests {
             || {
                 attempts += 1;
                 if attempts < 3 {
-                    Err(io::Error::new(io::ErrorKind::Other, "temp error"))
+                    Err(io::Error::other("temp error"))
                 } else {
                     Ok("success")
                 }
@@ -720,7 +733,7 @@ mod tests {
             .severity(),
             ErrorSeverity::Critical
         );
-        
+
         assert_eq!(
             KindlyError::AuthError {
                 reason: "invalid_token".to_string()
@@ -728,7 +741,7 @@ mod tests {
             .severity(),
             ErrorSeverity::Critical
         );
-        
+
         assert_eq!(
             KindlyError::Unauthorized {
                 action: "read_secrets".to_string()
@@ -736,7 +749,7 @@ mod tests {
             .severity(),
             ErrorSeverity::Critical
         );
-        
+
         // High severity
         assert_eq!(
             KindlyError::ResourceError {
@@ -746,30 +759,30 @@ mod tests {
             .severity(),
             ErrorSeverity::High
         );
-        
+
         assert_eq!(
             KindlyError::TimeoutError(30).severity(),
             ErrorSeverity::High
         );
     }
-    
+
     #[test]
     fn test_constant_time_compare() {
         use security_patterns::constant_time_compare;
-        
+
         // Equal strings
         assert!(constant_time_compare(b"secret123", b"secret123"));
-        
+
         // Different strings (same length)
         assert!(!constant_time_compare(b"secret123", b"secret124"));
-        
+
         // Different lengths
         assert!(!constant_time_compare(b"short", b"longer_string"));
-        
+
         // Empty strings
         assert!(constant_time_compare(b"", b""));
     }
-    
+
     #[test]
     fn test_error_to_protocol_code() {
         // Security-specific codes
@@ -780,7 +793,7 @@ mod tests {
             .to_protocol_code(),
             -32001
         );
-        
+
         assert_eq!(
             KindlyError::Unauthorized {
                 action: "test".to_string()
@@ -788,7 +801,7 @@ mod tests {
             .to_protocol_code(),
             -32001
         );
-        
+
         assert_eq!(
             KindlyError::ThreatDetected {
                 threat_type: "test".to_string(),
@@ -797,12 +810,9 @@ mod tests {
             .to_protocol_code(),
             -32004
         );
-        
-        assert_eq!(
-            KindlyError::TimeoutError(30).to_protocol_code(),
-            -32002
-        );
-        
+
+        assert_eq!(KindlyError::TimeoutError(30).to_protocol_code(), -32002);
+
         assert_eq!(
             KindlyError::ResourceError {
                 resource: "test".to_string(),
@@ -812,22 +822,25 @@ mod tests {
             -32003
         );
     }
-    
+
     #[test]
     fn test_security_error_messages() {
         // Auth errors should not reveal details
         let auth_err = KindlyError::AuthError {
-            reason: "user_not_found_in_database".to_string()
+            reason: "user_not_found_in_database".to_string(),
         };
         let user_msg = auth_err.user_message();
         assert!(!user_msg.contains("database"));
         assert!(!user_msg.contains("not_found"));
-        assert_eq!(user_msg, "Authentication failed. Please check your credentials.");
-        
+        assert_eq!(
+            user_msg,
+            "Authentication failed. Please check your credentials."
+        );
+
         // Threat errors should be generic
         let threat_err = KindlyError::ThreatDetected {
             threat_type: "sql_injection_union_select".to_string(),
-            location: "parameter_user_id".to_string()
+            location: "parameter_user_id".to_string(),
         };
         let user_msg = threat_err.user_message();
         assert!(!user_msg.contains("sql"));
@@ -836,27 +849,27 @@ mod tests {
         assert!(!user_msg.contains("union"));
         assert!(!user_msg.contains("user_id"));
         assert_eq!(user_msg, "Security threat detected: policy violation");
-        
+
         // Unauthorized errors should hide the action
         let unauth_err = KindlyError::Unauthorized {
-            action: "delete_all_users".to_string()
+            action: "delete_all_users".to_string(),
         };
         let user_msg = unauth_err.user_message();
         assert!(!user_msg.contains("delete"));
         assert!(!user_msg.contains("users"));
         assert_eq!(user_msg, "Unauthorized access");
-        
+
         // Resource errors should hide limits
         let resource_err = KindlyError::ResourceError {
             resource: "memory_heap".to_string(),
-            limit: "2GB".to_string()
+            limit: "2GB".to_string(),
         };
         let user_msg = resource_err.user_message();
         assert!(!user_msg.contains("memory"));
         assert!(!user_msg.contains("heap"));
         assert!(!user_msg.contains("2GB"));
         assert_eq!(user_msg, "Resource limit exceeded");
-        
+
         // Timeout errors should hide duration
         let timeout_err = KindlyError::TimeoutError(30);
         let user_msg = timeout_err.user_message();

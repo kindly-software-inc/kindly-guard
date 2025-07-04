@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Plugin system for extensible security scanning
 //!
 //! This module provides a trait-based plugin architecture that allows
@@ -14,14 +27,15 @@ use uuid::Uuid;
 
 pub mod manager;
 pub mod native;
-#[cfg(feature = "wasm")]
-pub mod wasm;
+// WASM support planned for future release
+// #[cfg(feature = "wasm")]
+// pub mod wasm;
 
 // Re-exports
 pub use manager::DefaultPluginManager;
 pub use native::NativePluginLoader;
-#[cfg(feature = "wasm")]
-pub use wasm::WasmPluginLoader;
+// #[cfg(feature = "wasm")]
+// pub use wasm::WasmPluginLoader;
 
 use crate::scanner::{Severity, Threat, ThreatType};
 
@@ -231,9 +245,9 @@ pub struct PluginConfig {
     pub allowlist: Vec<String>,
     /// Plugin denylist
     pub denylist: Vec<String>,
-    /// Enable WASM plugins
-    #[cfg(feature = "wasm")]
-    pub wasm_enabled: bool,
+    /// Enable WASM plugins (planned for future release)
+    // #[cfg(feature = "wasm")]
+    // pub wasm_enabled: bool,
     /// Maximum plugin execution time
     pub max_execution_time_ms: u64,
     /// Plugin isolation level
@@ -248,8 +262,8 @@ impl Default for PluginConfig {
             auto_load: true,
             allowlist: Vec::new(),
             denylist: Vec::new(),
-            #[cfg(feature = "wasm")]
-            wasm_enabled: true,
+            // #[cfg(feature = "wasm")]
+            // wasm_enabled: true,
             max_execution_time_ms: 5000,
             isolation_level: IsolationLevel::Standard,
         }

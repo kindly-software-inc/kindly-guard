@@ -1,10 +1,23 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Core MCP protocol types
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 /// Protocol version
-pub const PROTOCOL_VERSION: &str = "2024-11-27";
+pub const PROTOCOL_VERSION: &str = "2024-11-05";
 
 /// Request ID type
 pub type RequestId = Value;
@@ -68,8 +81,10 @@ pub struct ServerInfo {
 /// Initialize parameters
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeParams {
+    #[serde(rename = "protocolVersion")]
     pub protocol_version: String,
     pub capabilities: ClientCapabilities,
+    #[serde(rename = "clientInfo")]
     pub client_info: ClientInfo,
 }
 
@@ -85,7 +100,7 @@ pub struct ClientCapabilities {
 /// Roots capability
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RootsCapability {
-    #[serde(default)]
+    #[serde(default, rename = "listChanged")]
     pub list_changed: bool,
 }
 
@@ -96,8 +111,10 @@ pub struct SamplingCapability {}
 /// Initialize result
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitializeResult {
+    #[serde(rename = "protocolVersion")]
     pub protocol_version: String,
     pub capabilities: ServerCapabilities,
+    #[serde(rename = "serverInfo")]
     pub server_info: ServerInfo,
 }
 
@@ -135,6 +152,7 @@ pub struct LoggingCapability {}
 pub struct Tool {
     pub name: String,
     pub description: String,
+    #[serde(rename = "inputSchema")]
     pub input_schema: Value,
 }
 
@@ -159,7 +177,7 @@ pub struct Resource {
     pub name: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "mimeType")]
     pub mime_type: Option<String>,
 }
 
@@ -189,7 +207,7 @@ pub enum ResourceContentType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResourceContent {
     pub uri: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "mimeType")]
     pub mime_type: Option<String>,
     #[serde(flatten)]
     pub content: ResourceContentType,
@@ -226,7 +244,7 @@ pub mod error_codes {
     pub const METHOD_NOT_FOUND: i32 = -32601;
     pub const INVALID_PARAMS: i32 = -32602;
     pub const INTERNAL_ERROR: i32 = -32603;
-    
+
     // Custom error codes
     pub const THREAT_DETECTED: i32 = -40000;
     pub const UNAUTHORIZED: i32 = -40001;
@@ -234,12 +252,21 @@ pub mod error_codes {
 }
 
 /// Helper to create error response
-pub fn error_response(id: ResponseId, code: i32, message: String, data: Option<Value>) -> JsonRpcResponse {
+pub fn error_response(
+    id: ResponseId,
+    code: i32,
+    message: String,
+    data: Option<Value>,
+) -> JsonRpcResponse {
     JsonRpcResponse {
         jsonrpc: "2.0".to_string(),
         id,
         result: None,
-        error: Some(JsonRpcError { code, message, data }),
+        error: Some(JsonRpcError {
+            code,
+            message,
+            data,
+        }),
     }
 }
 

@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Configuration for `KindlyGuard`
 //!
 //! This module defines all security-related configuration structures for KindlyGuard.
@@ -319,6 +332,16 @@ pub struct ScannerConfig {
     /// **Requirements**: Additional memory (10-50MB depending on load)
     #[serde(default = "default_false")]
     pub enable_event_buffer: bool,
+
+    /// Maximum content size to scan (in bytes)
+    ///
+    /// **Default**: 5MB (5,242,880 bytes)
+    /// **Security**: Prevents DoS attacks through large payload scanning.
+    /// Content larger than this will be rejected with a DosPotential threat.
+    /// **Range**: 1KB-100MB (recommend 1-10MB for most use cases)
+    /// **Trade-off**: Larger values allow bigger legitimate payloads but increase DoS risk
+    #[serde(default = "default_max_content_size")]
+    pub max_content_size: usize,
 }
 
 /// Shield display configuration
@@ -469,6 +492,7 @@ impl Default for Config {
                 custom_patterns: None,
                 max_scan_depth: default_max_depth(),
                 enable_event_buffer: default_false(),
+                max_content_size: default_max_content_size(),
             },
             shield: ShieldConfig {
                 enabled: default_false(),
@@ -524,6 +548,7 @@ impl Default for ScannerConfig {
             custom_patterns: None,
             max_scan_depth: default_max_depth(),
             enable_event_buffer: default_false(),
+            max_content_size: default_max_content_size(),
         }
     }
 }
@@ -555,6 +580,9 @@ const fn default_update_interval() -> u64 {
 }
 const fn default_timeout() -> u64 {
     30
+}
+const fn default_max_content_size() -> usize {
+    5 * 1024 * 1024 // 5MB
 }
 
 /// Example secure production configuration
@@ -660,10 +688,10 @@ mod tests {
     #[test]
     fn test_security_validation() {
         let mut config = Config::default();
-        
+
         // Should warn but not error with default config
         assert!(config.validate_security().is_ok());
-        
+
         // Should error with weak JWT secret
         config.auth.jwt_secret = Some("c2hvcnQ=".to_string()); // "short" in base64
         assert!(config.validate_security().is_err());

@@ -1,6 +1,20 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Performance regression benchmarks for critical paths
 //! These benchmarks establish baselines and detect performance regressions
 
+use base64::{engine::general_purpose, Engine as _};
 use criterion::{criterion_group, criterion_main, BenchmarkId, Criterion, Throughput};
 use kindly_guard_server::{
     auth::{AuthConfig, AuthManager},
@@ -10,7 +24,6 @@ use kindly_guard_server::{
     McpServer, ScannerConfig, SecurityScanner,
 };
 use serde_json::json;
-use base64::{engine::general_purpose, Engine as _};
 use std::time::Duration;
 
 // Unicode scanning regression tests
@@ -114,8 +127,10 @@ fn bench_permission_check_regression(c: &mut Criterion) {
     let rt = tokio::runtime::Runtime::new().unwrap();
 
     let _config = Config::default();
-    use kindly_guard_server::permissions::{PermissionRules, ClientPermissions, default_tool_definitions};
-    
+    use kindly_guard_server::permissions::{
+        default_tool_definitions, ClientPermissions, PermissionRules,
+    };
+
     let permission_rules = PermissionRules {
         default_permissions: ClientPermissions {
             max_threat_level: ThreatLevel::Medium,
@@ -125,11 +140,21 @@ fn bench_permission_check_regression(c: &mut Criterion) {
         category_rules: Default::default(),
         global_deny_list: Default::default(),
     };
-    let manager = kindly_guard_server::permissions::standard::StandardPermissionManager::new(permission_rules);
+    let manager = kindly_guard_server::permissions::standard::StandardPermissionManager::new(
+        permission_rules,
+    );
 
     let scenarios = vec![
-        ("authenticated_low_threat", Some("Bearer token"), ThreatLevel::Low),
-        ("authenticated_high_threat", Some("Bearer token"), ThreatLevel::High),
+        (
+            "authenticated_low_threat",
+            Some("Bearer token"),
+            ThreatLevel::Low,
+        ),
+        (
+            "authenticated_high_threat",
+            Some("Bearer token"),
+            ThreatLevel::High,
+        ),
         ("unauthenticated_safe", None, ThreatLevel::Safe),
         ("unauthenticated_high_threat", None, ThreatLevel::High),
     ];
@@ -145,7 +170,9 @@ fn bench_permission_check_regression(c: &mut Criterion) {
         group.bench_with_input(BenchmarkId::from_parameter(name), &context, |b, context| {
             b.iter(|| {
                 rt.block_on(async {
-                    let _ = manager.check_permission("bench_client", "scan_text", context).await;
+                    let _ = manager
+                        .check_permission("bench_client", "scan_text", context)
+                        .await;
                 });
             });
         });

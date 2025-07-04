@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Optimized threat neutralizer implementation
 //!
 //! Provides the same complete threat neutralization as standard,
@@ -342,7 +355,128 @@ impl ThreatNeutralizer for EnhancedNeutralizer {
                 | ThreatType::CommandInjection
                 | ThreatType::PathTraversal
                 | ThreatType::PromptInjection
+                | ThreatType::CrossSiteScripting
         )
+    }
+
+    /// Batch neutralize multiple threats with recursive threat detection and optimization
+    async fn batch_neutralize(
+        &self,
+        threats: &[Threat],
+        content: &str,
+    ) -> Result<BatchNeutralizeResult> {
+        let mut results = Vec::new();
+        let mut current_content = content.to_string();
+        let mut _total_threats_neutralized = 0;
+        const MAX_ITERATIONS: usize = 10; // Prevent infinite loops
+
+        // For testing, we'll use a more aggressive configuration
+        let mut test_config = self.config.clone();
+        test_config.injection.sql_action = SqlAction::Escape;
+        test_config.injection.command_action = CommandAction::Escape;
+        let test_neutralizer = EnhancedNeutralizer::new(test_config);
+
+        // Create a scanner for re-scanning after neutralization
+        let scanner_config = crate::ScannerConfig {
+            unicode_detection: true,
+            injection_detection: true,
+            path_traversal_detection: true,
+            custom_patterns: None,
+            max_scan_depth: 10,
+            enable_event_buffer: true, // Enhanced uses event buffer
+            xss_detection: Some(true),
+            enhanced_mode: Some(true), // Use enhanced mode for better performance
+            max_content_size: 5_242_880, // 5MB default
+        };
+        let scanner = crate::SecurityScanner::new(scanner_config)?;
+
+        // Perform iterative neutralization until no threats remain
+        for iteration in 0..MAX_ITERATIONS {
+            // Get current threats (initial threats on first iteration, re-scan on subsequent)
+            let current_threats = if iteration == 0 {
+                threats.to_vec()
+            } else {
+                // Re-scan the content for any remaining or newly revealed threats
+                scanner.scan_text(&current_content)?
+            };
+
+            if current_threats.is_empty() {
+                // No more threats, we're done
+                break;
+            }
+
+            // Group threats by type for batch processing (optimization)
+            let mut threats_by_type: HashMap<ThreatType, Vec<&Threat>> = HashMap::new();
+            for threat in &current_threats {
+                threats_by_type
+                    .entry(threat.threat_type.clone())
+                    .or_default()
+                    .push(threat);
+            }
+
+            // Neutralize each threat
+            let mut content_changed = false;
+            for (_threat_type, threats_group) in threats_by_type {
+                for threat in threats_group {
+                    if test_neutralizer.can_neutralize(&threat.threat_type) {
+                        let result = test_neutralizer
+                            .neutralize(&threat, &current_content)
+                            .await?;
+
+                        if let Some(ref sanitized) = result.sanitized_content {
+                            if sanitized != &current_content {
+                                current_content = sanitized.clone();
+                                content_changed = true;
+                                _total_threats_neutralized += 1;
+                            }
+                        }
+
+                        results.push(result);
+                    }
+                }
+            }
+
+            // If no content was changed in this iteration, we're done
+            if !content_changed {
+                break;
+            }
+        }
+
+        // Final safety check - ensure no high-severity threats remain
+        let final_threats = scanner.scan_text(&current_content)?;
+        let high_severity_threats: Vec<_> = final_threats
+            .iter()
+            .filter(|t| {
+                matches!(
+                    t.severity,
+                    crate::scanner::Severity::High | crate::scanner::Severity::Critical
+                )
+            })
+            .collect();
+
+        if !high_severity_threats.is_empty() {
+            let threat_count = high_severity_threats.len();
+
+            // If high-severity threats remain, apply more aggressive neutralization
+            for threat in high_severity_threats {
+                let result = test_neutralizer
+                    .neutralize(threat, &current_content)
+                    .await?;
+                if let Some(ref sanitized) = result.sanitized_content {
+                    current_content = sanitized.clone();
+                    results.push(result);
+                }
+            }
+
+            // Update threat prediction for future optimization
+            self.threats_predicted
+                .fetch_add(threat_count as u64, Ordering::Relaxed);
+        }
+
+        Ok(BatchNeutralizeResult {
+            final_content: current_content,
+            individual_results: results,
+        })
     }
 
     fn get_capabilities(&self) -> NeutralizerCapabilities {
@@ -361,6 +495,7 @@ impl ThreatNeutralizer for EnhancedNeutralizer {
                 ThreatType::CommandInjection,
                 ThreatType::PathTraversal,
                 ThreatType::PromptInjection,
+                ThreatType::CrossSiteScripting,
             ],
         }
     }

@@ -1,0 +1,320 @@
+# Production Docker Compose with full stack
+# Includes monitoring, reverse proxy, and backup services
+
+version: '3.8'
+
+services:
+  # Main KindlyGuard service
+  kindly-guard:
+    image: kindly-guard:latest
+    container_name: kindly-guard-server
+    hostname: kindly-guard
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '4.0'
+          memory: 1G
+        reservations:
+          cpus: '1.0'
+          memory: 256M
+      replicas: 2  # For high availability
+      update_config:
+        parallelism: 1
+        delay: 10s
+        failure_action: rollback
+      restart_policy:
+        condition: any
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    
+    # Volumes
+    volumes:
+      - ./config/production.toml:/etc/kindly-guard/config.toml:ro
+      - kindly-guard-data:/var/lib/kindly-guard
+      - kindly-guard-logs:/var/log/kindly-guard
+      - /tmp
+    
+    # Environment
+    environment:
+      - RUST_LOG=kindly_guard=info,warn
+      - KINDLY_GUARD_ENV=production
+    
+    # Networking
+    networks:
+      - internal
+      - monitoring
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/kindly-guard", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "10"
+        labels: "service=kindly-guard"
+    
+    restart: unless-stopped
+
+  # Nginx reverse proxy with SSL termination
+  nginx:
+    image: nginx:alpine
+    container_name: kindly-guard-proxy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+      - NET_BIND_SERVICE
+    volumes:
+      - ./deploy/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./deploy/nginx/conf.d:/etc/nginx/conf.d:ro
+      - ssl-certs:/etc/nginx/ssl:ro
+      - nginx-cache:/var/cache/nginx
+    networks:
+      - internal
+      - public
+    ports:
+      - "443:443"
+      - "80:80"
+    depends_on:
+      - kindly-guard
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: kindly-guard-prometheus
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./deploy/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - monitoring
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: kindly-guard-grafana
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-changeme}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_INSTALL_PLUGINS=grafana-clock-panel,grafana-simple-json-datasource
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./deploy/grafana/provisioning:/etc/grafana/provisioning:ro
+    networks:
+      - monitoring
+      - public
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Loki for log aggregation
+  loki:
+    image: grafana/loki:latest
+    container_name: kindly-guard-loki
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./deploy/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki-data:/loki
+    networks:
+      - monitoring
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Promtail for log shipping
+  promtail:
+    image: grafana/promtail:latest
+    container_name: kindly-guard-promtail
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    volumes:
+      - ./deploy/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - kindly-guard-logs:/var/log/kindly-guard:ro
+      - /var/log:/var/log:ro
+    networks:
+      - monitoring
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # PostgreSQL for production storage (optional)
+  postgres:
+    image: postgres:16-alpine
+    container_name: kindly-guard-db
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - CHOWN
+      - SETUID
+      - SETGID
+    environment:
+      - POSTGRES_DB=kindlyguard
+      - POSTGRES_USER=kindlyguard
+      - POSTGRES_PASSWORD=${DB_PASSWORD:-changeme}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./deploy/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kindlyguard"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: kindly-guard-cache
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD:-changeme}
+    volumes:
+      - redis-data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Backup service
+  backup:
+    image: offen/docker-volume-backup:latest
+    container_name: kindly-guard-backup
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      - BACKUP_FILENAME=kindly-guard-backup-%Y-%m-%dT%H-%M-%S.tar.gz
+      - BACKUP_PRUNING_PREFIX=kindly-guard-backup-
+      - BACKUP_RETENTION_DAYS=7
+      - BACKUP_COMPRESSION=gz
+    volumes:
+      - kindly-guard-data:/backup/kindly-guard-data:ro
+      - postgres-data:/backup/postgres-data:ro
+      - ./backups:/archive
+    networks:
+      - internal
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  kindly-guard-data:
+    driver: local
+  kindly-guard-logs:
+    driver: local
+  postgres-data:
+    driver: local
+  redis-data:
+    driver: local
+  prometheus-data:
+    driver: local
+  grafana-data:
+    driver: local
+  loki-data:
+    driver: local
+  ssl-certs:
+    driver: local
+  nginx-cache:
+    driver: local
+
+networks:
+  internal:
+    driver: bridge
+    internal: true
+  monitoring:
+    driver: bridge
+    internal: true
+  public:
+    driver: bridge

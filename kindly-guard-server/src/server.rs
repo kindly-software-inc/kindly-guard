@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! MCP Server implementation with full protocol compliance
 
 use anyhow::Result;
@@ -14,7 +27,7 @@ use crate::config::Config;
 use crate::protocol::{
     error_codes, error_response, success_response, ClientInfo, InitializeParams, InitializeResult,
     JsonRpcError, JsonRpcNotification, JsonRpcRequest, JsonRpcResponse, LoggingCapability, Prompt,
-    PromptArgument, PromptsCapability, PromptsListResult, RequestId, Resource, ResourceContent,
+    PromptArgument, PromptsCapability, PromptsListResult, Resource, ResourceContent,
     ResourceContentType, ResourceReadParams, ResourcesCapability, ResourcesListResult,
     ServerCapabilities, ServerInfo, Tool, ToolCallParams, ToolsCapability, ToolsListResult,
     PROTOCOL_VERSION,
@@ -446,7 +459,7 @@ impl McpServer {
 
         // Extract authorization from params._meta.authToken
         let mut authorization: Option<String> = None;
-        
+
         // Check if authToken is in params._meta
         let params = &request.params;
         if let Some(meta) = params.get("_meta") {
@@ -598,11 +611,11 @@ impl McpServer {
             "tools/call" => {
                 // Check if it's a security scanning tool
                 let params = &request.params;
-                    if let Some(tool_name) = params.get("name").and_then(|n| n.as_str()) {
-                        !matches!(tool_name, "scan_text" | "scan_file" | "scan_json")
-                    } else {
-                        true
-                    }
+                if let Some(tool_name) = params.get("name").and_then(|n| n.as_str()) {
+                    !matches!(tool_name, "scan_text" | "scan_file" | "scan_json")
+                } else {
+                    true
+                }
             }
             _ => true,
         };
@@ -709,8 +722,14 @@ impl McpServer {
             "initialized" => self.handle_initialized(Some(request.params)).await,
             "shutdown" => self.handle_shutdown(Some(request.params)).await,
 
-            "tools/list" => self.handle_tools_list(Some(request.params), &auth_context).await,
-            "tools/call" => self.handle_tools_call(Some(request.params), &auth_context).await,
+            "tools/list" => {
+                self.handle_tools_list(Some(request.params), &auth_context)
+                    .await
+            }
+            "tools/call" => {
+                self.handle_tools_call(Some(request.params), &auth_context)
+                    .await
+            }
 
             "resources/list" => self.handle_resources_list(Some(request.params)).await,
             "resources/read" => {
@@ -1402,6 +1421,7 @@ impl McpServer {
                             crate::scanner::ThreatType::SessionIdExposure => "session_id_exposure".to_string(),
                             crate::scanner::ThreatType::ToolPoisoning => "tool_poisoning".to_string(),
                             crate::scanner::ThreatType::TokenTheft => "token_theft".to_string(),
+                            crate::scanner::ThreatType::DosPotential => "dos_potential".to_string(),
                             crate::scanner::ThreatType::Custom(s) => s.to_lowercase().replace(' ', "_"),
                         },
                         "severity": format!("{:?}", t.severity).to_lowercase(),
@@ -1486,6 +1506,7 @@ impl McpServer {
                             crate::scanner::ThreatType::SessionIdExposure => "session_id_exposure".to_string(),
                             crate::scanner::ThreatType::ToolPoisoning => "tool_poisoning".to_string(),
                             crate::scanner::ThreatType::TokenTheft => "token_theft".to_string(),
+                            crate::scanner::ThreatType::DosPotential => "dos_potential".to_string(),
                             crate::scanner::ThreatType::Custom(s) => s.to_lowercase().replace(' ', "_"),
                         },
                         "severity": format!("{:?}", t.severity).to_lowercase(),
@@ -1546,6 +1567,7 @@ impl McpServer {
                             crate::scanner::ThreatType::SessionIdExposure => "session_id_exposure".to_string(),
                             crate::scanner::ThreatType::ToolPoisoning => "tool_poisoning".to_string(),
                             crate::scanner::ThreatType::TokenTheft => "token_theft".to_string(),
+                            crate::scanner::ThreatType::DosPotential => "dos_potential".to_string(),
                             crate::scanner::ThreatType::Custom(s) => s.to_lowercase().replace(' ', "_"),
                         },
                         "severity": format!("{:?}", t.severity).to_lowercase(),
@@ -2175,10 +2197,7 @@ impl McpServer {
     pub async fn run_proxy(self: Arc<Self>, bind_addr: &str) -> Result<()> {
         use crate::transport::ProxyTransport;
 
-        info!(
-            "Starting KindlyGuard as HTTPS proxy at {}",
-            bind_addr
-        );
+        info!("Starting KindlyGuard as HTTPS proxy at {}", bind_addr);
         self.shield.set_active(true);
 
         // Log server startup to audit

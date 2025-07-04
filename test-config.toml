@@ -1,0 +1,35 @@
+# Test configuration for KindlyGuard with shield display
+
+[server]
+host = "127.0.0.1"
+port = 8080
+max_connections = 100
+
+[scanner]
+unicode_detection = true
+injection_detection = true
+path_traversal_detection = true
+xss_detection = true
+enhanced_mode = false
+max_scan_depth = 10
+max_content_size = 5242880  # 5MB
+
+[shield]
+enabled = true
+update_interval_ms = 100
+show_metrics = true
+show_threats = true
+show_status = true
+
+[auth]
+enabled = false  # Disabled for testing
+trusted_issuers = []
+
+[rate_limit]
+enabled = true
+default_rpm = 60
+default_burst = 10
+
+[logging]
+level = "info"
+format = "pretty"

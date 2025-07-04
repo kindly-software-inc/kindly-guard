@@ -1,0 +1,261 @@
+#!/bin/bash
+#
+# KindlyGuard Pre-commit Hook
+# Prevents accidental commits of proprietary technology details
+#
+# Categories:
+# - HIGH RISK: Exact proprietary class/struct names and algorithms
+# - MEDIUM RISK: Implementation details that could reveal architecture
+# - LOW RISK: Generic terms that need context
+#
+
+# Colors for output
+RED='\033[0;31m'
+YELLOW='\033[1;33m'
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+NC='\033[0m' # No Color
+
+# Function to check for sensitive terms
+check_sensitive_terms() {
+    local file="$1"
+    local found=0
+    
+    # HIGH RISK: Exact proprietary class/struct names
+    local high_risk_exact=(
+        # Core implementation classes
+        "AtomicBitPackedEventBuffer"
+        "HierarchicalRateLimiter" 
+        "CpuTokenBucket"
+        "EventRingBuffer"
+        "TokenStealer"
+        "AtomicMetrics"
+        "EnhancedComponentFactory"
+        "StandardComponentFactory"
+        
+        # Private dependency
+        "kindly-guard-core"
+        "kindly_guard_core"
+        
+        # Specific constants that reveal implementation
+        "FLAG_COMPRESSED"
+        "MAX_COMPRESSION_RATIO"
+        "FAILURE_SHIFT.*48"
+        "SUCCESS_SHIFT.*32"
+        "TOKENS_SHIFT.*24"
+        "RATIO_SHIFT.*16"
+        "FLAGS_SHIFT.*8"
+        "STEAL_THRESHOLD.*0\.2"
+        "MAX_CORES.*128"
+    )
+    
+    # HIGH RISK: Algorithms and techniques
+    local high_risk_algorithms=(
+        # Specific algorithms
+        "Chase[- ]?Lev\s+(deque|algorithm)"
+        "bit[- ]?packed\s+atomic\s+state\s+machine"
+        "per[- ]?CPU\s+token\s+bucket"
+        "NUMA[- ]?aware\s+stealing"
+        "work[- ]?stealing.*rate.*limit"
+        
+        # Security features
+        "compression\s+bomb\s+(detection|prevention)"
+        "constant[- ]?time\s+compression"
+        "security[- ]?hardened.*atomic"
+        
+        # Implementation patterns
+        "cache\s+line\s+align(ed|ment).*64"
+        "lock[- ]?free\s+ring\s+buffer"
+        "atomic\s+state\s+machine"
+        "hierarchical\s+rate\s+limit"
+        "bit[- ]?packed\s+state"
+        "per[- ]?endpoint\s+state\s+machines"
+    )
+    
+    # HIGH RISK: Performance metrics revealing advantage
+    local high_risk_metrics=(
+        # Specific performance numbers
+        "27x.*throughput.*improvement"
+        "27x.*speedup"
+        "9\.9x.*improvement"
+        "56\.7x.*latency"
+        "3[- ]?5x.*performance"
+        "90%.*local\s+hit\s+rate"
+        "linear\s+scaling.*64\+?\s+cores"
+        
+        # Benchmark results
+        "0\.9x.*1\s+core"
+        "2\.4x.*4\s+cores"  
+        "7\.8x.*16\s+cores"
+        "27\.5x.*64\s+cores"
+        
+        # Latency metrics
+        "P50.*~?10ns"
+        "P99.*~?100ns"
+        "P99\.9.*~?500ns"
+    )
+    
+    # MEDIUM RISK: Technical implementation details
+    local medium_risk_terms=(
+        # CPU instructions and models
+        "MESI\s+protocol"
+        "TSO.*Total\s+Store\s+Order"
+        "LDXR.*STXR.*instructions"
+        "prefetch_read_data"
+        "compare_exchange_weak"
+        
+        # Advanced features
+        "enhanced_mode"
+        "enhanced_impl"
+        "standard_impl"
+        "trait[- ]?based.*stealth"
+        "stealth.*integration"
+        
+        # Patent references
+        "patent(ed|able).*implementation"
+        "proprietary.*buffer"
+        "proprietary.*technology"
+    )
+    
+    # Check HIGH RISK exact terms
+    for term in "${high_risk_exact[@]}"; do
+        if grep -qE "\b${term}\b" "$file"; then
+            echo -e "${RED}ERROR: Found proprietary class/constant in $file: ${YELLOW}$term${NC}"
+            found=1
+        fi
+    done
+    
+    # Check HIGH RISK algorithms (case insensitive)
+    for term in "${high_risk_algorithms[@]}"; do
+        if grep -qiE "$term" "$file"; then
+            echo -e "${RED}ERROR: Found proprietary algorithm in $file: ${YELLOW}$term${NC}"
+            found=1
+        fi
+    done
+    
+    # Check HIGH RISK metrics
+    for term in "${high_risk_metrics[@]}"; do
+        if grep -qiE "$term" "$file"; then
+            echo -e "${RED}ERROR: Found proprietary performance metric in $file: ${YELLOW}$term${NC}"
+            found=1
+        fi
+    done
+    
+    # Check MEDIUM RISK terms
+    for term in "${medium_risk_terms[@]}"; do
+        if grep -qiE "$term" "$file"; then
+            echo -e "${YELLOW}WARNING: Found implementation detail in $file: ${BLUE}$term${NC}"
+            found=1
+        fi
+    done
+    
+    return $found
+}
+
+# Function to check for allowed exceptions
+is_allowed_file() {
+    local file="$1"
+    
+    # Files that are allowed to contain sensitive terms
+    local allowed_files=(
+        # Documentation of future features
+        "docs/FUTURE_INNOVATIONS.md"
+        "docs/HIERARCHICAL_RATE_LIMITER.md"
+        "docs/ATOMIC_STATE_MACHINE.md"
+        "docs/COMPRESSION_SECURITY.md"
+        "docs/PERFORMANCE_ATOMIC_STATE.md"
+        
+        # Actual implementation files
+        "src/enhanced_impl/hierarchical_rate_limiter.rs"
+        "src/enhanced_impl/event_buffer.rs"
+        "src/enhanced_impl/mod.rs"
+        
+        # Benchmarks
+        "benches/rate_limiter_comparison.rs"
+        "benches/atomic_state_benchmark.rs"
+        
+        # This hook itself
+        ".githooks/pre-commit"
+        ".github/workflows/security-check.yml"
+    )
+    
+    for allowed in "${allowed_files[@]}"; do
+        if [[ "$file" == *"$allowed" ]]; then
+            return 0
+        fi
+    done
+    
+    return 1
+}
+
+# Main pre-commit check
+main() {
+    local exit_code=0
+    
+    echo -e "${GREEN}Running KindlyGuard security pre-commit checks...${NC}"
+    echo -e "${BLUE}Checking for proprietary technology leaks...${NC}"
+    echo ""
+    
+    # Get list of staged files
+    local files=$(git diff --cached --name-only --diff-filter=ACM)
+    
+    if [ -z "$files" ]; then
+        echo "No files staged for commit."
+        exit 0
+    fi
+    
+    local checked_files=0
+    local skipped_files=0
+    
+    # Check each staged file
+    while IFS= read -r file; do
+        # Skip if file doesn't exist (deleted)
+        if [ ! -f "$file" ]; then
+            continue
+        fi
+        
+        # Skip binary files
+        if file "$file" | grep -q "binary"; then
+            continue
+        fi
+        
+        # Skip allowed files
+        if is_allowed_file "$file"; then
+            echo -e "${BLUE}ℹ Skipping allowed file: $file${NC}"
+            ((skipped_files++))
+            continue
+        fi
+        
+        ((checked_files++))
+        
+        # Check for sensitive terms
+        if check_sensitive_terms "$file"; then
+            exit_code=1
+        fi
+    done <<< "$files"
+    
+    echo ""
+    echo -e "Checked ${checked_files} files (skipped ${skipped_files} allowed files)"
+    
+    if [ $exit_code -eq 0 ]; then
+        echo -e "${GREEN}✓ Pre-commit security checks passed!${NC}"
+    else
+        echo -e "\n${RED}✗ Pre-commit security checks failed!${NC}"
+        echo -e "${YELLOW}Please remove references to proprietary implementations from public files.${NC}"
+        echo ""
+        echo -e "${YELLOW}Options:${NC}"
+        echo -e "  1. Move technical details to ${GREEN}docs/FUTURE_INNOVATIONS.md${NC}"
+        echo -e "  2. Use generic terms instead of specific implementation names"
+        echo -e "  3. Keep implementation details in ${GREEN}src/enhanced_impl/${NC} only"
+        echo ""
+        echo -e "${RED}To bypass this check (NOT RECOMMENDED):${NC}"
+        echo -e "  ${BLUE}git commit --no-verify${NC}"
+        echo ""
+        echo -e "${YELLOW}Remember: These features are competitive advantages for v2.0!${NC}"
+    fi
+    
+    exit $exit_code
+}
+
+# Run main function
+main

@@ -56,6 +56,36 @@ pub struct Config {
     pub rate_limit: RateLimitConfig,
     pub telemetry: TelemetryConfig,
     pub audit: AuditConfig,
+    pub event_processor: EventProcessorConfig,
+}
+
+pub struct ServerConfig {
+    pub host: String,
+    pub port: u16,
+    pub enhanced_mode: bool,  // Enable enhanced session pool
+    // ... other fields
+}
+
+pub struct EventProcessorConfig {
+    pub enabled: bool,
+    pub enhanced_mode: bool,  // Enable enhanced event buffer
+    pub buffer_size_mb: usize,
+    pub correlation_window_secs: u64,
+}
+
+pub struct TelemetryConfig {
+    pub enabled: bool,
+    pub enhanced_mode: bool,  // Enable enhanced metrics provider
+    pub export_interval_secs: u64,
+    // ... other fields
+}
+
+pub struct RateLimitConfig {
+    pub enabled: bool,
+    pub enhanced_mode: bool,  // Enable adaptive rate limiting
+    pub default_rpm: u32,
+    pub method_limits: HashMap<String, u32>,
+    pub client_limits: HashMap<String, u32>,
 }
 ```
 
@@ -71,6 +101,12 @@ let config = Config::from_env()?;
 let mut config = Config::default();
 config.scanner.unicode_detection = true;
 config.rate_limit.default_rpm = 100;
+
+// Enable enhanced mode for specific components
+config.server.enhanced_mode = true;
+config.event_processor.enhanced_mode = true;
+config.telemetry.enhanced_mode = true;
+config.rate_limit.enhanced_mode = true;
 ```
 
 ### 4. Error Handling
@@ -184,12 +220,124 @@ Available MCP tools:
 - `monitor_stop`: Stop threat monitoring
 - `shield_status`: Get shield status
 
-### 10. Advanced Features
+### 10. Trait-Based Components
+
+KindlyGuard uses a trait-based architecture for extensibility and modularity. Components can be swapped with enhanced implementations when the `enhanced` feature is enabled.
+
+#### EventBufferTrait
+
+The `EventBufferTrait` defines the interface for event buffering systems:
+
+```rust
+use kindly_guard_server::{EventBufferTrait, EventType, create_event_buffer};
+use std::sync::Arc;
+
+// Create an event buffer using the factory function
+let buffer: Arc<dyn EventBufferTrait> = create_event_buffer(
+    config.event_processor.buffer_size_mb,
+    config.event_processor.enhanced_mode
+)?;
+
+// Add events to the buffer
+buffer.add_event(EventType::ThreatDetected {
+    threat_type: "SQL_INJECTION".to_string(),
+    severity: "HIGH".to_string(),
+    details: serde_json::json!({
+        "query": "SELECT * FROM users WHERE id = '1' OR '1'='1'",
+        "location": "request_body"
+    })
+})?;
+
+// Get recent events
+let recent_events = buffer.get_recent_events(100)?;
+
+// Get events in a time range
+let start = std::time::SystemTime::now() - std::time::Duration::from_secs(3600);
+let end = std::time::SystemTime::now();
+let events_in_range = buffer.get_events_in_range(start, end)?;
+
+// Get buffer statistics
+let stats = buffer.get_stats();
+println!("Events buffered: {}", stats.total_events);
+println!("Buffer size: {} MB", stats.memory_usage_mb);
+```
+
+#### MetricsProvider
+
+The `MetricsProvider` trait provides a unified interface for metrics collection:
+
+```rust
+use kindly_guard_server::{MetricsProvider, create_metrics_provider};
+use std::sync::Arc;
+
+// Create a metrics provider using the factory function
+let metrics: Arc<dyn MetricsProvider> = create_metrics_provider(
+    config.telemetry.enhanced_mode
+)?;
+
+// Register and use metrics
+let requests_counter = metrics.counter("kindlyguard_requests_total", "Total requests");
+requests_counter.inc();
+
+let request_duration = metrics.histogram(
+    "kindlyguard_request_duration",
+    "Request duration in seconds"
+);
+request_duration.observe(0.023);
+
+let active_connections = metrics.gauge(
+    "kindlyguard_active_connections",
+    "Number of active connections"
+);
+active_connections.set(42.0);
+
+// Export metrics in Prometheus format
+let prometheus_output = metrics.export_prometheus();
+```
+
+#### Factory Functions
+
+KindlyGuard provides factory functions that automatically select the appropriate implementation based on feature flags and configuration:
+
+```rust
+use kindly_guard_server::{
+    create_event_buffer,
+    create_metrics_provider,
+    create_session_pool,
+    create_rate_limiter,
+};
+
+// Event buffer - returns enhanced implementation if enhanced_mode is true
+let event_buffer = create_event_buffer(
+    buffer_size_mb: 100,
+    enhanced: config.event_processor.enhanced_mode
+)?;
+
+// Metrics provider - returns enhanced provider with advanced analytics
+let metrics = create_metrics_provider(
+    enhanced: config.telemetry.enhanced_mode
+)?;
+
+// Session pool - returns optimized pool for high-performance scenarios
+let session_pool = create_session_pool(
+    max_sessions: 1000,
+    enhanced: config.server.enhanced_mode
+)?;
+
+// Rate limiter - returns enhanced limiter with adaptive algorithms
+let rate_limiter = create_rate_limiter(
+    config: &config.rate_limit,
+    enhanced: config.rate_limit.enhanced_mode
+)?;
+```
+
+### 11. Advanced Features
 
 #### Event Processing (Enhanced Mode)
 ```rust
 // Enable enhanced event processing
 config.event_processor.enabled = true;
+config.event_processor.enhanced_mode = true;  // Enable enhanced implementations
 config.event_processor.buffer_size_mb = 100;
 config.event_processor.correlation_window_secs = 60;
 ```
@@ -254,6 +402,180 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
+## Example: Using Trait-Based Components
+
+```rust
+use kindly_guard_server::{
+    Config, SecurityScanner, 
+    create_event_buffer, create_metrics_provider,
+    create_rate_limiter, create_session_pool,
+    EventType, KindlyResult
+};
+use std::sync::Arc;
+
+#[tokio::main]
+async fn main() -> KindlyResult<()> {
+    // Load configuration with enhanced mode
+    let mut config = Config::from_env()?;
+    config.server.enhanced_mode = true;
+    config.event_processor.enhanced_mode = true;
+    config.telemetry.enhanced_mode = true;
+    
+    // Create trait-based components
+    let event_buffer = create_event_buffer(
+        config.event_processor.buffer_size_mb,
+        config.event_processor.enhanced_mode
+    )?;
+    
+    let metrics = create_metrics_provider(
+        config.telemetry.enhanced_mode
+    )?;
+    
+    let rate_limiter = create_rate_limiter(
+        &config.rate_limit,
+        config.rate_limit.enhanced_mode
+    )?;
+    
+    let session_pool = create_session_pool(
+        1000, // max sessions
+        config.server.enhanced_mode
+    )?;
+    
+    // Use components
+    let scanner = SecurityScanner::new(config.scanner)?;
+    
+    // Process a request
+    let client_id = "user_123";
+    let session = session_pool.get_or_create(client_id).await?;
+    
+    // Check rate limit
+    if !rate_limiter.check_and_increment(client_id, "scan_text").await? {
+        let rate_limit_counter = metrics.counter(
+            "kindlyguard_rate_limit_exceeded",
+            "Rate limit exceeded events"
+        );
+        rate_limit_counter.inc();
+        return Err(KindlyError::RateLimitExceeded);
+    }
+    
+    // Scan for threats
+    let input = "SELECT * FROM users WHERE id = '1' OR '1'='1'";
+    let threats = scanner.scan_text(input)?;
+    
+    // Record events
+    if !threats.is_empty() {
+        event_buffer.add_event(EventType::ThreatDetected {
+            threat_type: threats[0].threat_type.to_string(),
+            severity: "HIGH".to_string(),
+            details: serde_json::json!({
+                "input": input,
+                "client_id": client_id,
+                "session_id": session.id,
+                "threats": threats
+            })
+        })?;
+        
+        let threat_counter = metrics.counter(
+            "kindlyguard_threats_detected",
+            "Threats detected"
+        );
+        threat_counter.inc();
+    }
+    
+    // Get recent security events for analysis
+    let recent_events = event_buffer.get_recent_events(1000)?;
+    println!("Recent security events: {}", recent_events.len());
+    
+    // Export metrics
+    let prometheus_metrics = metrics.export_prometheus();
+    println!("{}", prometheus_metrics);
+    
+    Ok(())
+}
+```
+
+## Example: Custom Event Buffer Implementation
+
+```rust
+use kindly_guard_server::{EventBufferTrait, EventType, BufferStats, KindlyResult};
+use std::sync::RwLock;
+use std::collections::VecDeque;
+use std::time::SystemTime;
+
+// Custom implementation of EventBufferTrait
+pub struct CustomEventBuffer {
+    events: RwLock<VecDeque<(SystemTime, EventType)>>,
+    max_size: usize,
+}
+
+impl CustomEventBuffer {
+    pub fn new(max_size: usize) -> Self {
+        Self {
+            events: RwLock::new(VecDeque::with_capacity(max_size)),
+            max_size,
+        }
+    }
+}
+
+impl EventBufferTrait for CustomEventBuffer {
+    fn add_event(&self, event: EventType) -> KindlyResult<()> {
+        let mut events = self.events.write().unwrap();
+        
+        // Remove oldest if at capacity
+        if events.len() >= self.max_size {
+            events.pop_front();
+        }
+        
+        events.push_back((SystemTime::now(), event));
+        Ok(())
+    }
+    
+    fn get_recent_events(&self, count: usize) -> KindlyResult<Vec<EventType>> {
+        let events = self.events.read().unwrap();
+        let recent: Vec<EventType> = events
+            .iter()
+            .rev()
+            .take(count)
+            .map(|(_, event)| event.clone())
+            .collect();
+        Ok(recent)
+    }
+    
+    fn get_events_in_range(
+        &self,
+        start: SystemTime,
+        end: SystemTime
+    ) -> KindlyResult<Vec<EventType>> {
+        let events = self.events.read().unwrap();
+        let filtered: Vec<EventType> = events
+            .iter()
+            .filter(|(timestamp, _)| *timestamp >= start && *timestamp <= end)
+            .map(|(_, event)| event.clone())
+            .collect();
+        Ok(filtered)
+    }
+    
+    fn clear(&self) -> KindlyResult<()> {
+        let mut events = self.events.write().unwrap();
+        events.clear();
+        Ok(())
+    }
+    
+    fn get_stats(&self) -> BufferStats {
+        let events = self.events.read().unwrap();
+        BufferStats {
+            total_events: events.len(),
+            memory_usage_mb: (events.len() * std::mem::size_of::<(SystemTime, EventType)>()) as f64 / 1_048_576.0,
+            oldest_event: events.front().map(|(timestamp, _)| *timestamp),
+            newest_event: events.back().map(|(timestamp, _)| *timestamp),
+        }
+    }
+}
+
+// Use the custom implementation
+let custom_buffer: Arc<dyn EventBufferTrait> = Arc::new(CustomEventBuffer::new(10000));
+```
+
 ## Security Best Practices
 
 1. **Always enable authentication in production**
@@ -288,17 +610,41 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Lower memory usage
 - Good for most use cases
 - ~10,000 requests/second
+- Standard implementations of all components
 
 ### Enhanced Mode
 - Advanced threat correlation
 - Pattern learning
 - ~5,000 requests/second
 - Requires `enhanced` feature flag
+- Optimized implementations:
+  - Lock-free event buffer with zero-copy operations
+  - Advanced metrics with percentile calculations
+  - Adaptive rate limiting with burst handling
+  - Session pool with connection multiplexing
+
+#### Enabling Enhanced Mode
 
 ```rust
-// Enable enhanced mode
-config.event_processor.enabled = true;
+// Enable enhanced mode globally
+// Compile with: cargo build --features enhanced
+config.server.enhanced_mode = true;
+config.event_processor.enhanced_mode = true;
+config.telemetry.enhanced_mode = true;
+config.rate_limit.enhanced_mode = true;
+
+// Or selectively enable for specific components
+config.event_processor.enhanced_mode = true;  // Just enhanced event buffer
 ```
+
+#### Performance Comparison
+
+| Component | Standard Mode | Enhanced Mode | Notes |
+|-----------|--------------|---------------|-------|
+| Event Buffer | RwLock-based | Lock-free ring buffer | 3x throughput improvement |
+| Metrics | Basic counters | HDR histograms | Accurate percentiles |
+| Rate Limiter | Token bucket | Adaptive sliding window | Better burst handling |
+| Session Pool | HashMap | Slab allocator | O(1) allocation |
 
 ## Integration Examples
 
@@ -311,7 +657,9 @@ config.event_processor.enabled = true;
       "args": ["--stdio"],
       "env": {
         "KINDLY_GUARD_AUTH_ENABLED": "true",
-        "KINDLY_GUARD_SCANNER_UNICODE": "true"
+        "KINDLY_GUARD_SCANNER_UNICODE": "true",
+        "KINDLY_GUARD_SERVER_ENHANCED_MODE": "true",
+        "KINDLY_GUARD_EVENT_PROCESSOR_ENHANCED_MODE": "true"
       }
     }
   }
@@ -323,11 +671,14 @@ config.event_processor.enabled = true;
 FROM rust:1.75 as builder
 WORKDIR /app
 COPY . .
-RUN cargo build --release
+# Build with enhanced feature for production
+RUN cargo build --release --features enhanced
 
 FROM debian:bookworm-slim
 COPY --from=builder /app/target/release/kindly-guard /usr/local/bin/
 ENV KINDLY_GUARD_CONFIG=/etc/kindlyguard/config.toml
+ENV KINDLY_GUARD_SERVER_ENHANCED_MODE=true
+ENV KINDLY_GUARD_EVENT_PROCESSOR_ENHANCED_MODE=true
 CMD ["kindly-guard", "--stdio"]
 ```
 

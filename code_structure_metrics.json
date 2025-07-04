@@ -1,0 +1,352 @@
+{
+  "core_files": {
+    "traits.rs": {
+      "traits": 39,
+      "impls": 4,
+      "trait_impls": 4,
+      "functions": 104,
+      "structs": 52,
+      "enums": 12
+    },
+    "lib.rs": {
+      "traits": 2,
+      "impls": 0,
+      "trait_impls": 0,
+      "functions": 2,
+      "structs": 0,
+      "enums": 0
+    },
+    "main.rs": {
+      "traits": 0,
+      "impls": 0,
+      "trait_impls": 0,
+      "functions": 4,
+      "structs": 1,
+      "enums": 0
+    },
+    "server.rs": {
+      "traits": 0,
+      "impls": 4,
+      "trait_impls": 3,
+      "functions": 69,
+      "structs": 6,
+      "enums": 2
+    },
+    "config.rs": {
+      "traits": 0,
+      "impls": 5,
+      "trait_impls": 4,
+      "functions": 23,
+      "structs": 10,
+      "enums": 0
+    },
+    "component_selector.rs": {
+      "traits": 0,
+      "impls": 2,
+      "trait_impls": 1,
+      "functions": 35,
+      "structs": 4,
+      "enums": 0
+    },
+    "standard_impl.rs": {
+      "traits": 2,
+      "impls": 11,
+      "trait_impls": 9,
+      "functions": 36,
+      "structs": 11,
+      "enums": 0
+    },
+    "event_processor.rs": {
+      "traits": 4,
+      "impls": 9,
+      "trait_impls": 11,
+      "functions": 31,
+      "structs": 10,
+      "enums": 6
+    },
+    "rate_limit.rs": {
+      "traits": 0,
+      "impls": 3,
+      "trait_impls": 1,
+      "functions": 25,
+      "structs": 12,
+      "enums": 2
+    },
+    "signing.rs": {
+      "traits": 0,
+      "impls": 3,
+      "trait_impls": 2,
+      "functions": 16,
+      "structs": 8,
+      "enums": 2
+    },
+    "logging.rs": {
+      "traits": 0,
+      "impls": 3,
+      "trait_impls": 1,
+      "functions": 21,
+      "structs": 6,
+      "enums": 2
+    },
+    "daemon.rs": {
+      "traits": 0,
+      "impls": 3,
+      "trait_impls": 2,
+      "functions": 22,
+      "structs": 4,
+      "enums": 0
+    },
+    "auth.rs": {
+      "traits": 0,
+      "impls": 5,
+      "trait_impls": 3,
+      "functions": 40,
+      "structs": 13,
+      "enums": 4
+    },
+    "versioning.rs": {
+      "traits": 0,
+      "impls": 3,
+      "trait_impls": 1,
+      "functions": 18,
+      "structs": 8,
+      "enums": 2
+    }
+  },
+  "modules": {
+    "scanner": {
+      "total_lines": 2715,
+      "code_lines": 1713,
+      "comment_lines": 714,
+      "files": 6,
+      "traits": 4,
+      "impls": 16,
+      "trait_impls": 12,
+      "functions": 121,
+      "structs": 20,
+      "enums": 9,
+      "submodules": []
+    },
+    "neutralizer": {
+      "total_lines": 7053,
+      "code_lines": 4875,
+      "comment_lines": 1289,
+      "files": 13,
+      "traits": 6,
+      "impls": 42,
+      "trait_impls": 25,
+      "functions": 320,
+      "structs": 88,
+      "enums": 29,
+      "submodules": []
+    },
+    "transport": {
+      "total_lines": 2427,
+      "code_lines": 1745,
+      "comment_lines": 324,
+      "files": 7,
+      "traits": 12,
+      "impls": 39,
+      "trait_impls": 24,
+      "functions": 275,
+      "structs": 77,
+      "enums": 2,
+      "submodules": []
+    },
+    "resilience": {
+      "total_lines": 2367,
+      "code_lines": 1834,
+      "comment_lines": 229,
+      "files": 8,
+      "traits": 3,
+      "impls": 40,
+      "trait_impls": 22,
+      "functions": 224,
+      "structs": 70,
+      "enums": 4,
+      "submodules": []
+    },
+    "storage": {
+      "total_lines": 1177,
+      "code_lines": 887,
+      "comment_lines": 142,
+      "files": 3,
+      "traits": 4,
+      "impls": 14,
+      "trait_impls": 6,
+      "functions": 209,
+      "structs": 38,
+      "enums": 2,
+      "submodules": []
+    },
+    "telemetry": {
+      "total_lines": 1822,
+      "code_lines": 1363,
+      "comment_lines": 185,
+      "files": 5,
+      "traits": 6,
+      "impls": 25,
+      "trait_impls": 11,
+      "functions": 153,
+      "structs": 54,
+      "enums": 8,
+      "submodules": []
+    },
+    "permissions": {
+      "total_lines": 845,
+      "code_lines": 637,
+      "comment_lines": 99,
+      "files": 3,
+      "traits": 6,
+      "impls": 9,
+      "trait_impls": 7,
+      "functions": 44,
+      "structs": 20,
+      "enums": 6,
+      "submodules": []
+    },
+    "audit": {
+      "total_lines": 2746,
+      "code_lines": 1479,
+      "comment_lines": 965,
+      "files": 5,
+      "traits": 8,
+      "impls": 16,
+      "trait_impls": 8,
+      "functions": 171,
+      "structs": 46,
+      "enums": 11,
+      "submodules": []
+    },
+    "plugins": {
+      "total_lines": 1149,
+      "code_lines": 825,
+      "comment_lines": 152,
+      "files": 4,
+      "traits": 7,
+      "impls": 20,
+      "trait_impls": 14,
+      "functions": 134,
+      "structs": 33,
+      "enums": 2,
+      "submodules": []
+    },
+    "shield": {
+      "total_lines": 1386,
+      "code_lines": 1096,
+      "comment_lines": 123,
+      "files": 4,
+      "traits": 0,
+      "impls": 5,
+      "trait_impls": 1,
+      "functions": 88,
+      "structs": 21,
+      "enums": 4,
+      "submodules": []
+    },
+    "web": {
+      "total_lines": 174,
+      "code_lines": 127,
+      "comment_lines": 21,
+      "files": 3,
+      "traits": 0,
+      "impls": 4,
+      "trait_impls": 1,
+      "functions": 18,
+      "structs": 9,
+      "enums": 0,
+      "submodules": []
+    },
+    "protocol": {
+      "total_lines": 625,
+      "code_lines": 429,
+      "comment_lines": 128,
+      "files": 3,
+      "traits": 0,
+      "impls": 1,
+      "trait_impls": 0,
+      "functions": 11,
+      "structs": 80,
+      "enums": 8,
+      "submodules": []
+    },
+    "security": {
+      "total_lines": 685,
+      "code_lines": 500,
+      "comment_lines": 85,
+      "files": 3,
+      "traits": 0,
+      "impls": 12,
+      "trait_impls": 4,
+      "functions": 58,
+      "structs": 18,
+      "enums": 4,
+      "submodules": []
+    },
+    "metrics": {
+      "total_lines": 485,
+      "code_lines": 333,
+      "comment_lines": 82,
+      "files": 3,
+      "traits": 1,
+      "impls": 10,
+      "trait_impls": 11,
+      "functions": 33,
+      "structs": 18,
+      "enums": 0,
+      "submodules": []
+    },
+    "cli": {
+      "total_lines": 924,
+      "code_lines": 701,
+      "comment_lines": 104,
+      "files": 3,
+      "traits": 0,
+      "impls": 1,
+      "trait_impls": 0,
+      "functions": 48,
+      "structs": 6,
+      "enums": 4,
+      "submodules": []
+    },
+    "error": {
+      "total_lines": 866,
+      "code_lines": 517,
+      "comment_lines": 246,
+      "files": 1,
+      "traits": 2,
+      "impls": 3,
+      "trait_impls": 1,
+      "functions": 51,
+      "structs": 2,
+      "enums": 6,
+      "submodules": []
+    },
+    "enhanced_impl": {
+      "total_lines": 681,
+      "code_lines": 472,
+      "comment_lines": 98,
+      "files": 2,
+      "traits": 0,
+      "impls": 5,
+      "trait_impls": 5,
+      "functions": 32,
+      "structs": 8,
+      "enums": 0,
+      "submodules": []
+    }
+  },
+  "totals": {
+    "total_lines": 36355,
+    "code_lines": 25441,
+    "comment_lines": 6284,
+    "files": 90,
+    "traits": 59,
+    "impls": 262,
+    "trait_impls": 152,
+    "functions": 1990,
+    "structs": 608,
+    "enums": 99
+  },
+  "factory_count": 122
+}

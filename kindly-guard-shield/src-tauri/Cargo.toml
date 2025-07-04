@@ -2,6 +2,7 @@
 name = "kindly-guard-shield"
 version = "0.1.0"
 edition = "2021"
+license = "Apache-2.0"
 
 [lib]
 name = "kindly_guard_shield_lib"
@@ -58,12 +59,9 @@ dirs = "5.0"
 # Binary protocol dependencies
 byteorder = "1.5"
 
-# Private enhanced dependency (optional)
-kindly-guard-core = { path = "../../kindly-guard-core", optional = true }
-
 [features]
 default = []
-enhanced = ["kindly-guard-core"]
+enhanced = []
 
 [build-dependencies]
 tauri-build = { version = "2.0", features = [] }

@@ -2,8 +2,8 @@
 name = "kindly-guard-core"
 version = "0.1.0"
 edition = "2021"
-description = "Private enhanced core library for KindlyGuard"
-license = "Proprietary"
+description = "Enhanced core library for KindlyGuard"
+license = "Apache-2.0"
 
 [dependencies]
 serde = { version = "1.0", features = ["derive"] }
@@ -21,5 +21,19 @@ crossbeam = "0.8"
 # For compression
 flate2 = "1.0"
 
+# For terminal animations
+crossterm = { version = "0.28", optional = true }
+
+# For random number generation
+rand = "0.8"
+
+# For async runtime
+tokio = { version = "1.41", features = ["time", "sync"] }
+
+# For async streams
+futures = { version = "0.3", optional = true }
+
 [features]
 default = []
+enhanced = ["crossterm", "futures"]
+premium = ["enhanced"]

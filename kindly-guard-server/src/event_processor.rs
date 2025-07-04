@@ -1,7 +1,20 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Enhanced Security Event Processor
 //! Provides high-performance security event tracking and correlation
 
-use crate::traits::EventBufferTrait;
+use crate::traits::{CircuitState, EventBufferTrait};
 use anyhow::{Context, Result};
 use parking_lot::RwLock;
 use serde::{Deserialize, Serialize};
@@ -16,6 +29,27 @@ pub enum Priority {
     Urgent,
 }
 
+// Conversion implementations for compatibility between local and trait Priority types
+#[cfg(feature = "enhanced")]
+impl From<Priority> for kindly_guard_core::Priority {
+    fn from(priority: Priority) -> Self {
+        match priority {
+            Priority::Normal => kindly_guard_core::Priority::Normal,
+            Priority::Urgent => kindly_guard_core::Priority::Urgent,
+        }
+    }
+}
+
+#[cfg(feature = "enhanced")]
+impl From<kindly_guard_core::Priority> for Priority {
+    fn from(priority: kindly_guard_core::Priority) -> Self {
+        match priority {
+            kindly_guard_core::Priority::Normal => Priority::Normal,
+            kindly_guard_core::Priority::Urgent => Priority::Urgent,
+        }
+    }
+}
+
 /// Statistics for an endpoint
 #[derive(Debug, Clone)]
 pub struct EndpointStats {
@@ -25,12 +59,29 @@ pub struct EndpointStats {
     pub available_tokens: u32,
 }
 
-/// Circuit breaker states
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum CircuitState {
-    Closed,
-    Open,
-    HalfOpen,
+// Conversion implementations for compatibility between local and trait EndpointStats types
+#[cfg(feature = "enhanced")]
+impl From<kindly_guard_core::EndpointStats> for EndpointStats {
+    fn from(stats: kindly_guard_core::EndpointStats) -> Self {
+        EndpointStats {
+            success_count: stats.success_count,
+            failure_count: stats.failure_count,
+            circuit_state: stats.circuit_state,
+            available_tokens: stats.available_tokens,
+        }
+    }
+}
+
+#[cfg(feature = "enhanced")]
+impl From<EndpointStats> for kindly_guard_core::EndpointStats {
+    fn from(stats: EndpointStats) -> Self {
+        kindly_guard_core::EndpointStats {
+            success_count: stats.success_count,
+            failure_count: stats.failure_count,
+            circuit_state: stats.circuit_state,
+            available_tokens: stats.available_tokens,
+        }
+    }
 }
 
 /// Security event types for tracking
@@ -160,6 +211,7 @@ impl Default for EventProcessorConfig {
             retention_duration: Duration::from_secs(3600), // 1 hour
             pattern_detection: true,
             correlation_enabled: true,
+            enhanced_mode: None, // Let runtime decide based on feature flag
         }
     }
 }
@@ -280,9 +332,16 @@ impl SecurityEventProcessor {
         // Get or create endpoint ID
         let endpoint_id = self.get_or_create_endpoint_id(&endpoint)?;
 
+        // Convert priority to trait type
+        #[cfg(feature = "enhanced")]
+        let trait_priority = priority.into();
+
+        #[cfg(not(feature = "enhanced"))]
+        let trait_priority = priority;
+
         // Enqueue event in atomic buffer
         let _handle = buffer
-            .enqueue_event(endpoint_id, &data, priority)
+            .enqueue_event(endpoint_id, &data, trait_priority)
             .map_err(|e| anyhow::anyhow!("Failed to enqueue event: {:?}", e))?;
 
         // Trigger pattern detection if enabled
@@ -317,7 +376,8 @@ impl SecurityEventProcessor {
     pub fn get_endpoint_stats(&self, endpoint: &str) -> Option<EndpointStats> {
         let map = self.endpoint_map.read();
         let endpoint_id = *map.get(endpoint)?;
-        self.buffer
+        let trait_stats = self
+            .buffer
             .as_ref()?
             .get_endpoint_stats(endpoint_id)
             .map_err(|e| {
@@ -325,7 +385,14 @@ impl SecurityEventProcessor {
                 tracing::debug!("Failed to get endpoint stats: {:?}", e);
                 e
             })
-            .ok()
+            .ok()?;
+
+        // Convert from trait type to local type
+        #[cfg(feature = "enhanced")]
+        return Some(trait_stats.into());
+
+        #[cfg(not(feature = "enhanced"))]
+        return Some(trait_stats);
     }
 
     /// Check if a client is under attack monitoring
@@ -341,7 +408,7 @@ impl SecurityEventProcessor {
             let map = self.endpoint_map.read();
 
             for endpoint in endpoints {
-                if let Some(&endpoint_id) = map.get(&endpoint) {
+                if let Some(&_endpoint_id) = map.get(&endpoint) {
                     // Check if endpoint has high failure rate based on stats
                     if let Some(stats) = self.get_endpoint_stats(&endpoint) {
                         // Consider monitored if circuit is open (failure state)
@@ -360,7 +427,7 @@ impl SecurityEventProcessor {
     }
 
     /// Detect attack patterns from events
-    const fn detect_patterns(&self, event: &SecurityEvent) -> Result<Option<AttackPattern>> {
+    const fn detect_patterns(&self, _event: &SecurityEvent) -> Result<Option<AttackPattern>> {
         // Pattern detection logic would go here
         // For now, return None to indicate no pattern detected
         Ok(None)
@@ -486,14 +553,19 @@ impl SimpleEventBuffer {
 }
 
 impl crate::traits::EventBufferTrait for SimpleEventBuffer {
-    fn enqueue_event(&self, _endpoint_id: u32, _data: &[u8], _priority: Priority) -> Result<u64> {
+    fn enqueue_event(
+        &self,
+        _endpoint_id: u32,
+        _data: &[u8],
+        _priority: crate::traits::Priority,
+    ) -> Result<u64> {
         // Simple implementation - just return a sequential ID
         Ok(0) // In production, this would maintain state
     }
 
-    fn get_endpoint_stats(&self, _endpoint_id: u32) -> Result<EndpointStats> {
+    fn get_endpoint_stats(&self, _endpoint_id: u32) -> Result<crate::traits::EndpointStats> {
         // Return default stats for simple implementation
-        Ok(EndpointStats {
+        Ok(crate::traits::EndpointStats {
             success_count: 0,
             failure_count: 0,
             circuit_state: CircuitState::Closed,

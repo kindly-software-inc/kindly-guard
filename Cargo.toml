@@ -18,7 +18,7 @@ exclude = [
 version = "0.2.0"
 edition = "2021"
 authors = ["samduchaine"]
-license = "MIT"
+license = "Apache-2.0"
 repository = "https://github.com/samduchaine/kindly-guard"
 homepage = "https://github.com/samduchaine/kindly-guard"
 documentation = "https://docs.rs/kindly-guard"
@@ -54,9 +54,6 @@ ratatui = "0.29"
 # Testing
 criterion = { version = "0.5", features = ["html_reports"] }
 proptest = "1.6"
-
-# Enhanced features (optional, private dependency)
-# kindly-guard-core = { path = "../kindly-guard-core", optional = true }
 
 [profile.release]
 opt-level = 3

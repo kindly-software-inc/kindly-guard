@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! XSS Scanner trait and implementations
 //!
 //! Trait-based architecture for XSS detection allowing standard and enhanced implementations
@@ -13,10 +26,10 @@ use tracing::{debug, trace};
 pub trait XssScanner: Send + Sync {
     /// Scan text for XSS threats
     async fn scan_xss(&self, text: &str) -> Result<Vec<Threat>, ScanError>;
-    
+
     /// Check if content contains potential XSS
     async fn contains_xss(&self, text: &str) -> Result<bool, ScanError>;
-    
+
     /// Get scanner capabilities
     fn capabilities(&self) -> XssScannerCapabilities;
 }
@@ -41,7 +54,7 @@ impl StandardXssScanner {
     pub fn new(patterns: Vec<String>) -> Result<Self, ScanError> {
         let mut compiled_patterns = Vec::new();
         let mut encoded_patterns = Vec::new();
-        
+
         for pattern in patterns {
             match Regex::new(&pattern) {
                 Ok(regex) => {
@@ -60,13 +73,13 @@ impl StandardXssScanner {
                 }
             }
         }
-        
+
         debug!(
             "Initialized standard XSS scanner with {} patterns ({} encoded)",
             compiled_patterns.len() + encoded_patterns.len(),
             encoded_patterns.len()
         );
-        
+
         Ok(Self {
             patterns: compiled_patterns,
             encoded_patterns,
@@ -78,48 +91,59 @@ impl StandardXssScanner {
 impl XssScanner for StandardXssScanner {
     async fn scan_xss(&self, text: &str) -> Result<Vec<Threat>, ScanError> {
         let mut threats = Vec::new();
-        
+
         // Check standard patterns
         for (idx, pattern) in self.patterns.iter().enumerate() {
             if let Some(mat) = pattern.find(text) {
                 let threat = Threat {
                     threat_type: ThreatType::CrossSiteScripting,
                     severity: determine_xss_severity(&text[mat.start()..mat.end()]),
-                    location: Location::Text { 
-                        offset: mat.start(), 
-                        length: mat.end() - mat.start() 
+                    location: Location::Text {
+                        offset: mat.start(),
+                        length: mat.end() - mat.start(),
                     },
                     description: format!("XSS pattern detected: {}", &text[mat.start()..mat.end()]),
                     remediation: Some("Sanitize HTML content before rendering".to_string()),
                 };
                 threats.push(threat);
-                
-                trace!("XSS threat detected at position {}-{}", mat.start(), mat.end());
+
+                trace!(
+                    "XSS threat detected at position {}-{}",
+                    mat.start(),
+                    mat.end()
+                );
             }
         }
-        
+
         // Check encoded patterns
         for (idx, pattern) in self.encoded_patterns.iter().enumerate() {
             if let Some(mat) = pattern.find(text) {
                 let threat = Threat {
                     threat_type: ThreatType::CrossSiteScripting,
                     severity: Severity::High, // Encoded XSS is always high severity
-                    location: Location::Text { 
-                        offset: mat.start(), 
-                        length: mat.end() - mat.start() 
+                    location: Location::Text {
+                        offset: mat.start(),
+                        length: mat.end() - mat.start(),
                     },
-                    description: format!("Encoded XSS pattern detected: {}", &text[mat.start()..mat.end()]),
+                    description: format!(
+                        "Encoded XSS pattern detected: {}",
+                        &text[mat.start()..mat.end()]
+                    ),
                     remediation: Some("Decode and sanitize content before processing".to_string()),
                 };
                 threats.push(threat);
-                
-                trace!("Encoded XSS threat detected at position {}-{}", mat.start(), mat.end());
+
+                trace!(
+                    "Encoded XSS threat detected at position {}-{}",
+                    mat.start(),
+                    mat.end()
+                );
             }
         }
-        
+
         Ok(threats)
     }
-    
+
     async fn contains_xss(&self, text: &str) -> Result<bool, ScanError> {
         // Quick check without creating full threat objects
         for pattern in &self.patterns {
@@ -127,50 +151,48 @@ impl XssScanner for StandardXssScanner {
                 return Ok(true);
             }
         }
-        
+
         for pattern in &self.encoded_patterns {
             if pattern.is_match(text) {
                 return Ok(true);
             }
         }
-        
+
         Ok(false)
     }
-    
+
     fn capabilities(&self) -> XssScannerCapabilities {
         XssScannerCapabilities {
             supports_encoded_detection: !self.encoded_patterns.is_empty(),
             supports_obfuscation_detection: false, // Standard scanner doesn't detect advanced obfuscation
-            supports_context_analysis: false, // Standard scanner doesn't analyze context
-            max_scan_size: 1024 * 1024, // 1MB max scan size
+            supports_context_analysis: false,      // Standard scanner doesn't analyze context
+            max_scan_size: 1024 * 1024,            // 1MB max scan size
         }
     }
 }
 
 /// Enhanced XSS scanner stub (feature-gated)
-/// 
+///
 /// The enhanced XSS scanner would integrate with proprietary detection technology
 /// but is currently stubbed out since the core is not available.
 #[cfg(feature = "enhanced")]
 mod enhanced {
     use super::*;
-    
+
     pub struct EnhancedXssScanner {
         standard_scanner: StandardXssScanner,
     }
-    
+
     impl EnhancedXssScanner {
         pub fn new(patterns: Vec<String>) -> Result<Self, ScanError> {
             let standard_scanner = StandardXssScanner::new(patterns)?;
-            
+
             debug!("Initialized enhanced XSS scanner (using standard scanner as fallback)");
-            
-            Ok(Self {
-                standard_scanner,
-            })
+
+            Ok(Self { standard_scanner })
         }
     }
-    
+
     #[async_trait]
     impl XssScanner for EnhancedXssScanner {
         async fn scan_xss(&self, text: &str) -> Result<Vec<Threat>, ScanError> {
@@ -178,11 +200,11 @@ mod enhanced {
             // In production, this would integrate with proprietary detection
             self.standard_scanner.scan_xss(text).await
         }
-        
+
         async fn contains_xss(&self, text: &str) -> Result<bool, ScanError> {
             self.standard_scanner.contains_xss(text).await
         }
-        
+
         fn capabilities(&self) -> XssScannerCapabilities {
             // Return enhanced capabilities even though we're using standard scanner
             // This is what would be available with the proprietary core
@@ -212,7 +234,7 @@ pub fn create_xss_scanner(
             debug!("Enhanced mode requested but not available, using standard scanner");
         }
     }
-    
+
     debug!("Creating standard XSS scanner");
     Ok(Arc::new(StandardXssScanner::new(patterns)?))
 }
@@ -220,30 +242,30 @@ pub fn create_xss_scanner(
 /// Determine XSS severity based on content
 fn determine_xss_severity(content: &str) -> Severity {
     let lower = content.to_lowercase();
-    
+
     // Critical: Direct script execution or cookie/session access
-    if lower.contains("document.cookie") || 
-       lower.contains("sessionstorage") ||
-       lower.contains("localstorage") ||
-       lower.contains("eval(") {
+    if lower.contains("document.cookie")
+        || lower.contains("sessionstorage")
+        || lower.contains("localstorage")
+        || lower.contains("eval(")
+    {
         return Severity::Critical;
     }
-    
+
     // High: Script tags or event handlers
-    if lower.contains("<script") || 
-       lower.contains("onerror") ||
-       lower.contains("onload") ||
-       lower.contains("javascript:") {
+    if lower.contains("<script")
+        || lower.contains("onerror")
+        || lower.contains("onload")
+        || lower.contains("javascript:")
+    {
         return Severity::High;
     }
-    
+
     // Medium: Potentially dangerous elements
-    if lower.contains("<iframe") || 
-       lower.contains("<object") ||
-       lower.contains("<embed") {
+    if lower.contains("<iframe") || lower.contains("<object") || lower.contains("<embed") {
         return Severity::Medium;
     }
-    
+
     // Default to Medium for other XSS patterns
     Severity::Medium
 }
@@ -251,7 +273,7 @@ fn determine_xss_severity(content: &str) -> Severity {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_standard_xss_detection() {
         let patterns = vec![
@@ -259,27 +281,36 @@ mod tests {
             r"(?i)javascript\s*:".to_string(),
             r"(?i)onerror\s*=".to_string(),
         ];
-        
+
         let scanner = StandardXssScanner::new(patterns).unwrap();
-        
+
         // Test script tag detection
-        let threats = scanner.scan_xss("<script>alert('XSS')</script>").await.unwrap();
+        let threats = scanner
+            .scan_xss("<script>alert('XSS')</script>")
+            .await
+            .unwrap();
         assert!(!threats.is_empty());
         assert_eq!(threats[0].threat_type, ThreatType::CrossSiteScripting);
-        
+
         // Test javascript: protocol
-        let threats = scanner.scan_xss(r#"<a href="javascript:alert(1)">Click</a>"#).await.unwrap();
+        let threats = scanner
+            .scan_xss(r#"<a href="javascript:alert(1)">Click</a>"#)
+            .await
+            .unwrap();
         assert!(!threats.is_empty());
-        
+
         // Test event handler
-        let threats = scanner.scan_xss(r#"<img src=x onerror=alert('XSS')>"#).await.unwrap();
+        let threats = scanner
+            .scan_xss(r#"<img src=x onerror=alert('XSS')>"#)
+            .await
+            .unwrap();
         assert!(!threats.is_empty());
-        
+
         // Test clean input
         let threats = scanner.scan_xss("This is safe text").await.unwrap();
         assert!(threats.is_empty());
     }
-    
+
     #[tokio::test]
     async fn test_xss_severity_detection() {
         let patterns = vec![
@@ -287,19 +318,22 @@ mod tests {
             r"<script[^>]*>".to_string(),
             r"<iframe[^>]*>".to_string(),
         ];
-        
+
         let scanner = StandardXssScanner::new(patterns).unwrap();
-        
+
         // Critical severity
         let threats = scanner.scan_xss("document.cookie").await.unwrap();
         assert_eq!(threats[0].severity, Severity::Critical);
-        
+
         // High severity
         let threats = scanner.scan_xss("<script>alert(1)</script>").await.unwrap();
         assert_eq!(threats[0].severity, Severity::High);
-        
+
         // Medium severity
-        let threats = scanner.scan_xss("<iframe src='evil.com'></iframe>").await.unwrap();
+        let threats = scanner
+            .scan_xss("<iframe src='evil.com'></iframe>")
+            .await
+            .unwrap();
         assert_eq!(threats[0].severity, Severity::Medium);
     }
 }

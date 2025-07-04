@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Chaos Engineering Tests for KindlyGuard
 //!
 //! These tests simulate extreme conditions and failures to verify system resilience:
@@ -146,9 +159,7 @@ impl ChaosInjector {
             }
             FailureType::NetworkPartition => {
                 // Simulate network partition by failing
-                Err(KindlyError::NetworkError(
-                    "Chaos: Network partition".into(),
-                ))?
+                Err(KindlyError::NetworkError("Chaos: Network partition".into()))?
             }
             FailureType::ResourceExhaustion => {
                 // Simulate resource exhaustion
@@ -346,17 +357,26 @@ impl ChaosTestHarness {
         expected_state: Arc<RwLock<HashMap<String, Value>>>,
     ) -> Result<()> {
         // Inject chaos
-        chaos.inject_failure().await.map_err(|e| KindlyError::Internal(e.to_string()))?;
+        chaos
+            .inject_failure()
+            .await
+            .map_err(|e| KindlyError::Internal(e.to_string()))?;
 
         // Simulate scanner operation
-        let scanner = SecurityScanner::new(ScannerConfig::default()).map_err(|e| KindlyError::Internal(e.to_string()))?;
+        let scanner = SecurityScanner::new(ScannerConfig::default())
+            .map_err(|e| KindlyError::Internal(e.to_string()))?;
         let test_input = format!("Test input {}: Hello\u{202E}World", operation_id);
-        
+
         // Inject chaos before scan
-        chaos.inject_failure().await.map_err(|e| KindlyError::Internal(e.to_string()))?;
-        
-        let threats = scanner.scan_text(&test_input).map_err(|e| KindlyError::Internal(e.to_string()))?;
-        
+        chaos
+            .inject_failure()
+            .await
+            .map_err(|e| KindlyError::Internal(e.to_string()))?;
+
+        let threats = scanner
+            .scan_text(&test_input)
+            .map_err(|e| KindlyError::Internal(e.to_string()))?;
+
         // Update shared state (simulating state changes)
         let key = format!("operation_{}", operation_id);
         let value = json!({
@@ -375,7 +395,10 @@ impl ChaosTestHarness {
         }
 
         // Inject chaos after operation
-        chaos.inject_failure().await.map_err(|e| KindlyError::Internal(e.to_string()))?;
+        chaos
+            .inject_failure()
+            .await
+            .map_err(|e| KindlyError::Internal(e.to_string()))?;
 
         Ok(())
     }
@@ -397,7 +420,7 @@ impl ChaosTestHarness {
         if total_operations == 0 {
             return 0.0;
         }
-        
+
         let successful = total_operations as u64 - failures;
         (successful as f64 / total_operations as f64) * 100.0
     }
@@ -500,7 +523,7 @@ async fn test_resource_starvation() -> Result<()> {
 
     let harness = ChaosTestHarness::new(chaos_config);
     let start = Instant::now();
-    
+
     let results = harness
         .run_workload_with_chaos(Duration::from_secs(5), 3)
         .await?;
@@ -510,8 +533,7 @@ async fn test_resource_starvation() -> Result<()> {
     println!("\nResource Starvation Results:");
     println!("  Total duration: {:?}", elapsed);
     println!("  Avg operation time: {:?}", results.avg_recovery_time);
-    println!("  System degradation: {:.2}x", 
-        elapsed.as_secs_f64() / 5.0);
+    println!("  System degradation: {:.2}x", elapsed.as_secs_f64() / 5.0);
 
     // System should complete within reasonable time despite resource pressure
     assert!(
@@ -541,10 +563,15 @@ async fn test_cascading_failure_prevention() -> Result<()> {
         .await?;
 
     println!("\nCascading Failure Prevention Results:");
-    println!("  Cascading failures attempted: {}", results.failures_injected);
+    println!(
+        "  Cascading failures attempted: {}",
+        results.failures_injected
+    );
     println!("  Total failures observed: {}", results.failures_observed);
-    println!("  Failure amplification: {:.2}x", 
-        results.failures_observed as f64 / results.failures_injected.max(1) as f64);
+    println!(
+        "  Failure amplification: {:.2}x",
+        results.failures_observed as f64 / results.failures_injected.max(1) as f64
+    );
 
     // Cascading failures should not amplify significantly
     assert!(
@@ -577,23 +604,36 @@ async fn test_recovery_time_objectives() -> Result<()> {
         .await?;
 
     println!("\nRecovery Time Objectives:");
-    println!("  Recovery times measured: {}", results.recovery_times.len());
+    println!(
+        "  Recovery times measured: {}",
+        results.recovery_times.len()
+    );
     println!("  Average recovery: {:?}", results.avg_recovery_time);
     println!("  Max recovery: {:?}", results.max_recovery_time);
-    
+
     // Calculate percentiles
     let mut sorted_times = results.recovery_times.clone();
     sorted_times.sort();
-    
+
     if !sorted_times.is_empty() {
         let p50_idx = sorted_times.len() / 2;
         let p95_idx = (sorted_times.len() as f64 * 0.95) as usize;
         let p99_idx = (sorted_times.len() as f64 * 0.99) as usize;
-        
+
         println!("  P50 recovery: {:?}", sorted_times[p50_idx]);
-        println!("  P95 recovery: {:?}", sorted_times.get(p95_idx).unwrap_or(&sorted_times.last().unwrap()));
-        println!("  P99 recovery: {:?}", sorted_times.get(p99_idx).unwrap_or(&sorted_times.last().unwrap()));
-        
+        println!(
+            "  P95 recovery: {:?}",
+            sorted_times
+                .get(p95_idx)
+                .unwrap_or(&sorted_times.last().unwrap())
+        );
+        println!(
+            "  P99 recovery: {:?}",
+            sorted_times
+                .get(p99_idx)
+                .unwrap_or(&sorted_times.last().unwrap())
+        );
+
         // P95 recovery should be under 5 seconds
         assert!(
             sorted_times.get(p95_idx).unwrap_or(&Duration::ZERO) < &Duration::from_secs(5),
@@ -628,8 +668,11 @@ async fn test_data_consistency_under_failures() -> Result<()> {
     println!("\nData Consistency Under Failures:");
     println!("  Total failures: {}", results.failures_observed);
     println!("  Data inconsistencies: {}", results.data_inconsistencies);
-    println!("  Consistency rate: {:.2}%", 
-        (1.0 - results.data_inconsistencies as f64 / results.failures_observed.max(1) as f64) * 100.0);
+    println!(
+        "  Consistency rate: {:.2}%",
+        (1.0 - results.data_inconsistencies as f64 / results.failures_observed.max(1) as f64)
+            * 100.0
+    );
 
     // Data consistency should be maintained
     assert_eq!(
@@ -645,7 +688,7 @@ async fn test_data_consistency_under_failures() -> Result<()> {
 async fn test_circuit_breaker_under_chaos() -> Result<()> {
     let config = Config::default();
     let circuit_breaker = create_circuit_breaker(&config)?;
-    
+
     let chaos_config = ChaosConfig {
         failure_probability: 0.8, // High failure rate to trigger circuit breaker
         failure_types: vec![FailureType::ComponentError],
@@ -675,7 +718,9 @@ async fn test_circuit_breaker_under_chaos() -> Result<()> {
             failures += 1;
             // Manually trip the circuit if we have too many failures
             if failures > 5 && !circuit_opened {
-                circuit_breaker.trip("test_operation", "Too many failures").await;
+                circuit_breaker
+                    .trip("test_operation", "Too many failures")
+                    .await;
             }
         }
 
@@ -685,7 +730,10 @@ async fn test_circuit_breaker_under_chaos() -> Result<()> {
 
     // Check final state
     let final_state = circuit_breaker.state("test_operation");
-    println!("Final circuit state: {:?}, failures: {}", final_state, failures);
+    println!(
+        "Final circuit state: {:?}, failures: {}",
+        final_state, failures
+    );
 
     // With 80% failure rate, we should have tripped the circuit
     assert!(
@@ -701,7 +749,7 @@ async fn test_circuit_breaker_under_chaos() -> Result<()> {
 async fn test_retry_strategy_with_chaos() -> Result<()> {
     let config = Config::default();
     let retry_strategy = create_retry_strategy(&config)?;
-    
+
     let chaos_config = ChaosConfig {
         failure_probability: 0.6, // 60% failure rate
         failure_types: vec![FailureType::ComponentError, FailureType::NetworkDelay],
@@ -714,12 +762,12 @@ async fn test_retry_strategy_with_chaos() -> Result<()> {
 
     let chaos = Arc::new(ChaosInjector::new(chaos_config));
     let attempts = Arc::new(AtomicUsize::new(0));
-    
+
     // Simulate retries by checking retry decision logic
     let mut retry_count = 0;
     for attempt in 0..5 {
         attempts.fetch_add(1, Ordering::Relaxed);
-        
+
         // Inject chaos
         match chaos.inject_failure().await {
             Ok(_) => {
@@ -728,7 +776,7 @@ async fn test_retry_strategy_with_chaos() -> Result<()> {
             }
             Err(e) => {
                 println!("Attempt {} failed: {}", attempt, e);
-                
+
                 // Check if retry should happen
                 let retry_context = kindly_guard_server::traits::RetryContext {
                     attempts: attempt as u32,
@@ -738,7 +786,7 @@ async fn test_retry_strategy_with_chaos() -> Result<()> {
                     },
                     total_elapsed: Duration::from_millis(100 * attempt as u64),
                 };
-                
+
                 let decision = retry_strategy.should_retry(&e, &retry_context);
                 if decision.should_retry {
                     retry_count += 1;
@@ -754,7 +802,10 @@ async fn test_retry_strategy_with_chaos() -> Result<()> {
     }
 
     let total_attempts = attempts.load(Ordering::Relaxed);
-    println!("Total attempts: {}, retries: {}", total_attempts, retry_count);
+    println!(
+        "Total attempts: {}, retries: {}",
+        total_attempts, retry_count
+    );
 
     // With 60% failure rate, should have made some retries
     assert!(
@@ -769,7 +820,7 @@ async fn test_retry_strategy_with_chaos() -> Result<()> {
 async fn test_health_check_during_chaos() -> Result<()> {
     let config = Config::default();
     let health_checker = create_health_checker(&config)?;
-    
+
     let chaos_config = ChaosConfig {
         failure_probability: 0.0, // Start healthy
         failure_types: vec![FailureType::ComponentError],
@@ -781,7 +832,7 @@ async fn test_health_check_during_chaos() -> Result<()> {
     };
 
     let _chaos = Arc::new(ChaosInjector::new(chaos_config));
-    
+
     // Initial health check should pass
     let initial_health = health_checker.check().await?;
     assert!(
@@ -801,7 +852,7 @@ async fn test_health_check_during_chaos() -> Result<()> {
         memory_pressure_mb: 0,
     };
     let _chaos_high_failure = Arc::new(ChaosInjector::new(updated_config));
-    
+
     // Health check during chaos
     let chaos_health = health_checker.check().await?;
     println!("Health during chaos: {:?}", chaos_health);
@@ -813,7 +864,7 @@ async fn test_health_check_during_chaos() -> Result<()> {
 async fn test_recovery_strategy_effectiveness() -> Result<()> {
     let config = Config::default();
     let recovery_strategy = create_recovery_strategy(&config)?;
-    
+
     let chaos_config = ChaosConfig {
         failure_probability: 1.0, // Always fail initially
         failure_types: vec![FailureType::ComponentError],
@@ -825,7 +876,7 @@ async fn test_recovery_strategy_effectiveness() -> Result<()> {
     };
 
     let chaos = Arc::new(ChaosInjector::new(chaos_config));
-    
+
     // Create recovery context
     let recovery_context = kindly_guard_server::traits::RecoveryContext {
         failure_count: 3,
@@ -833,20 +884,23 @@ async fn test_recovery_strategy_effectiveness() -> Result<()> {
         recovery_attempts: 0,
         service_name: "test_service".to_string(),
     };
-    
+
     // Attempt recovery
     let recovery_result = recovery_strategy
         .recover(&recovery_context, "test_operation")
         .await?;
 
     println!("Recovery result: {:?}", recovery_result);
-    
+
     // Disable chaos for recovery verification
     chaos.active.store(false, Ordering::Relaxed);
-    
+
     // Verify service can operate after recovery
     let post_recovery_result = async {
-        chaos.inject_failure().await.map_err(|e| KindlyError::Internal(e.to_string()))?;
+        chaos
+            .inject_failure()
+            .await
+            .map_err(|e| KindlyError::Internal(e.to_string()))?;
         Ok::<_, KindlyError>(())
     }
     .await;
@@ -876,7 +930,7 @@ async fn test_extreme_load_with_failures() -> Result<()> {
     };
 
     let harness = ChaosTestHarness::new(chaos_config);
-    
+
     // Run with high concurrency
     let results = harness
         .run_workload_with_chaos(Duration::from_secs(30), 50)
@@ -919,7 +973,7 @@ async fn test_prolonged_chaos_endurance() -> Result<()> {
     };
 
     let harness = ChaosTestHarness::new(chaos_config);
-    
+
     // Run for extended period
     let results = harness
         .run_workload_with_chaos(Duration::from_secs(300), 20) // 5 minutes
@@ -929,14 +983,17 @@ async fn test_prolonged_chaos_endurance() -> Result<()> {
     println!("  Test duration: {:?}", results.total_duration);
     println!("  Total failures: {}", results.failures_observed);
     println!("  Data inconsistencies: {}", results.data_inconsistencies);
-    println!("  Final availability: {:.2}%", results.availability_percentage);
+    println!(
+        "  Final availability: {:.2}%",
+        results.availability_percentage
+    );
 
     // System should survive prolonged chaos
     assert!(
         results.data_inconsistencies == 0,
         "Data corruption occurred during prolonged chaos"
     );
-    
+
     assert!(
         results.availability_percentage > 75.0,
         "System availability degraded too much during prolonged chaos"

@@ -1,7 +1,19 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Core trait abstractions for security components
 //! Enables clean separation between standard and enhanced implementations
 
-use crate::event_processor::{EndpointStats, Priority};
 use crate::scanner::Threat;
 use anyhow::Result;
 use async_trait::async_trait;
@@ -12,6 +24,15 @@ use std::time::Duration;
 #[cfg(any(test, feature = "test-utils"))]
 use mockall::{automock, predicate::*};
 
+// Re-export event buffer types from kindly-guard-core when enhanced feature is enabled
+#[cfg(feature = "enhanced")]
+pub use kindly_guard_core::{EndpointStats, EventBufferTrait, Priority};
+
+// For standard mode, use local definitions
+#[cfg(not(feature = "enhanced"))]
+pub use crate::event_processor::{EndpointStats, Priority};
+
+#[cfg(not(feature = "enhanced"))]
 /// Event buffer trait for security event storage and retrieval
 pub trait EventBufferTrait: Send + Sync {
     /// Enqueue an event in the buffer
@@ -302,6 +323,7 @@ pub enum CircuitBreakerError {
 }
 
 /// Circuit breaker states
+#[cfg(not(feature = "enhanced"))]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum CircuitState {
     /// Circuit is closed - normal operation
@@ -313,6 +335,10 @@ pub enum CircuitState {
     /// Circuit is open - all requests blocked
     Open,
 }
+
+// When enhanced feature is enabled, use CircuitState from kindly-guard-core
+#[cfg(feature = "enhanced")]
+pub use kindly_guard_core::CircuitState;
 
 /// Circuit breaker statistics
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -445,6 +471,72 @@ pub struct HealthCheckMetadata {
     pub check_type: HealthCheckType,
     pub timeout: Duration,
     pub critical: bool,
+}
+
+/// Metrics provider trait for different implementations
+#[cfg_attr(any(test, feature = "test-utils"), automock)]
+pub trait MetricsProvider: Send + Sync {
+    /// Get or create a counter metric
+    fn counter(&self, name: &str, help: &str) -> Arc<dyn CounterTrait>;
+
+    /// Get or create a gauge metric
+    fn gauge(&self, name: &str, help: &str) -> Arc<dyn GaugeTrait>;
+
+    /// Get or create a histogram metric
+    fn histogram(&self, name: &str, help: &str, buckets: Vec<f64>) -> Arc<dyn HistogramTrait>;
+
+    /// Export metrics in Prometheus format
+    fn export_prometheus(&self) -> String;
+
+    /// Export metrics as JSON
+    fn export_json(&self) -> serde_json::Value;
+
+    /// Get uptime in seconds
+    fn uptime_seconds(&self) -> u64;
+}
+
+/// Counter metric trait
+pub trait CounterTrait: Send + Sync {
+    /// Increment the counter by 1
+    fn inc(&self);
+
+    /// Increment the counter by a specific amount
+    fn inc_by(&self, amount: u64);
+
+    /// Get current value
+    fn value(&self) -> u64;
+}
+
+/// Gauge metric trait
+pub trait GaugeTrait: Send + Sync {
+    /// Set the gauge value
+    fn set(&self, value: i64);
+
+    /// Increment the gauge
+    fn inc(&self);
+
+    /// Decrement the gauge
+    fn dec(&self);
+
+    /// Get current value
+    fn value(&self) -> i64;
+}
+
+/// Histogram metric trait
+pub trait HistogramTrait: Send + Sync {
+    /// Record an observation
+    fn observe(&self, value: f64);
+
+    /// Get histogram statistics
+    fn stats(&self) -> HistogramStats;
+}
+
+/// Histogram statistics
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct HistogramStats {
+    pub count: u64,
+    pub sum: f64,
+    pub average: f64,
 }
 
 /// Types of health checks

@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! `KindlyGuard` CLI tool for security scanning
 
 use anyhow::{Context, Result};
@@ -141,9 +154,11 @@ async fn main() -> Result<()> {
         Commands::Monitor { url, interval } => monitor_command(url, interval).await,
         Commands::Shield { command } => shield_command(command).await,
         Commands::ShellInit { shell } => shell_init_command(&shell).await,
-        Commands::Wrap { command, server, block } => {
-            wrap_command(command, server, block).await
-        }
+        Commands::Wrap {
+            command,
+            server,
+            block,
+        } => wrap_command(command, server, block).await,
     }
 }
 
@@ -205,6 +220,7 @@ async fn scan_command(
             custom_patterns: None,
             max_scan_depth: 10,
             enable_event_buffer: false,
+            max_content_size: 5 * 1024 * 1024, // 5MB default
         };
 
         SecurityScanner::new(config).context("Failed to create security scanner")?
@@ -508,16 +524,23 @@ async fn shell_init_command(shell: &str) -> Result<()> {
 
 /// Wrap and protect any AI CLI command
 async fn wrap_command(command: Vec<String>, server: String, block: bool) -> Result<()> {
-    use std::process::{Command, Stdio};
     use std::io::{BufRead, BufReader, Write};
-    
+    use std::process::{Command, Stdio};
+
     if command.is_empty() {
         anyhow::bail!("No command specified");
     }
 
-    println!("{} {}", "🛡️ KindlyGuard Protection:".green().bold(), "Active");
+    println!(
+        "{} Active",
+        "🛡️ KindlyGuard Protection:".green().bold()
+    );
     println!("{} {}", "Server:".dimmed(), server);
-    println!("{} {}", "Mode:".dimmed(), if block { "Blocking" } else { "Warning" });
+    println!(
+        "{} {}",
+        "Mode:".dimmed(),
+        if block { "Blocking" } else { "Warning" }
+    );
     println!();
 
     // Create scanner
@@ -527,7 +550,7 @@ async fn wrap_command(command: Vec<String>, server: String, block: bool) -> Resu
     // Start the wrapped command
     let program = &command[0];
     let args = &command[1..];
-    
+
     let mut child = Command::new(program)
         .args(args)
         .stdin(Stdio::piped())
@@ -566,7 +589,7 @@ async fn wrap_command(command: Vec<String>, server: String, block: bool) -> Resu
     // Read from user stdin and scan before passing through
     let stdin_reader = std::io::stdin();
     let mut stdin_buf = String::new();
-    
+
     loop {
         stdin_buf.clear();
         match stdin_reader.read_line(&mut stdin_buf) {
@@ -574,7 +597,7 @@ async fn wrap_command(command: Vec<String>, server: String, block: bool) -> Resu
             Ok(_) => {
                 // Scan the input
                 let threats = scanner.scan_text(&stdin_buf)?;
-                
+
                 if !threats.is_empty() {
                     // Show threat warning
                     eprintln!();
@@ -582,7 +605,7 @@ async fn wrap_command(command: Vec<String>, server: String, block: bool) -> Resu
                     for threat in &threats {
                         eprintln!("  {} {}", "•".red(), threat);
                     }
-                    
+
                     if block {
                         eprintln!("{}", "❌ Input blocked for safety".red());
                         eprintln!();
@@ -592,7 +615,7 @@ async fn wrap_command(command: Vec<String>, server: String, block: bool) -> Resu
                         eprintln!();
                     }
                 }
-                
+
                 // Pass through to command
                 stdin.write_all(stdin_buf.as_bytes())?;
                 stdin.flush()?;
@@ -610,16 +633,19 @@ async fn wrap_command(command: Vec<String>, server: String, block: bool) -> Resu
     // Wait for command to finish
     stdout_handle.await?;
     stderr_handle.await?;
-    
+
     let status = child.wait()?;
-    
+
     println!();
-    println!("{} {}", "🛡️ KindlyGuard Protection:".green().bold(), "Session ended");
-    
+    println!(
+        "{} Session ended",
+        "🛡️ KindlyGuard Protection:".green().bold()
+    );
+
     // Exit with same code as wrapped command
     if !status.success() {
         std::process::exit(status.code().unwrap_or(1));
     }
-    
+
     Ok(())
 }

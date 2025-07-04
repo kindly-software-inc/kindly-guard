@@ -1,5 +1,18 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Security tests for the KindlyGuard CLI wrapper functionality
-//! 
+//!
 //! These tests verify that the wrap command properly:
 //! - Prevents command injection attacks
 //! - Secures environment variables
@@ -12,7 +25,6 @@ use anyhow::Result;
 use assert_cmd::Command;
 use predicates::prelude::*;
 use std::io::Write;
-use std::process::{Command as StdCommand, Stdio};
 use tempfile::NamedTempFile;
 
 /// Helper to create a test command with wrap
@@ -28,7 +40,7 @@ fn create_mock_cli(content: &str) -> Result<NamedTempFile> {
     writeln!(file, "#!/bin/bash")?;
     writeln!(file, "{}", content)?;
     file.flush()?;
-    
+
     // Make executable
     #[cfg(unix)]
     {
@@ -37,7 +49,7 @@ fn create_mock_cli(content: &str) -> Result<NamedTempFile> {
         perms.set_mode(0o755);
         file.as_file().set_permissions(perms)?;
     }
-    
+
     Ok(file)
 }
 
@@ -45,7 +57,7 @@ fn create_mock_cli(content: &str) -> Result<NamedTempFile> {
 fn test_command_injection_prevention_semicolon() {
     // Test that semicolon injection is prevented
     let mock_cli = create_mock_cli("echo \"$@\"").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -60,7 +72,7 @@ fn test_command_injection_prevention_semicolon() {
 fn test_command_injection_prevention_backticks() {
     // Test that backtick command substitution is prevented
     let mock_cli = create_mock_cli("echo \"$@\"").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -75,7 +87,7 @@ fn test_command_injection_prevention_backticks() {
 fn test_command_injection_prevention_dollar_parens() {
     // Test that $() command substitution is prevented
     let mock_cli = create_mock_cli("echo \"$@\"").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -90,10 +102,10 @@ fn test_command_injection_prevention_dollar_parens() {
 fn test_environment_variable_security() {
     // Test that sensitive environment variables are not leaked
     let mock_cli = create_mock_cli("env | grep -E '^(PATH|HOME|USER|SHELL)='").unwrap();
-    
+
     // Set a potentially dangerous environment variable
     std::env::set_var("MALICIOUS_VAR", "danger");
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .env_clear() // Clear all env vars
@@ -102,7 +114,7 @@ fn test_environment_variable_security() {
         .success()
         .stdout(predicate::str::contains("PATH="))
         .stdout(predicate::str::contains("MALICIOUS_VAR").not());
-    
+
     std::env::remove_var("MALICIOUS_VAR");
 }
 
@@ -110,7 +122,7 @@ fn test_environment_variable_security() {
 fn test_environment_injection_prevention() {
     // Test that environment variable injection is prevented
     let mock_cli = create_mock_cli("echo \"PATH=$PATH\"").unwrap();
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .env("PATH", "/usr/bin:/bin:$(rm -rf /)")
@@ -124,7 +136,7 @@ fn test_environment_injection_prevention() {
 fn test_signal_handling_sigint() {
     // Test that SIGINT is properly forwarded to child process
     let mock_cli = create_mock_cli("trap 'echo \"Got SIGINT\"' INT; sleep 10").unwrap();
-    
+
     // This test is disabled as spawn() is not available in assert_cmd
 }
 
@@ -133,7 +145,7 @@ fn test_signal_handling_sigint() {
 fn test_signal_handling_sigterm() {
     // Test that SIGTERM properly terminates wrapped process
     let mock_cli = create_mock_cli("trap 'echo \"Got SIGTERM\"; exit 0' TERM; sleep 10").unwrap();
-    
+
     // This test is disabled as spawn() is not available in assert_cmd
 }
 
@@ -141,22 +153,19 @@ fn test_signal_handling_sigterm() {
 fn test_process_isolation_file_descriptors() {
     // Test that extra file descriptors are not leaked to child
     let mock_cli = create_mock_cli("ls -la /proc/$$/fd/ 2>/dev/null | wc -l").unwrap();
-    
+
     // Open some extra file descriptors
     let _file1 = std::fs::File::open("/dev/null").unwrap();
     let _file2 = std::fs::File::open("/dev/null").unwrap();
-    
-    wrap_cmd()
-        .arg(mock_cli.path())
-        .assert()
-        .success();
+
+    wrap_cmd().arg(mock_cli.path()).assert().success();
 }
 
 #[test]
 fn test_input_stream_unicode_injection() {
     // Test that unicode injection attacks are detected in input
     let mock_cli = create_mock_cli("cat").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -172,7 +181,7 @@ fn test_input_stream_unicode_injection() {
 fn test_input_stream_sql_injection() {
     // Test that SQL injection attempts are detected
     let mock_cli = create_mock_cli("cat").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -187,7 +196,7 @@ fn test_input_stream_sql_injection() {
 fn test_input_stream_command_injection() {
     // Test that command injection in input is detected
     let mock_cli = create_mock_cli("cat").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -202,7 +211,7 @@ fn test_input_stream_command_injection() {
 fn test_input_stream_xss_injection() {
     // Test that XSS attempts are detected
     let mock_cli = create_mock_cli("cat").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -217,7 +226,7 @@ fn test_input_stream_xss_injection() {
 fn test_output_stream_passthrough() {
     // Test that clean output is passed through correctly
     let mock_cli = create_mock_cli("echo 'Clean output'; echo 'Error output' >&2").unwrap();
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .assert()
@@ -230,7 +239,7 @@ fn test_output_stream_passthrough() {
 fn test_blocking_mode_blocks_threats() {
     // Test that blocking mode prevents threats from reaching the command
     let mock_cli = create_mock_cli("cat | wc -c").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -248,7 +257,7 @@ fn test_blocking_mode_blocks_threats() {
 fn test_warning_mode_allows_threats() {
     // Test that warning mode allows threats but warns
     let mock_cli = create_mock_cli("cat").unwrap();
-    
+
     wrap_cmd()
         .arg(mock_cli.path()) // No --block flag
         .write_stdin(b"'; DROP TABLE; --\n")
@@ -263,18 +272,15 @@ fn test_warning_mode_allows_threats() {
 fn test_exit_code_propagation() {
     // Test that wrapped command exit codes are propagated
     let mock_cli = create_mock_cli("exit 42").unwrap();
-    
-    wrap_cmd()
-        .arg(mock_cli.path())
-        .assert()
-        .code(42);
+
+    wrap_cmd().arg(mock_cli.path()).assert().code(42);
 }
 
 #[test]
 fn test_stdin_eof_handling() {
     // Test that EOF on stdin is handled correctly
     let mock_cli = create_mock_cli("cat; echo 'After EOF'").unwrap();
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .write_stdin(b"test input\n")
@@ -289,7 +295,7 @@ fn test_large_input_handling() {
     // Test handling of large inputs
     let mock_cli = create_mock_cli("wc -c").unwrap();
     let large_input = "a".repeat(1024 * 1024); // 1MB of data
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .write_stdin(large_input)
@@ -303,7 +309,7 @@ fn test_binary_data_handling() {
     // Test that binary data is handled correctly
     let mock_cli = create_mock_cli("xxd -p | head -n 1").unwrap();
     let binary_data = vec![0x00, 0x01, 0x02, 0xFF, 0xFE, 0xFD];
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .write_stdin(binary_data)
@@ -315,13 +321,16 @@ fn test_binary_data_handling() {
 #[test]
 fn test_concurrent_io_handling() {
     // Test handling of concurrent stdin/stdout/stderr
-    let mock_cli = create_mock_cli(r#"
+    let mock_cli = create_mock_cli(
+        r#"
         while IFS= read -r line; do
             echo "OUT: $line"
             echo "ERR: $line" >&2
         done
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     wrap_cmd()
         .arg(mock_cli.path())
         .write_stdin(b"line1\nline2\nline3\n")
@@ -338,12 +347,15 @@ fn test_concurrent_io_handling() {
 #[test]
 fn test_ai_cli_integration_gemini_style() {
     // Test integration with Gemini-style CLI
-    let mock_cli = create_mock_cli(r#"
+    let mock_cli = create_mock_cli(
+        r#"
         echo "Gemini CLI v1.0"
         read -p "> " input
         echo "Response: $input"
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     wrap_cmd()
         .arg(mock_cli.path())
         .write_stdin(b"Generate code\n")
@@ -356,13 +368,16 @@ fn test_ai_cli_integration_gemini_style() {
 #[test]
 fn test_ai_cli_integration_codex_style() {
     // Test integration with Codex-style CLI
-    let mock_cli = create_mock_cli(r#"
+    let mock_cli = create_mock_cli(
+        r#"
         echo "=== Codex CLI ==="
         echo "Enter prompt (Ctrl-D to finish):"
         cat
         echo -e "\n=== Generated ==="
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     wrap_cmd()
         .arg(mock_cli.path())
         .write_stdin(b"Write a function\n")
@@ -376,12 +391,15 @@ fn test_ai_cli_integration_codex_style() {
 #[test]
 fn test_interactive_prompt_handling() {
     // Test handling of interactive prompts
-    let mock_cli = create_mock_cli(r#"
+    let mock_cli = create_mock_cli(
+        r#"
         read -p "Username: " user
         read -s -p "Password: " pass
         echo -e "\nLogged in as $user"
-    "#).unwrap();
-    
+    "#,
+    )
+    .unwrap();
+
     wrap_cmd()
         .arg(mock_cli.path())
         .write_stdin(b"testuser\ntestpass\n")
@@ -395,7 +413,7 @@ fn test_interactive_prompt_handling() {
 fn test_path_traversal_prevention() {
     // Test that path traversal attempts are detected
     let mock_cli = create_mock_cli("cat").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -410,7 +428,7 @@ fn test_path_traversal_prevention() {
 fn test_null_byte_injection() {
     // Test that null byte injection is handled
     let mock_cli = create_mock_cli("cat | xxd -p").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -424,7 +442,7 @@ fn test_null_byte_injection() {
 fn test_ansi_escape_injection() {
     // Test that ANSI escape sequence injection is detected
     let mock_cli = create_mock_cli("cat").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())
@@ -438,10 +456,10 @@ fn test_ansi_escape_injection() {
 fn test_resource_exhaustion_prevention() {
     // Test that resource exhaustion attempts are handled
     let mock_cli = create_mock_cli("head -c 1000").unwrap(); // Limit output
-    
+
     // Try to send infinite input
     let infinite_input = "a".repeat(10_000_000); // 10MB
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .timeout(std::time::Duration::from_secs(5))
@@ -455,7 +473,7 @@ fn test_resource_exhaustion_prevention() {
 fn test_server_connection_failure() {
     // Test behavior when server is unavailable
     let mock_cli = create_mock_cli("echo 'Hello'").unwrap();
-    
+
     wrap_cmd()
         .arg("--server")
         .arg("http://localhost:99999") // Invalid port
@@ -471,7 +489,7 @@ fn test_malformed_utf8_handling() {
     // Test handling of malformed UTF-8
     let mock_cli = create_mock_cli("cat | od -c").unwrap();
     let malformed = vec![0xFF, 0xFE, 0xFD];
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .write_stdin(malformed)
@@ -495,7 +513,7 @@ fn test_permission_denied() {
     let mut file = NamedTempFile::new().unwrap();
     writeln!(file, "#!/bin/bash\necho test").unwrap();
     file.flush().unwrap();
-    
+
     // Remove execute permission
     #[cfg(unix)]
     {
@@ -504,11 +522,8 @@ fn test_permission_denied() {
         perms.set_mode(0o644);
         file.as_file().set_permissions(perms).unwrap();
     }
-    
-    wrap_cmd()
-        .arg(file.path())
-        .assert()
-        .failure();
+
+    wrap_cmd().arg(file.path()).assert().failure();
 }
 
 #[test]
@@ -516,18 +531,18 @@ fn test_symlink_resolution() {
     // Test that symlinks are resolved safely
     let mock_cli = create_mock_cli("echo 'Real file'").unwrap();
     let link_path = mock_cli.path().with_extension("link");
-    
+
     #[cfg(unix)]
     {
         std::os::unix::fs::symlink(mock_cli.path(), &link_path).unwrap();
     }
-    
+
     wrap_cmd()
         .arg(&link_path)
         .assert()
         .success()
         .stdout(predicate::str::contains("Real file"));
-    
+
     // Cleanup
     std::fs::remove_file(link_path).ok();
 }
@@ -537,7 +552,7 @@ fn test_working_directory_isolation() {
     // Test that working directory changes don't affect wrapper
     let mock_cli = create_mock_cli("pwd").unwrap();
     let temp_dir = tempfile::tempdir().unwrap();
-    
+
     wrap_cmd()
         .arg(mock_cli.path())
         .current_dir(temp_dir.path())
@@ -550,7 +565,7 @@ fn test_working_directory_isolation() {
 fn test_multiple_threat_detection() {
     // Test detection of multiple threats in single input
     let mock_cli = create_mock_cli("cat").unwrap();
-    
+
     wrap_cmd()
         .arg("--block")
         .arg(mock_cli.path())

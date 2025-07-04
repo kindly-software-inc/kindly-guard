@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Standard implementations for resilience components
 //! These provide fallback types for compilation without enhanced features
 
@@ -39,6 +52,12 @@ pub struct EventStatistics {
 /// Standard state manager implementation
 pub struct StateManager;
 
+impl Default for StateManager {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl StateManager {
     pub const fn new() -> Self {
         Self
@@ -60,6 +79,12 @@ impl StateManager {
 
 /// Standard counter implementation
 pub struct Counter;
+
+impl Default for Counter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Counter {
     pub const fn new() -> Self {
@@ -173,6 +198,12 @@ pub struct RecoveryPlan {
 
 /// Standard cache implementation
 pub struct Cache;
+
+impl Default for Cache {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl Cache {
     pub const fn new() -> Self {

@@ -13,26 +13,36 @@ graph TB
         Browser[Browser Extension]
     end
     
-    subgraph "MCP Server"
+    subgraph "MCP Server - Public Layer"
         Transport[Transport Layer]
         Protocol[MCP Protocol Handler]
         
-        subgraph "Security Core"
-            Scanner[Security Scanner]
-            Neutralizer[Threat Neutralizer]
-            Audit[Audit Logger]
+        subgraph "Trait Interfaces"
+            ScannerTrait[SecurityScanner Trait]
+            BufferTrait[EventBufferTrait]
+            MetricsTrait[MetricsProvider Trait]
+            NeutralizerTrait[Neutralizer Trait]
         end
         
-        subgraph "Data Layer"
-            Storage[Persistent Storage]
-            Cache[In-Memory Cache]
-            Metrics[Telemetry]
+        subgraph "Factory Layer"
+            Factories[Component Factories]
+            Config[Configuration]
         end
     end
     
-    subgraph "Optional Enhanced"
-        Core[kindly-guard-core]
-        EventBuffer[Atomic Event Buffer]
+    subgraph "Implementation Layer"
+        subgraph "Standard (Open Source)"
+            StdScanner[Standard Scanner]
+            StdBuffer[Standard Buffer]
+            StdMetrics[Basic Metrics]
+        end
+        
+        subgraph "Enhanced (kindly-guard-core)"
+            Core[kindly-guard-core]
+            EnhScanner[ML Scanner]
+            EventBuffer[Atomic Event Buffer]
+            EnhMetrics[Advanced Metrics]
+        end
     end
     
     CLI --> Transport
@@ -41,17 +51,268 @@ graph TB
     Browser --> Transport
     
     Transport --> Protocol
-    Protocol --> Scanner
-    Scanner --> Neutralizer
-    Scanner --> Audit
+    Protocol --> ScannerTrait
+    Protocol --> BufferTrait
+    Protocol --> MetricsTrait
     
-    Scanner --> Storage
-    Scanner --> Cache
-    Scanner --> Metrics
+    Config --> Factories
+    Factories --> ScannerTrait
+    Factories --> BufferTrait
+    Factories --> MetricsTrait
     
-    Scanner -.-> Core
-    Core -.-> EventBuffer
+    ScannerTrait -.-> StdScanner
+    ScannerTrait -.-> EnhScanner
+    BufferTrait -.-> StdBuffer
+    BufferTrait -.-> EventBuffer
+    MetricsTrait -.-> StdMetrics
+    MetricsTrait -.-> EnhMetrics
+    
+    Core --> EnhScanner
+    Core --> EventBuffer
+    Core --> EnhMetrics
+    
+    style ScannerTrait fill:#e1f5e1
+    style BufferTrait fill:#e1f5e1
+    style MetricsTrait fill:#e1f5e1
+    style NeutralizerTrait fill:#e1f5e1
+    style Factories fill:#e1f5e1
+    style Core fill:#ffe1e1
+    style EnhScanner fill:#ffe1e1
+    style EventBuffer fill:#ffe1e1
+    style EnhMetrics fill:#ffe1e1
 ```
+
+## Trait-Based Component Architecture
+
+### Overview
+
+KindlyGuard employs a sophisticated trait-based architecture that cleanly separates public interfaces from proprietary implementations. This design enables us to offer both open-source and enhanced proprietary versions while maintaining a single, consistent API surface.
+
+### Key Design Principles
+
+1. **Interface Segregation**: All major components are defined as traits, ensuring clean contracts
+2. **Implementation Flexibility**: Multiple implementations can exist for any trait
+3. **Runtime Selection**: Factory functions choose implementations based on configuration
+4. **Dependency Inversion**: High-level modules depend on abstractions, not concrete types
+
+### Architecture Diagram
+
+```mermaid
+graph TB
+    subgraph "Public API Layer"
+        Traits[Trait Definitions]
+        Factory[Factory Functions]
+        Config[Configuration]
+    end
+    
+    subgraph "Implementation Layer"
+        subgraph "Open Source"
+            StdBuffer[Standard Event Buffer]
+            StdMetrics[Basic Metrics]
+            StdScanner[Standard Scanner]
+        end
+        
+        subgraph "Proprietary (kindly-guard-core)"
+            EnhBuffer[Atomic Event Buffer]
+            EnhMetrics[Advanced Metrics]
+            EnhScanner[ML-Enhanced Scanner]
+        end
+    end
+    
+    Traits --> Factory
+    Config --> Factory
+    Factory --> StdBuffer
+    Factory --> EnhBuffer
+    Factory --> StdMetrics
+    Factory --> EnhMetrics
+    Factory --> StdScanner
+    Factory --> EnhScanner
+    
+    style Traits fill:#e1f5e1
+    style Factory fill:#e1f5e1
+    style EnhBuffer fill:#ffe1e1
+    style EnhMetrics fill:#ffe1e1
+    style EnhScanner fill:#ffe1e1
+```
+
+### Core Traits
+
+#### EventBufferTrait
+```rust
+// Public trait definition in kindly-guard
+pub trait EventBufferTrait: Send + Sync {
+    fn push(&self, event: SecurityEvent) -> Result<()>;
+    fn pop(&self) -> Option<SecurityEvent>;
+    fn flush(&self) -> Vec<SecurityEvent>;
+    fn len(&self) -> usize;
+}
+```
+
+#### MetricsProvider
+```rust
+pub trait MetricsProvider: Send + Sync {
+    fn record_event(&self, event_type: &str, value: f64);
+    fn get_histogram(&self, name: &str) -> Option<Histogram>;
+    fn export_metrics(&self) -> MetricsSnapshot;
+}
+```
+
+#### SecurityScanner
+```rust
+pub trait SecurityScanner: Send + Sync {
+    async fn scan(&self, input: &str) -> ScanResult;
+    fn capabilities(&self) -> ScannerCapabilities;
+    fn update_rules(&mut self, rules: RuleSet) -> Result<()>;
+}
+```
+
+### Factory Pattern Implementation
+
+Factory functions provide the bridge between trait definitions and concrete implementations:
+
+```rust
+// Factory function that selects implementation based on configuration
+pub fn create_event_buffer(config: &Config) -> Arc<dyn EventBufferTrait> {
+    if config.use_enhanced && is_enhanced_available() {
+        // Try to load enhanced implementation from kindly-guard-core
+        if let Ok(enhanced) = load_enhanced_buffer() {
+            return enhanced;
+        }
+    }
+    
+    // Fall back to standard implementation
+    Arc::new(StandardEventBuffer::new(config))
+}
+
+// Enhanced implementation loader (using dynamic loading)
+fn load_enhanced_buffer() -> Result<Arc<dyn EventBufferTrait>> {
+    // Attempt to load kindly-guard-core at runtime
+    let core = kindly_guard_core::AtomicEventBuffer::new()?;
+    Ok(Arc::new(core))
+}
+```
+
+### Configuration-Based Selection
+
+The system uses a hierarchical configuration approach:
+
+```toml
+# Configuration example
+[components]
+# Feature flags for enhanced components
+use_enhanced_buffer = true
+use_ml_scanner = true
+use_advanced_metrics = true
+
+[fallback]
+# Behavior when enhanced components aren't available
+strict_mode = false  # If true, fail when enhanced not available
+log_fallback = true  # Log when falling back to standard
+```
+
+### Implementation Examples
+
+#### Standard Implementation (Open Source)
+```rust
+// Standard implementation in main crate
+pub struct StandardEventBuffer {
+    events: Mutex<VecDeque<SecurityEvent>>,
+    capacity: usize,
+}
+
+impl EventBufferTrait for StandardEventBuffer {
+    fn push(&self, event: SecurityEvent) -> Result<()> {
+        let mut events = self.events.lock().unwrap();
+        if events.len() >= self.capacity {
+            events.pop_front();
+        }
+        events.push_back(event);
+        Ok(())
+    }
+    // ... other methods
+}
+```
+
+#### Enhanced Implementation (Proprietary)
+```rust
+// Enhanced implementation in kindly-guard-core
+pub struct AtomicEventBuffer {
+    buffer: Arc<AtomicRingBuffer<SecurityEvent>>,
+    metrics: Arc<dyn MetricsProvider>,
+}
+
+impl EventBufferTrait for AtomicEventBuffer {
+    fn push(&self, event: SecurityEvent) -> Result<()> {
+        // Lock-free implementation with metrics
+        self.metrics.record_event("buffer.push", 1.0);
+        self.buffer.push_atomic(event)
+    }
+    // ... other methods with enhanced performance
+}
+```
+
+### Benefits of This Architecture
+
+#### 1. Clean Separation of Concerns
+- Public APIs remain stable and well-documented
+- Implementation details are hidden behind trait boundaries
+- Changes to implementations don't affect the public interface
+
+#### 2. Protection of Proprietary Technology
+- Enhanced implementations live in a separate, private crate
+- Core algorithms and optimizations remain confidential
+- Public crate can be fully open-sourced without exposing secrets
+
+#### 3. Flexibility for Users
+- Users can choose between standard and enhanced versions
+- Graceful fallback when enhanced features aren't available
+- Configuration-driven feature selection
+
+#### 4. Maintainability and Testing
+- Each implementation can be tested independently
+- Mock implementations simplify unit testing
+- Clear boundaries reduce coupling between components
+
+#### 5. Performance Optimization
+- Enhanced implementations can use advanced techniques
+- Zero-cost abstractions through Rust's trait system
+- Runtime overhead minimized through static dispatch where possible
+
+### Component Lifecycle
+
+```mermaid
+sequenceDiagram
+    participant App
+    participant Factory
+    participant Config
+    participant Trait
+    participant StdImpl
+    participant EnhImpl
+    
+    App->>Factory: create_component()
+    Factory->>Config: check_feature_flags()
+    Config-->>Factory: use_enhanced = true
+    
+    Factory->>EnhImpl: try_load()
+    alt Enhanced Available
+        EnhImpl-->>Factory: Success
+        Factory-->>App: Arc<dyn Trait>
+    else Enhanced Not Available
+        Factory->>StdImpl: new()
+        StdImpl-->>Factory: Instance
+        Factory-->>App: Arc<dyn Trait>
+    end
+    
+    App->>Trait: use_component()
+```
+
+### Best Practices
+
+1. **Always define traits first** - Design the interface before implementation
+2. **Use Arc<dyn Trait>** - Enables runtime polymorphism and sharing
+3. **Provide sensible defaults** - Standard implementations should be fully functional
+4. **Document trait contracts** - Clear documentation of expected behavior
+5. **Version traits carefully** - Breaking changes require major version bumps
 
 ## Core Components
 
@@ -70,17 +331,37 @@ graph TB
   - `traits.rs` - Core trait definitions
 
 ### 3. Security Scanner (`src/scanner/`)
-The heart of KindlyGuard's threat detection:
+The heart of KindlyGuard's threat detection, implemented using trait-based architecture:
 
 ```rust
 // CLAUDE-note-architecture: Scanner module structure
 scanner/
-├── mod.rs          // Scanner trait and factory
-├── unicode.rs      // Unicode security threats
-├── injection.rs    // SQL/Command injection
-├── xss.rs          // Cross-site scripting
-├── patterns.rs     // Malicious pattern detection
-└── enhanced.rs     // Optional enhanced scanner
+├── mod.rs          // SecurityScanner trait definition
+├── factory.rs      // Scanner factory functions
+├── standard/       // Open-source implementations
+│   ├── mod.rs      // Standard scanner implementation
+│   ├── unicode.rs  // Basic Unicode security
+│   ├── injection.rs// Standard SQL/Command injection
+│   └── xss.rs      // Basic XSS detection
+└── traits.rs       // Scanner-specific sub-traits
+```
+
+#### SecurityScanner Trait
+```rust
+pub trait SecurityScanner: Send + Sync {
+    async fn scan(&self, input: &str) -> ScanResult;
+    fn capabilities(&self) -> ScannerCapabilities;
+    fn update_rules(&mut self, rules: RuleSet) -> Result<()>;
+}
+
+// Factory function for scanner creation
+pub fn create_scanner(config: &Config) -> Arc<dyn SecurityScanner> {
+    if config.use_ml_scanner && kindly_guard_core::is_available() {
+        Arc::new(kindly_guard_core::MLScanner::new(config))
+    } else {
+        Arc::new(StandardScanner::new(config))
+    }
+}
 ```
 
 #### Scanning Pipeline:
@@ -129,22 +410,32 @@ scanner/
   ```
 
 ### 7. Resilience Layer (`src/resilience/`)
-Fault tolerance and reliability patterns:
+Fault tolerance and reliability patterns using trait-based design:
 
 ```rust
-// CLAUDE-note-pattern: Circuit breaker implementation
-pub struct CircuitBreaker<T> {
-    failure_threshold: u32,
-    recovery_timeout: Duration,
-    state: Arc<RwLock<CircuitState>>,
+// CLAUDE-note-pattern: Resilience traits
+pub trait CircuitBreakerTrait {
+    fn call<F, T>(&self, f: F) -> Result<T>
+    where
+        F: FnOnce() -> Result<T>;
+    
+    fn state(&self) -> CircuitState;
+    fn reset(&self);
 }
 
-// CLAUDE-note-pattern: Retry with exponential backoff
-pub struct RetryPolicy {
-    max_attempts: u32,
-    initial_delay: Duration,
-    max_delay: Duration,
-    multiplier: f64,
+pub trait RetryPolicyTrait {
+    async fn execute<F, T>(&self, f: F) -> Result<T>
+    where
+        F: Fn() -> Future<Output = Result<T>> + Send;
+}
+
+// Factory functions for resilience components
+pub fn create_circuit_breaker(config: &Config) -> Arc<dyn CircuitBreakerTrait> {
+    if config.use_enhanced_resilience {
+        Arc::new(kindly_guard_core::AdaptiveCircuitBreaker::new(config))
+    } else {
+        Arc::new(StandardCircuitBreaker::new(config))
+    }
 }
 ```
 
@@ -309,7 +600,7 @@ integrations:
 
 ### Key Configuration Areas:
 ```toml
-# CLAUDE-note-config: Example configuration
+# CLAUDE-note-config: Example configuration with trait-based components
 [scanner]
 timeout_ms = 1000
 max_input_size = 1048576  # 1MB
@@ -328,6 +619,28 @@ max_connections = 1000
 path = "./kindly.db"
 wal_mode = true
 cache_size_mb = 100
+
+# Trait-based component selection
+[components]
+use_enhanced_scanner = true      # Use ML-based scanner from kindly-guard-core
+use_enhanced_buffer = true       # Use atomic event buffer
+use_enhanced_metrics = true      # Use advanced telemetry
+use_enhanced_resilience = false  # Use standard resilience patterns
+
+[components.fallback]
+strict_mode = false             # Don't fail if enhanced unavailable
+log_fallback = true            # Log when using standard implementations
+prefer_performance = true       # Choose performance over features when both available
+
+# Component-specific enhanced configurations
+[components.enhanced.scanner]
+model_path = "./models/threat_detection_v2.onnx"
+gpu_acceleration = true
+batch_size = 32
+
+[components.enhanced.buffer]
+ring_size = 65536              # Power of 2 for atomic operations
+numa_aware = true              # NUMA-aware memory allocation
 ```
 
 ## Error Handling Strategy
@@ -374,11 +687,30 @@ GET /metrics        -> Prometheus format metrics
 ## Future Architecture Considerations
 
 ### Planned Enhancements:
-1. **ML-based threat detection** - TensorFlow Lite integration
-2. **Distributed caching** - Redis/Valkey support
-3. **Multi-region deployment** - Edge computing support
-4. **Plugin system** - Custom scanner plugins
-5. **GraphQL API** - Alternative to MCP for some use cases
+1. **Additional Trait Implementations**
+   - GPU-accelerated scanners
+   - Distributed event buffers
+   - Cloud-native metrics providers
+   
+2. **Dynamic Trait Loading**
+   - Runtime plugin system for custom implementations
+   - Hot-swapping of components without restart
+   - Third-party trait implementations
+   
+3. **Trait Composition**
+   - Decorator pattern for layered functionality
+   - Middleware traits for cross-cutting concerns
+   - Trait adapters for legacy systems
+
+4. **Enhanced Factory System**
+   - A/B testing different implementations
+   - Performance-based automatic selection
+   - Feature flag integration
+
+5. **Trait Evolution**
+   - Versioned traits for backward compatibility
+   - Migration paths between trait versions
+   - Deprecation strategies
 
 ### Scalability Path:
 ```mermaid

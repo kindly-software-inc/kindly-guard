@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! Performance benchmarks for CLI command processing
 
 use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
@@ -34,7 +47,7 @@ fn benchmark_input_validation(c: &mut Criterion) {
     // Create owned strings to avoid lifetime issues
     let medium_input = "x".repeat(1000);
     let large_input = "x".repeat(100_000);
-    
+
     let test_inputs = vec![
         ("small", "Hello, world!".to_string()),
         ("medium", medium_input),
@@ -61,9 +74,12 @@ fn benchmark_output_sanitization(c: &mut Criterion) {
         "colored",
         "x".repeat(1000)
     );
-    
+
     let test_outputs = vec![
-        ("plain", "Simple text without special characters".to_string()),
+        (
+            "plain",
+            "Simple text without special characters".to_string(),
+        ),
         (
             "ansi",
             "\x1b[31mRed text\x1b[0m with \x1b[32mgreen\x1b[0m colors".to_string(),
@@ -76,10 +92,7 @@ fn benchmark_output_sanitization(c: &mut Criterion) {
             "mixed",
             "Mixed \x1b[35mcolors\x1b[0m and\x00\x01control\nchars\ttabs".to_string(),
         ),
-        (
-            "large",
-            large_output,
-        ),
+        ("large", large_output),
     ];
 
     for (label, output) in &test_outputs {

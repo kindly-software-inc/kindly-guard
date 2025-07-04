@@ -1,3 +1,16 @@
+// Copyright 2025 Kindly-Software
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
 //! WebSocket transport implementation
 
 use anyhow::Result;
@@ -80,8 +93,8 @@ impl WebSocketTransport {
 
         if let Some(bind_addr) = &self.config.bind_addr {
             let addr = bind_addr.clone();
-            let stats = self.stats.clone();
-            let connection_tx = self.connection_tx.clone();
+            let _stats = self.stats.clone();
+            let _connection_tx = self.connection_tx.clone();
 
             tokio::spawn(async move {
                 info!("WebSocket server listening on {}", addr);
