@@ -39,7 +39,7 @@ The main configuration is in the workspace `Cargo.toml`:
 
 ```toml
 [workspace.metadata.dist]
-cargo-dist-version = "0.25.1"
+cargo-dist-version = "0.9.7"
 ci = ["github"]
 installers = ["shell", "powershell", "npm", "homebrew", "msi", "pkg"]
 targets = [

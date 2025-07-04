@@ -27,19 +27,19 @@ The KindlyGuard automated release system streamlines the entire release process 
 ### Simple Release
 ```bash
 # Standard release
-./scripts/release.sh 0.9.6
+./scripts/release.sh 0.9.7
 
 # Preview what would happen
-./scripts/release.sh 0.9.6 --dry-run
+./scripts/release.sh 0.9.7 --dry-run
 
 # Skip all prompts
-./scripts/release.sh 0.9.6 --auto-publish
+./scripts/release.sh 0.9.7 --auto-publish
 ```
 
 ### Step-by-Step Release
 ```bash
 # 1. Update version and create release tag
-./scripts/update-version.sh --release 0.9.6
+./scripts/update-version.sh --release 0.9.7
 
 # 2. Monitor GitHub Actions build
 # 3. Publish packages after build succeeds
@@ -50,7 +50,7 @@ The KindlyGuard automated release system streamlines the entire release process 
 ```bash
 # Full orchestration with options
 ./scripts/release-orchestrator.sh \
-  --version 0.9.6 \
+  --version 0.9.7 \
   --branch main \
   --draft false \
   --auto-publish
@@ -212,7 +212,7 @@ Most common case for regular releases:
 
 ```bash
 # 1. Simple one-command release
-./scripts/release.sh 0.9.6
+./scripts/release.sh 0.9.7
 
 # 2. Follow prompts
 # 3. Done!
@@ -238,13 +238,13 @@ For urgent patches:
 
 ```bash
 # 1. Create hotfix branch
-git checkout -b hotfix/0.9.6.1 v0.9.6
+git checkout -b hotfix/0.9.7.1 v0.9.7
 
 # 2. Apply fixes
 # ... make changes ...
 
 # 3. Release
-./scripts/release.sh 0.9.6.1 --skip-checks
+./scripts/release.sh 0.9.7.1 --skip-checks
 ```
 
 ### Draft Release
@@ -290,7 +290,7 @@ Always ensure before releasing:
 Follow semantic versioning:
 - **Major** (1.0.0): Breaking changes
 - **Minor** (0.9.0): New features
-- **Patch** (0.9.6): Bug fixes
+- **Patch** (0.9.7): Bug fixes
 
 ### 3. Release Notes
 Good release notes include:
@@ -323,18 +323,18 @@ After release:
 ### Common Issues
 
 #### Version Already Exists
-**Error:** "Tag v0.9.6 already exists"
+**Error:** "Tag v0.9.7 already exists"
 
 **Solution:**
 ```bash
 # Delete local tag
-git tag -d v0.9.6
+git tag -d v0.9.7
 
 # Delete remote tag (careful!)
-git push --delete origin v0.9.6
+git push --delete origin v0.9.7
 
 # Retry release
-./scripts/release.sh 0.9.6
+./scripts/release.sh 0.9.7
 ```
 
 #### Authentication Failures
@@ -364,7 +364,7 @@ docker login
 3. Fix issues and retry:
    ```bash
    # Retrigger workflow
-   gh workflow run release.yml -f version=v0.9.6
+   gh workflow run release.yml -f version=v0.9.7
    ```
 
 #### Partial Release
@@ -397,23 +397,23 @@ npm view @kindlyguard/kindlyguard
 #### Rollback Released Version
 ```bash
 # Quick rollback
-./scripts/rollback-release.sh v0.9.6
+./scripts/rollback-release.sh v0.9.7
 
 # Manual rollback
-gh release edit v0.9.6 --prerelease
-cargo yank --version 0.9.6 kindly-guard-server
-npm deprecate @kindlyguard/kindlyguard@0.9.6 "Use 0.9.7"
+gh release edit v0.9.7 --prerelease
+cargo yank --version 0.9.7 kindly-guard-server
+npm deprecate @kindlyguard/kindlyguard@0.9.7 "Use 0.9.8"
 ```
 
 #### Clean Failed State
 ```bash
 # Reset to clean state
-./scripts/cleanup-failed-release.sh v0.9.6
+./scripts/cleanup-failed-release.sh v0.9.7
 
 # Manually reset
 git reset --hard HEAD~1
-git tag -d v0.9.6
-git push --delete origin v0.9.6
+git tag -d v0.9.7
+git push --delete origin v0.9.7
 ```
 
 ### Debug Mode
@@ -421,11 +421,11 @@ git push --delete origin v0.9.6
 Enable detailed logging:
 ```bash
 # Debug release script
-DEBUG=1 ./scripts/release.sh 0.9.6
+DEBUG=1 ./scripts/release.sh 0.9.7
 
 # Debug with orchestrator
 ./scripts/release-orchestrator.sh \
-  --version 0.9.6 \
+  --version 0.9.7 \
   --log-level debug
 
 # Check logs
@@ -439,11 +439,11 @@ tail -f ./logs/release-*.log
 #### Skip Certain Steps
 ```bash
 # Update version only
-./scripts/update-version.sh 0.9.6 --no-tag
+./scripts/update-version.sh 0.9.7 --no-tag
 
 # Create tag manually later
-git tag -a v0.9.6 -m "Custom message"
-git push origin v0.9.6
+git tag -a v0.9.7 -m "Custom message"
+git push origin v0.9.7
 ```
 
 #### Parallel Publishing
@@ -459,7 +459,7 @@ wait
 ```bash
 # 1. Create release with custom notes
 ./scripts/release-orchestrator.sh \
-  --version 0.9.6 \
+  --version 0.9.7 \
   --release-notes-file CUSTOM_NOTES.md
 ```
 
@@ -539,7 +539,7 @@ git config --global commit.gpgsign true
 git config --global tag.gpgsign true
 
 # Release will be signed automatically
-./scripts/release.sh 0.9.6
+./scripts/release.sh 0.9.7
 ```
 
 ### Audit Trail
