@@ -2,10 +2,10 @@
 
 **Security that's kind to developers, tough on threats**
 
-[![Crates.io](https://img.shields.io/crates/v/kindly-guard.svg)](https://crates.io/crates/kindly-guard)
-[![CI Status](https://img.shields.io/github/workflow/status/kindlyguard/kindly-guard/CI)](https://github.com/kindlyguard/kindly-guard/actions)
+[![Crates.io](https://img.shields.io/crates/v/kindlyguard.svg)](https://crates.io/crates/kindlyguard)
+[![CI Status](https://img.shields.io/github/workflow/status/kindlyguard/kindlyguard/CI)](https://github.com/kindlyguard/kindlyguard/actions)
 [![Security Audit](https://img.shields.io/badge/security-audited-green.svg)](docs/SECURITY_AUDIT_REPORT.md)
-[![License](https://img.shields.io/crates/l/kindly-guard.svg)](LICENSE)
+[![License](https://img.shields.io/crates/l/kindlyguard.svg)](LICENSE)
 
 **Production-ready security layer for AI model interactions via the Model Context Protocol (MCP)**
 
@@ -13,35 +13,35 @@
 
 ### npm (Recommended)
 ```bash
-npm install -g @kindlyguard/kindlyguard && kindlyguard --stdio
+npm install -g kindlyguard && kindlyguard --stdio
 ```
 
 ### Cargo
 ```bash
-cargo install kindly-guard && kindly-guard --stdio
+cargo install kindlyguard-cli && kindlyguard-cli --stdio
 ```
 
 ### Docker
 ```bash
-docker run -it kindlyguard/kindly-guard --stdio
+docker run -it kindlysoftware/kindlyguard --stdio
 ```
 
 **That's it!** You're now protected. Try it:
 ```bash
-kindly-guard scan "DROP TABLE users;"
+kindlyguard scan "DROP TABLE users;"
 # 🚨 SQL injection detected at position 0-4
 ```
 
 ### Configure with Claude or VS Code (Optional)
 ```bash
 # Auto-detect and configure MCP integration
-kindly-guard setup-mcp
+kindlyguard setup-mcp
 
 # Or specify your IDE
-kindly-guard setup-mcp --ide claude-desktop
+kindlyguard setup-mcp --ide claude-desktop
 
 # Show configuration for manual setup
-kindly-guard show-mcp-config
+kindlyguard show-mcp-config
 ```
 
 ## ✨ Features at a Glance
@@ -130,7 +130,7 @@ let scanner = create_scanner(config)?; // Automatic selection
 
 ### Basic Configuration
 ```yaml
-# kindly-guard.yaml
+# kindlyguard.yaml
 scanner:
   unicode_detection: true
   injection_detection: true
@@ -182,7 +182,7 @@ logging:
   format: "json"
   audit:
     enabled: true
-    path: "/var/log/kindly-guard/audit.log"
+    path: "/var/log/kindlyguard/audit.log"
 ```
 
 ## 🤖 MCP Integration
@@ -192,10 +192,10 @@ KindlyGuard includes intelligent MCP (Model Context Protocol) setup that auto-de
 ### Automatic Setup
 ```bash
 # Auto-detect your IDE and configure
-kindly-guard setup-mcp
+kindlyguard setup-mcp
 
 # Test the MCP connection
-kindly-guard test-mcp
+kindlyguard test-mcp
 ```
 
 ### Supported IDEs
@@ -209,8 +209,8 @@ kindly-guard test-mcp
 If auto-setup doesn't work for your environment:
 ```bash
 # Show configuration in your preferred format
-kindly-guard show-mcp-config --format json
-kindly-guard show-mcp-config --format yaml
+kindlyguard show-mcp-config --format json
+kindlyguard show-mcp-config --format yaml
 ```
 
 ### What It Does
@@ -274,19 +274,19 @@ cargo bench
 sudo ./systemd/install.sh
 
 # Start service
-sudo systemctl start kindly-guard
-sudo systemctl enable kindly-guard
+sudo systemctl start kindlyguard
+sudo systemctl enable kindlyguard
 ```
 
 ### Docker Compose
 ```yaml
 version: '3.8'
 services:
-  kindly-guard:
-    image: kindlyguard/kindly-guard:latest
+  kindlyguard:
+    image: kindlyguard/kindlyguard:latest
     volumes:
-      - ./config:/etc/kindly-guard
-      - ./data:/var/lib/kindly-guard
+      - ./config:/etc/kindlyguard
+      - ./data:/var/lib/kindlyguard
     environment:
       - RUST_LOG=info
     restart: unless-stopped
@@ -297,14 +297,14 @@ services:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kindly-guard
+  name: kindlyguard
 spec:
   replicas: 3
   template:
     spec:
       containers:
-      - name: kindly-guard
-        image: kindlyguard/kindly-guard:latest
+      - name: kindlyguard
+        image: kindlyguard/kindlyguard:latest
         resources:
           requests:
             memory: "64Mi"
@@ -321,8 +321,8 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ### Development Setup
 ```bash
 # Clone repository
-git clone https://github.com/kindlyguard/kindly-guard
-cd kindly-guard
+git clone https://github.com/kindlyguard/kindlyguard
+cd kindlyguard
 
 # Install dependencies
 cargo build
@@ -336,7 +336,7 @@ RUST_LOG=debug cargo run -- --stdio
 
 ## 📈 Roadmap
 
-### v0.9.1 (Current Release)
+### v0.9.2 (Current Release)
 - ✅ Core security scanning engine
 - ✅ MCP protocol implementation
 - ✅ OAuth 2.0 authentication

@@ -1,0 +1,52 @@
+KindlyGuard v0.9.2 Build Summary
+================================
+
+Successfully Built Platforms:
+----------------------------
+✅ Linux x64 (x86_64-unknown-linux-gnu)
+   - kindly-guard: 8.1MB (MCP server)
+   - kindly-guard-cli: 5.5MB (CLI tool)
+   - Both binaries stripped and optimized
+   - Minimal dependencies (glibc, libm, libgcc)
+
+Failed/Skipped Platforms:
+------------------------
+❌ Windows x64: Missing mingw-w64 toolchain
+⏭️ macOS x64: Requires macOS or osxcross
+⏭️ macOS ARM64: Requires macOS or osxcross
+
+Directory Structure:
+-------------------
+/home/samuel/kindly-guard/release-v0.9.2/
+├── linux-x64/
+│   ├── kindly-guard (8.1MB)
+│   └── kindly-guard-cli (5.5MB)
+├── windows-x64/ (empty)
+├── macos-x64/ (empty)
+├── macos-arm64/ (empty)
+├── README.md
+├── RELEASE_NOTES.md
+├── BUILD_SUMMARY.txt
+└── verify_binaries.sh
+
+Build Command Used:
+------------------
+cargo build --release --bins
+
+Compilation Issues Fixed:
+------------------------
+1. Added missing 'max_input_size' field in CLI config
+2. Added missing Arc import in lib.rs
+3. Test compilation errors remain but don't affect binary builds
+
+Recommendations:
+---------------
+1. For complete multi-platform support, use GitHub Actions CI/CD
+2. Install mingw-w64 for local Windows builds: sudo apt-get install mingw-w64
+3. Consider using 'cross' tool for easier cross-compilation
+4. Fix test compilation errors for cleaner builds
+
+Checksums (SHA256):
+------------------
+kindly-guard:     4313afa3f8d9a19b5f1b49cf7c5e3bad5316b136d4e2d99143a7adeee791c242
+kindly-guard-cli: faa113c5dd026a2515792197b2045d9082c1d00cf9130e39bfeee3f4ccd545ec

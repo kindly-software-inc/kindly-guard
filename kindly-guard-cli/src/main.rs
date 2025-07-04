@@ -222,6 +222,7 @@ async fn scan_command(
             max_scan_depth: 10,
             enable_event_buffer: false,
             max_content_size: 5 * 1024 * 1024, // 5MB default
+            max_input_size: Some(10 * 1024 * 1024), // 10MB default
         };
 
         SecurityScanner::new(config).context("Failed to create security scanner")?
@@ -241,10 +242,12 @@ async fn scan_command(
             None
         } else {
             let pb = ProgressBar::new(files_to_scan.len() as u64);
-            pb.set_style(ProgressStyle::default_bar()
-            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
-            .unwrap()
-            .progress_chars("#>-"));
+            // Use unwrap_or_else to fall back to default style if template parsing fails
+            let style = ProgressStyle::default_bar()
+                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
+                .unwrap_or_else(|_| ProgressStyle::default_bar())
+                .progress_chars("#>-");
+            pb.set_style(style);
             Some(pb)
         };
 

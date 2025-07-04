@@ -1,0 +1,59 @@
+{
+  "version": "0.9.2",
+  "release_date": "2025-01-20",
+  "release_type": "minor",
+  "assets": [
+    {
+      "name": "kindlyguard-linux-x64.tar.gz",
+      "platform": "linux",
+      "architecture": "x64",
+      "size_bytes": 5552634,
+      "sha256": "ce75557bcca515862e228ee1a426378e9757efa8c7d93c5e762350f26c8bded1",
+      "download_url": "https://github.com/samuelbmarks/kindly-guard/releases/download/v0.9.2/kindlyguard-linux-x64.tar.gz",
+      "description": "Linux x64 binaries (glibc 2.31+)"
+    },
+    {
+      "name": "kindlyguard-windows-x64.zip",
+      "platform": "windows",
+      "architecture": "x64",
+      "size_bytes": null,
+      "sha256": null,
+      "download_url": "https://github.com/samuelbmarks/kindly-guard/releases/download/v0.9.2/kindlyguard-windows-x64.zip",
+      "description": "Windows x64 binaries (pending)",
+      "status": "pending"
+    },
+    {
+      "name": "kindlyguard-macos-arm64.tar.gz",
+      "platform": "macos",
+      "architecture": "arm64",
+      "size_bytes": null,
+      "sha256": null,
+      "download_url": "https://github.com/samuelbmarks/kindly-guard/releases/download/v0.9.2/kindlyguard-macos-arm64.tar.gz",
+      "description": "macOS ARM64 binaries (pending)",
+      "status": "pending"
+    },
+    {
+      "name": "kindlyguard-macos-x64.tar.gz",
+      "platform": "macos",
+      "architecture": "x64",
+      "size_bytes": null,
+      "sha256": null,
+      "download_url": "https://github.com/samuelbmarks/kindly-guard/releases/download/v0.9.2/kindlyguard-macos-x64.tar.gz",
+      "description": "macOS x64 binaries (pending)",
+      "status": "pending"
+    }
+  ],
+  "checksums": {
+    "SHA256SUMS.txt": "https://github.com/samuelbmarks/kindly-guard/releases/download/v0.9.2/SHA256SUMS.txt"
+  },
+  "release_notes": "https://github.com/samuelbmarks/kindly-guard/releases/tag/v0.9.2",
+  "changelog": "https://github.com/samuelbmarks/kindly-guard/blob/main/CHANGELOG.md",
+  "minimum_rust_version": "1.70.0",
+  "dependencies": {
+    "runtime": {
+      "linux": ["glibc >= 2.31"],
+      "windows": ["Visual C++ Redistributable 2019"],
+      "macos": ["macOS 10.15+"]
+    }
+  }
+}

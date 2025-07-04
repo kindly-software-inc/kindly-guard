@@ -198,6 +198,8 @@ async fn test_comprehensive_security_pipeline() -> Result<()> {
         custom_patterns: None,
         max_scan_depth: 10,
         enable_event_buffer: false,
+        crypto_detection: true,
+        max_content_size: 10_485_760, // 10MB for tests
     };
     let scanner = Arc::new(SecurityScanner::new(scanner_config).unwrap());
 
@@ -405,6 +407,8 @@ async fn test_mcp_server_security() -> Result<()> {
             custom_patterns: None,
             max_scan_depth: 10,
             enable_event_buffer: false,
+            crypto_detection: true,
+            max_content_size: 10_485_760, // 10MB for tests
         };
         let scanner = SecurityScanner::new(scanner_config).unwrap();
         let threats = scanner.scan_text(&attack_str)?;
@@ -435,6 +439,8 @@ async fn test_performance_under_attack_load() -> Result<()> {
         custom_patterns: None,
         max_scan_depth: 10,
         enable_event_buffer: false,
+        crypto_detection: true,
+        max_content_size: 10_485_760, // 10MB for tests
     };
     let scanner = Arc::new(SecurityScanner::new(scanner_config).unwrap());
     let neutralizer = create_neutralizer(&NeutralizationConfig::default(), None);

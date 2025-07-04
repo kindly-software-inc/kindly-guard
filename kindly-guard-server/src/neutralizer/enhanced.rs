@@ -386,7 +386,9 @@ impl ThreatNeutralizer for EnhancedNeutralizer {
             enable_event_buffer: true, // Enhanced uses event buffer
             xss_detection: Some(true),
             enhanced_mode: Some(true), // Use enhanced mode for better performance
+            crypto_detection: true, // Enable crypto detection for security
             max_content_size: 5_242_880, // 5MB default
+            max_input_size: None,
         };
         let scanner = crate::SecurityScanner::new(scanner_config)?;
 

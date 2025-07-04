@@ -10,6 +10,7 @@ const path = require('path');
 const { spawnSync } = require('child_process');
 const https = require('https');
 const tar = require('tar');
+const unzipper = require('unzipper');
 const { pipeline } = require('stream');
 const { promisify } = require('util');
 
@@ -49,10 +50,13 @@ async function downloadBinary(url, destPath) {
         process.stdout.write(`\rDownloading... ${percent}%`);
       });
       
-      response.pipe(tar.x({
-        C: path.dirname(destPath),
-        strip: 1
-      }))
+      // Handle different archive types
+      const isZip = url.endsWith('.zip');
+      const extractStream = isZip 
+        ? unzipper.Extract({ path: path.dirname(destPath) })
+        : tar.x({ C: path.dirname(destPath), strip: 1 });
+      
+      response.pipe(extractStream)
       .on('finish', () => {
         console.log('\nDownload complete!');
         resolve();

@@ -33,7 +33,7 @@ use kindly_guard_server::{
     auth::{AuthConfig, AuthContext, AuthManager, ScopeRequirements},
     config::{Config, ScannerConfig},
     logging::{LogConfig, SemanticLogger},
-    rate_limit::{RateLimitConfig, RateLimiter},
+    rate_limit::{RateLimiter, RateLimitConfig},
     scanner::{SecurityScanner, ThreatType},
     signing::{SigningAlgorithm, SigningConfig, SigningManager},
 };

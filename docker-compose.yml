@@ -46,6 +46,9 @@ services:
       # - KINDLY_GUARD__SERVER__HOST=0.0.0.0
       # - KINDLY_GUARD__SERVER__PORT=3000
     
+    # Command
+    command: ["/usr/local/bin/kindly-guard", "--http", "--bind", "0.0.0.0:3000"]
+    
     # Networking
     networks:
       - kindly-guard-net

@@ -1,0 +1,75 @@
+# KindlyGuard Docker Configuration
+# Security-focused MCP server configuration
+
+[server]
+# Bind address for HTTP mode (optional, stdio is default)
+bind = "0.0.0.0:3000"
+
+# Maximum request size (in bytes)
+max_request_size = 10_485_760  # 10MB
+
+# Request timeout (in seconds)
+request_timeout = 30
+
+[scanner]
+# Enable all threat detection modules
+unicode_detection = true
+injection_detection = true
+xss_detection = true
+pattern_detection = true
+
+# Scanner sensitivity
+sensitivity = "high"
+
+# Maximum scan depth for nested structures
+max_depth = 100
+
+[shield]
+# Enable shield display (terminal UI)
+enabled = false  # Disabled in container by default
+
+# Display refresh rate (milliseconds)
+refresh_rate = 100
+
+[storage]
+# Database location
+database_path = "/var/lib/kindly-guard/threats.db"
+
+# Cache settings
+cache_size = 1000
+cache_ttl = 3600
+
+[telemetry]
+# Enable telemetry collection
+enabled = true
+
+# Export endpoint (optional)
+# export_endpoint = "http://telemetry-collector:4317"
+
+# Export interval (seconds)
+export_interval_seconds = 60
+
+[security]
+# Enable audit logging
+audit_logging = true
+audit_log_path = "/var/log/kindly-guard/audit.log"
+
+# Rate limiting
+rate_limit_enabled = true
+rate_limit_requests = 100
+rate_limit_window = 60
+
+[resilience]
+# Enable enhanced resilience features
+enhanced_mode = false
+
+[resilience.circuit_breaker]
+failure_threshold = 5
+recovery_timeout = "30s"
+half_open_max_requests = 3
+
+[resilience.retry]
+max_attempts = 3
+initial_delay = "100ms"
+max_delay = "10s"
+jitter_factor = 0.1

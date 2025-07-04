@@ -79,7 +79,7 @@ If docs site exists, update with:
 
 - Watch GitHub issues for early feedback
 - Monitor social media for questions
-- Be ready to release v0.9.1 for critical fixes
+- Be ready to release v0.9.3 for critical fixes
 
 ## Verification Checklist
 

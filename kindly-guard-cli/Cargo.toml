@@ -13,7 +13,7 @@ categories = ["command-line-utilities", "security"]
 description = "Command-line security scanner and monitoring tool for threat detection"
 
 [[bin]]
-name = "kindly-guard-cli"
+name = "kindlyguard-cli"
 path = "src/main.rs"
 
 [dependencies]
@@ -47,7 +47,7 @@ comfy-table = "7.1"
 reqwest = { version = "0.12", features = ["json"] }
 
 # Scanner integration
-kindly-guard-server = { version = "0.9.1", path = "../kindly-guard-server" }
+kindly-guard-server = { version = "0.9.2", path = "../kindly-guard-server" }
 
 [dev-dependencies]
 tempfile = "3.14"

@@ -48,6 +48,8 @@ pub mod transport;
 pub mod versioning;
 pub mod web;
 
+use std::sync::Arc;
+
 pub use auth::{AuthContext, AuthManager};
 pub use component_selector::{ComponentManager, ComponentSelector};
 pub use config::{Config, ScannerConfig};
@@ -102,6 +104,39 @@ pub fn create_event_buffer(
         "Using standard event buffer implementation"
     );
     Ok(Some(Box::new(event_processor::SimpleEventBuffer::new())))
+}
+
+/// Create a security scanner instance based on configuration
+pub fn create_scanner(config: &Config) -> Arc<scanner::SecurityScanner> {
+    Arc::new(
+        scanner::SecurityScanner::new(config.scanner.clone())
+            .expect("Failed to create security scanner")
+    )
+}
+
+/// Create a storage provider based on configuration
+pub fn create_storage(config: &Config) -> Arc<dyn storage::StorageProvider> {
+    storage::create_storage_provider(config)
+}
+
+/// Create a rate limiter based on configuration
+pub fn create_rate_limiter(config: &Config) -> Arc<rate_limit::RateLimiter> {
+    Arc::new(rate_limit::RateLimiter::new(config.rate_limit.clone()))
+}
+
+/// Create a transport based on configuration
+pub fn create_transport(config: &Config) -> Arc<dyn transport::Transport> {
+    transport::create_transport(config)
+}
+
+/// Create a telemetry provider based on configuration
+pub fn create_telemetry(config: &Config) -> Arc<dyn telemetry::TelemetryProvider> {
+    telemetry::create_telemetry_provider(config)
+}
+
+/// Create an audit logger based on configuration
+pub fn create_audit_logger(config: &Config) -> Arc<dyn audit::AuditLogger> {
+    audit::create_audit_logger(config)
 }
 
 /// Mock types for testing

@@ -199,6 +199,59 @@ impl MetricsCollector {
         state.histograms.clear();
         state.last_reset = Instant::now();
     }
+
+    /// Record an error event
+    pub fn record_error(&self, error_type: &str) {
+        self.increment_counter(
+            "kindlyguard_errors_total",
+            [("type".to_string(), error_type.to_string())].into(),
+        );
+    }
+
+    /// Record a successful scan
+    pub fn record_scan_success(&self, scan_type: &str) {
+        self.increment_counter(
+            "kindlyguard_scans_success_total",
+            [("type".to_string(), scan_type.to_string())].into(),
+        );
+    }
+
+    /// Record a successful storage operation
+    pub fn record_storage_success(&self, operation: &str) {
+        self.increment_counter(
+            "kindlyguard_storage_operations_success_total",
+            [("operation".to_string(), operation.to_string())].into(),
+        );
+    }
+
+    /// Record a service unavailable event
+    pub fn record_service_unavailable(&self) {
+        self.increment_counter(
+            "kindlyguard_service_unavailable_total",
+            HashMap::new(),
+        );
+    }
+
+    /// Record a degraded service event
+    pub fn record_degraded_service(&self) {
+        self.increment_counter(
+            "kindlyguard_service_degraded_total",
+            HashMap::new(),
+        );
+    }
+
+    /// Record a successful verification
+    pub fn record_verification_success(&self) {
+        self.increment_counter(
+            "kindlyguard_verifications_success_total",
+            HashMap::new(),
+        );
+    }
+
+    /// Get a snapshot of current metrics
+    pub fn get_snapshot(&self) -> MetricsSnapshot {
+        MetricsSnapshot::from_collector(self)
+    }
 }
 
 /// CLI command metrics
@@ -385,5 +438,45 @@ mod tests {
             }
             _ => panic!("Expected histogram metric"),
         }
+    }
+
+    #[test]
+    fn test_new_metric_methods() {
+        let collector = MetricsCollector::new();
+
+        // Test record_error
+        collector.record_error("connection_failed");
+        collector.record_error("timeout");
+
+        // Test record_scan_success
+        collector.record_scan_success("unicode");
+        collector.record_scan_success("injection");
+
+        // Test record_storage_success
+        collector.record_storage_success("write");
+        collector.record_storage_success("read");
+
+        // Test service availability methods
+        collector.record_service_unavailable();
+        collector.record_degraded_service();
+
+        // Test verification success
+        collector.record_verification_success();
+
+        // Get snapshot and verify metrics
+        let snapshot = collector.get_snapshot();
+        assert!(snapshot.metrics.len() >= 6);
+
+        // Verify specific counters exist
+        let metrics = collector.get_metrics();
+        let error_counter = metrics.iter().find(|m| {
+            matches!(m, Metric::Counter { name, .. } if name == "kindlyguard_errors_total")
+        });
+        assert!(error_counter.is_some());
+
+        let scan_counter = metrics.iter().find(|m| {
+            matches!(m, Metric::Counter { name, .. } if name == "kindlyguard_scans_success_total")
+        });
+        assert!(scan_counter.is_some());
     }
 }

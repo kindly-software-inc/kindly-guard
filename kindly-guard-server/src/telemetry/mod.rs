@@ -303,3 +303,47 @@ pub use distributed::{
 };
 pub use metrics::{CommandMetrics, MetricsCollector, MetricsSnapshot};
 pub use standard::StandardTelemetryProvider;
+
+/// Create a telemetry provider based on configuration
+pub fn create_telemetry_provider(config: &crate::config::Config) -> Arc<dyn TelemetryProvider> {
+    // For now, use default telemetry config
+    // TODO: Add telemetry config to main Config struct
+    let telemetry_config = TelemetryConfig::default();
+    
+    if telemetry_config.enabled {
+        Arc::new(StandardTelemetryProvider::new(telemetry_config))
+    } else {
+        // Return a no-op provider when disabled
+        Arc::new(NoOpTelemetryProvider)
+    }
+}
+
+/// No-op telemetry provider for when telemetry is disabled
+struct NoOpTelemetryProvider;
+
+#[async_trait]
+impl TelemetryProvider for NoOpTelemetryProvider {
+    fn start_span(&self, _name: &str) -> TelemetrySpan {
+        TelemetrySpan {
+            name: String::new(),
+            start_time: std::time::Instant::now(),
+            attributes: vec![],
+        }
+    }
+
+    fn end_span(&self, _span: TelemetrySpan) {}
+
+    fn record_metric(&self, _metric: TelemetryMetric) {}
+
+    fn add_event(&self, _name: &str, _attributes: Vec<(&str, &str)>) {}
+
+    fn set_status(&self, _span: &TelemetrySpan, _is_error: bool, _message: Option<&str>) {}
+
+    async fn flush(&self) -> Result<()> {
+        Ok(())
+    }
+
+    async fn shutdown(&self) -> Result<()> {
+        Ok(())
+    }
+}

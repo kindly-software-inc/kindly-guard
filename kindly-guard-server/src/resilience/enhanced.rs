@@ -451,4 +451,14 @@ impl ResilienceFactory for EnhancedResilienceFactory {
             Duration::from_secs(300),
         )))
     }
+    
+    fn create_bulkhead(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn crate::resilience::DynBulkhead>> {
+        use crate::resilience::bulkhead::{BulkheadWrapper, EnhancedBulkhead};
+        
+        let bulkhead = EnhancedBulkhead::from_config(config);
+        Ok(Arc::new(BulkheadWrapper::new(bulkhead)))
+    }
 }

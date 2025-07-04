@@ -6,8 +6,8 @@ use kindly_guard_server::setup::{McpDetector, IdeType};
 use anyhow::Result;
 
 fn main() -> Result<()> {
-    // Initialize logging
-    env_logger::init();
+    // Initialize logging using kindly-guard's logging system
+    kindly_guard_server::logging::init_logging("debug");
     
     println!("KindlyGuard MCP Configuration Detector");
     println!("=====================================\n");

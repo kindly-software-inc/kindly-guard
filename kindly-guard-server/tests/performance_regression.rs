@@ -13,9 +13,8 @@
 // limitations under the License.
 use kindly_guard_server::{
     config::Config,
-    neutralizer::{NeutralizeAction, NeutralizeResult, ThreatNeutralizer, ThreatNeutralizerError},
+    neutralizer::{NeutralizeAction, NeutralizeResult, ThreatNeutralizer},
     scanner::{SecurityScanner, Severity, Threat, ThreatType},
-    traits::{SecurityComponent, VersionInfo},
 };
 use serde::{Deserialize, Serialize};
 use std::{
@@ -349,7 +348,7 @@ impl BenchmarkRunner {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use kindly_guard_server::resilience::{create_circuit_breaker, create_retry_handler};
+    use kindly_guard_server::resilience::{create_circuit_breaker, create_retry_strategy};
 
     fn create_test_config() -> Config {
         Config::default()

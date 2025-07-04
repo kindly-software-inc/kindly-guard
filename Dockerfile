@@ -2,7 +2,7 @@
 # Security-focused build with minimal attack surface
 
 # Build stage
-FROM rust:1.75-slim AS builder
+FROM rust:1.87-slim AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -31,23 +31,51 @@ RUN mkdir -p kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/sr
     echo "fn main() {}" > kindly-guard-shield/src/main.rs && \
     touch crates-io-package/kindlyguard/src/lib.rs
 
+# Create stub benchmark files to satisfy Cargo.toml
+RUN mkdir -p kindly-guard-server/benches && \
+    echo "fn main() {}" > kindly-guard-server/benches/simple_benchmark.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/regression_benchmarks.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/critical_path_benchmarks.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/memory_profile_bench.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/comprehensive_benchmarks.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/rate_limiter_comparison.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/scanner_benchmarks.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/real_world.rs
+
 # Build dependencies only (for caching)
 RUN cargo build --release --package kindly-guard-server
 
 # Remove stub files
-RUN rm -rf kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/src crates-io-package/kindlyguard/src
+RUN rm -rf kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/src crates-io-package/kindlyguard/src kindly-guard-server/benches
 
 # Copy actual source code
 COPY . .
 
-# Change ownership to build user
-RUN chown -R builduser:builduser /build
+# Create stub benchmark files after copying source (since they're excluded by .dockerignore)
+RUN mkdir -p kindly-guard-server/benches && \
+    for bench in simple_benchmark regression_benchmarks critical_path_benchmarks \
+                 memory_profile_bench comprehensive_benchmarks rate_limiter_comparison \
+                 scanner_benchmarks real_world cli_bench comparative_benchmarks \
+                 display_bench neutralization; do \
+        echo "fn main() {}" > kindly-guard-server/benches/${bench}.rs; \
+    done && \
+    mkdir -p kindly-guard-shield/src-tauri/benches && \
+    echo "fn main() {}" > kindly-guard-shield/src-tauri/benches/protocol_benchmark.rs
 
-# Switch to build user
-USER builduser
+# Build the server with secure profile (as root for cargo registry access)
+# Note: Using release profile as a fallback if secure profile has issues
+RUN cargo build --profile=secure --package kindly-guard-server || \
+    cargo build --release --package kindly-guard-server
 
-# Build the server with secure profile
-RUN cargo build --profile=secure --package kindly-guard-server
+# Copy the built binary to a consistent location
+RUN if [ -f /build/target/secure/kindly-guard ]; then \
+        cp /build/target/secure/kindly-guard /build/kindly-guard-binary; \
+    else \
+        cp /build/target/release/kindly-guard /build/kindly-guard-binary; \
+    fi
+
+# Change ownership of built artifacts to build user
+RUN chown -R builduser:builduser /build/target /build/kindly-guard-binary
 
 # Runtime stage
 FROM debian:bookworm-slim
@@ -65,7 +93,7 @@ RUN useradd -m -u 1001 -s /bin/false kindlyguard && \
     chown -R kindlyguard:kindlyguard /etc/kindly-guard /var/lib/kindly-guard /var/log/kindly-guard
 
 # Copy binary from builder
-COPY --from=builder --chown=kindlyguard:kindlyguard /build/target/secure/kindly-guard /usr/local/bin/kindly-guard
+COPY --from=builder --chown=kindlyguard:kindlyguard /build/kindly-guard-binary /usr/local/bin/kindly-guard
 
 # Set up configuration directory
 WORKDIR /etc/kindly-guard

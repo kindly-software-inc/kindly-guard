@@ -1,0 +1,56 @@
+name: Version Consistency Check
+
+on:
+  pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'npm-package/package.json'
+      - '**/**/Cargo.toml'
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'Cargo.toml'
+      - 'npm-package/package.json'
+      - '**/**/Cargo.toml'
+
+jobs:
+  version-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check version consistency
+      run: |
+        # Extract versions
+        CARGO_VERSION=$(grep -E '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+        NPM_VERSION=$(grep '"version"' npm-package/package.json | head -1 | sed 's/.*"version": "\([^"]*\)".*/\1/')
+        
+        echo "Cargo.toml version: $CARGO_VERSION"
+        echo "package.json version: $NPM_VERSION"
+        
+        if [ "$CARGO_VERSION" != "$NPM_VERSION" ]; then
+          echo "::error::Version mismatch! Cargo.toml: $CARGO_VERSION, package.json: $NPM_VERSION"
+          echo "Please run: ./scripts/sync-versions.sh --sync"
+          exit 1
+        fi
+        
+        echo "✅ Versions are consistent!"
+    
+    - name: Check workspace member versions
+      run: |
+        WORKSPACE_VERSION=$(grep -E '^version = ' Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+        
+        # Check each workspace member
+        for cargo_file in $(find . -name "Cargo.toml" -not -path "./target/*" -not -path "./node_modules/*" -not -path "./npm-package/*"); do
+          if grep -q "workspace = true" "$cargo_file"; then
+            echo "✅ $cargo_file uses workspace version"
+          elif grep -q "^version = " "$cargo_file"; then
+            MEMBER_VERSION=$(grep -E '^version = ' "$cargo_file" | head -1 | sed 's/version = "\(.*\)"/\1/')
+            if [ "$MEMBER_VERSION" != "$WORKSPACE_VERSION" ]; then
+              echo "::warning::$cargo_file has version $MEMBER_VERSION (workspace: $WORKSPACE_VERSION)"
+            fi
+          fi
+        done

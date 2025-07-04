@@ -17,7 +17,7 @@
 use anyhow::Result;
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
@@ -117,6 +117,76 @@ pub struct RateLimitConfig {
     /// Helps contain attacks while allowing recovery for false positives.
     /// **Range**: 0.1-1.0 (0.1 = 90% reduction, 1.0 = no penalty)
     pub threat_penalty_multiplier: f32,
+
+    /// Whitelist of client IDs exempt from rate limiting
+    ///
+    /// **Default**: Empty set
+    /// **Security**: Only whitelist fully trusted internal clients.
+    /// Whitelisted clients can still trigger other security measures.
+    /// **Warning**: Use sparingly - prefer higher rate limits over exemption
+    #[serde(default)]
+    pub whitelist: HashSet<String>,
+
+    /// Blacklist of client IDs to always block
+    ///
+    /// **Default**: Empty set
+    /// **Security**: Immediately reject requests from blacklisted clients.
+    /// Useful for blocking known malicious actors or compromised credentials.
+    /// **Note**: Blacklist takes precedence over whitelist
+    #[serde(default)]
+    pub blacklist: HashSet<String>,
+
+    /// IP-specific rate limits
+    ///
+    /// **Default**: Empty map
+    /// **Security**: Set stricter limits for suspicious IP ranges.
+    /// Useful for geographic restrictions or known problematic networks.
+    /// **Format**: IP address or CIDR notation as key
+    #[serde(default)]
+    pub ip_limits: HashMap<String, IpLimit>,
+
+    /// Global requests per minute limit across all clients
+    ///
+    /// **Default**: None (no global limit)
+    /// **Security**: Prevents total system overload regardless of client distribution.
+    /// Individual client limits still apply within the global limit.
+    /// **Range**: 100-10000 (recommend 10x expected peak traffic)
+    pub global_rpm: Option<u32>,
+
+    /// Method for tracking clients
+    ///
+    /// **Default**: ClientId
+    /// **Security**: Determines how rate limits are applied.
+    /// IP-based tracking is more strict but may affect legitimate shared IPs.
+    /// **Options**: ClientId, IpAddress, Combined (both must pass)
+    #[serde(default)]
+    pub track_by: TrackingMethod,
+}
+
+/// IP-specific rate limit
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct IpLimit {
+    pub rpm: u32,
+    pub burst: u32,
+    pub block: bool,
+}
+
+/// Client tracking method
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum TrackingMethod {
+    /// Track by client ID only
+    ClientId,
+    /// Track by IP address only
+    IpAddress,
+    /// Track by both (both must pass rate limits)
+    Combined,
+}
+
+impl Default for TrackingMethod {
+    fn default() -> Self {
+        Self::ClientId
+    }
 }
 
 /// Method-specific rate limit
@@ -173,6 +243,11 @@ impl Default for RateLimitConfig {
             cleanup_interval_secs: 300, // 5 minutes
             adaptive: false,
             threat_penalty_multiplier: 0.5, // Halve rate limit on threat detection
+            whitelist: HashSet::new(),
+            blacklist: HashSet::new(),
+            ip_limits: HashMap::new(),
+            global_rpm: None,
+            track_by: TrackingMethod::default(),
         }
     }
 }
@@ -316,6 +391,26 @@ impl RateLimiter {
         tokens: f64,
     ) -> Result<RateLimitResult> {
         if !self.config.enabled {
+            return Ok(RateLimitResult {
+                allowed: true,
+                remaining: u32::MAX,
+                reset_after: Duration::ZERO,
+                limit: u32::MAX,
+            });
+        }
+
+        // Check blacklist first
+        if self.config.blacklist.contains(client_id) {
+            return Ok(RateLimitResult {
+                allowed: false,
+                remaining: 0,
+                reset_after: Duration::from_secs(3600), // 1 hour
+                limit: 0,
+            });
+        }
+
+        // Check whitelist - exempt from rate limiting
+        if self.config.whitelist.contains(client_id) {
             return Ok(RateLimitResult {
                 allowed: true,
                 remaining: u32::MAX,

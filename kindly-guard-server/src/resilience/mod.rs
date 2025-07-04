@@ -19,6 +19,7 @@
 //! The architecture uses trait-based abstractions to allow both standard
 //! and enhanced implementations, with runtime selection based on configuration.
 
+pub mod bulkhead;
 pub mod circuit_breaker;
 pub mod config;
 #[cfg(feature = "enhanced")]
@@ -35,12 +36,19 @@ use anyhow::Result;
 use std::sync::Arc;
 
 // Re-export core types
+pub use bulkhead::{BulkheadTrait, BulkheadWrapper, DynBulkhead};
 pub use standard::StandardResilienceFactory;
 
 /// Create a circuit breaker based on configuration
 pub fn create_circuit_breaker(config: &Config) -> Result<Arc<dyn DynCircuitBreaker>> {
     let factory = create_resilience_factory(config);
     factory.create_circuit_breaker(config)
+}
+
+/// Create a bulkhead based on configuration
+pub fn create_bulkhead(config: &Config) -> Result<Arc<dyn DynBulkhead>> {
+    let factory = create_resilience_factory(config);
+    factory.create_bulkhead(config)
 }
 
 /// Create a retry strategy based on configuration

@@ -291,6 +291,7 @@ async fn scan_command(
         max_scan_depth: 10,
         enable_event_buffer: false,
         max_content_size: 5 * 1024 * 1024, // 5MB
+        max_input_size: None,
     };
 
     let scanner = match SecurityScanner::new(config) {

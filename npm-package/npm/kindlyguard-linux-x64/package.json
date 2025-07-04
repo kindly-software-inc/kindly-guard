@@ -1,6 +1,6 @@
 {
-  "name": "@kindlyguard/linux-x64",
-  "version": "0.9.1",
+  "name": "kindlyguard-linux-x64",
+  "version": "0.9.2",
   "description": "Linux x64 binary for KindlyGuard",
   "repository": {
     "type": "git",

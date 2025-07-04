@@ -1,6 +1,6 @@
 [package]
 name = "kindlyguard"
-version = "0.9.1"
+version = "0.9.2"
 authors = ["samduchaine"]
 edition = "2021"
 description = "Security-focused MCP server for AI protection - unified package providing both server and CLI functionality"
@@ -15,7 +15,7 @@ categories = ["network-programming", "web-programming", "command-line-utilities"
 [dependencies]
 # When publishing to crates.io, remove the 'path' attributes
 # For local development, these will use the workspace versions
-kindly-guard-server = { version = "0.9.1", path = "../../kindly-guard-server", optional = false }
+kindly-guard-server = { version = "0.9.2", path = "../../kindly-guard-server", optional = false }
 
 # Note: The CLI is a binary-only crate and cannot be used as a library dependency
 # Users should install both crates separately:

@@ -10,7 +10,7 @@
 
 use crate::scanner::{Location, ScanResult, Severity, Threat, ThreatType};
 use regex::Regex;
-use tracing::{debug, trace};
+use tracing::{debug, trace, error};
 
 #[derive(Debug, Clone)]
 pub struct CryptoScanner {
@@ -40,121 +40,137 @@ impl Default for CryptoScanner {
 }
 
 impl CryptoScanner {
+    /// Helper function to compile regex patterns with error handling
+    fn compile_patterns(patterns: &[&str]) -> Vec<Regex> {
+        patterns
+            .iter()
+            .filter_map(|pattern| {
+                match Regex::new(pattern) {
+                    Ok(regex) => Some(regex),
+                    Err(e) => {
+                        error!("Failed to compile crypto scanner regex '{}': {}", pattern, e);
+                        None
+                    }
+                }
+            })
+            .collect()
+    }
+    
     pub fn new() -> Self {
         // Initialize deprecated hash patterns
-        let deprecated_hash_patterns = vec![
+        let deprecated_hash_patterns = Self::compile_patterns(&[
             // MD5 usage
-            Regex::new(r"(?i)\b(md5|Md5Hash|md5sum|MD5_)\b").unwrap(),
-            Regex::new(r"(?i)use\s+md5(?:::|\s|;)").unwrap(),
-            Regex::new(r"(?i)md5::compute").unwrap(),
+            r"(?i)\b(md5|Md5Hash|md5sum|MD5_)\b",
+            r"(?i)use\s+md5(?:::|\s|;)",
+            r"(?i)md5::compute",
             
             // SHA1 usage
-            Regex::new(r"(?i)\b(sha1|Sha1|SHA1_|sha1sum)\b").unwrap(),
-            Regex::new(r"(?i)use\s+sha1(?:::|\s|;)").unwrap(),
-            Regex::new(r"(?i)sha1::Sha1").unwrap(),
+            r"(?i)\b(sha1|Sha1|SHA1_|sha1sum)\b",
+            r"(?i)use\s+sha1(?:::|\s|;)",
+            r"(?i)sha1::Sha1",
             
             // MD4 usage
-            Regex::new(r"(?i)\b(md4|Md4Hash|MD4_)\b").unwrap(),
+            r"(?i)\b(md4|Md4Hash|MD4_)\b",
             
             // Other deprecated hashes
-            Regex::new(r"(?i)\b(md2|ripemd|RIPEMD)\b").unwrap(),
-        ];
+            r"(?i)\b(md2|ripemd|RIPEMD)\b",
+        ]);
         
         // Initialize weak encryption patterns
-        let weak_encryption_patterns = vec![
+        let weak_encryption_patterns = Self::compile_patterns(&[
             // DES usage
-            Regex::new(r"(?i)\b(des|DES|DesKey|des_key)\b").unwrap(),
-            Regex::new(r"(?i)use\s+des(?:::|\s|;)").unwrap(),
+            r"(?i)\b(des|DES|DesKey|des_key)\b",
+            r"(?i)use\s+des(?:::|\s|;)",
             
             // 3DES (except when properly keyed)
-            Regex::new(r"(?i)\b(3des|triple_?des|TDES)\b").unwrap(),
+            r"(?i)\b(3des|triple_?des|TDES)\b",
             
             // RC4 usage
-            Regex::new(r"(?i)\b(rc4|RC4|arcfour)\b").unwrap(),
+            r"(?i)\b(rc4|RC4|arcfour)\b",
             
             // RC2 usage
-            Regex::new(r"(?i)\b(rc2|RC2)\b").unwrap(),
+            r"(?i)\b(rc2|RC2)\b",
             
             // Other weak ciphers
-            Regex::new(r"(?i)\b(skipjack|blowfish|CAST5?)\b").unwrap(),
-        ];
+            r"(?i)\b(skipjack|blowfish|CAST5?)\b",
+        ]);
         
         // Initialize insecure RNG patterns
-        let insecure_rng_patterns = vec![
+        let insecure_rng_patterns = Self::compile_patterns(&[
             // Non-crypto RNG usage in crypto context
-            Regex::new(r"(?i)(rand::random|thread_rng)\s*\(\s*\)").unwrap(),
+            r"(?i)(rand::random|thread_rng)\s*\(\s*\)",
             
             // Fastrand usage (not crypto secure)
-            Regex::new(r"(?i)fastrand::").unwrap(),
+            r"(?i)fastrand::",
             
             // Oorandom usage (not crypto secure)
-            Regex::new(r"(?i)oorandom::").unwrap(),
+            r"(?i)oorandom::",
             
             // Using system time as seed
-            Regex::new(r"(?i)(SystemTime::now|time::now).*seed").unwrap(),
+            r"(?i)(SystemTime::now|time::now).*seed",
             
             // Predictable seeds
-            Regex::new(r"(?i)seed\s*=\s*(\d+|0x[0-9a-fA-F]+)").unwrap(),
+            r"(?i)seed\s*=\s*(\d+|0x[0-9a-fA-F]+)",
             
             // Non-crypto PRNGs
-            Regex::new(r"(?i)\b(SmallRng|StdRng|Xorshift|Pcg32)\b.*(?:key|crypto|secure)").unwrap(),
-        ];
+            r"(?i)\b(SmallRng|StdRng|Xorshift|Pcg32)\b.*(?:key|crypto|secure)",
+        ]);
         
         // Initialize weak key size patterns
-        let weak_key_patterns = vec![
+        let weak_key_patterns = Self::compile_patterns(&[
             // RSA with small keys
-            Regex::new(r"(?i)rsa.*(?:512|768|1024)").unwrap(),
-            Regex::new(r"(?i)RsaKeySize::Rsa(?:512|768|1024)").unwrap(),
-            Regex::new(r"(?i)RsaPrivateKey::new.*1024").unwrap(),
+            r"(?i)rsa.*(?:512|768|1024)",
+            r"(?i)RsaKeySize::Rsa(?:512|768|1024)",
+            r"(?i)RsaPrivateKey::new.*1024",
             
             // ECC with small keys
-            Regex::new(r"(?i)(?:ecc|ecdsa|ecdh).*(?:112|128|160|192)\s*(?:bit|_bit)").unwrap(),
-            Regex::new(r"(?i)(?:P-?112|P-?128|P-?160|P-?192|secp112|secp128|secp160|secp192)").unwrap(),
+            r"(?i)(?:ecc|ecdsa|ecdh).*(?:112|128|160|192)\s*(?:bit|_bit)",
+            r"(?i)(?:P-?112|P-?128|P-?160|P-?192|secp112|secp128|secp160|secp192)",
             
             // AES with weak keys
-            Regex::new(r"(?i)aes.*(?:64|80|96)\s*(?:bit|_bit)").unwrap(),
+            r"(?i)aes.*(?:64|80|96)\s*(?:bit|_bit)",
             
             // DH with small primes
-            Regex::new(r"(?i)(?:dh|diffie).*(?:512|768|1024)\s*(?:bit|_bit)").unwrap(),
-        ];
+            r"(?i)(?:dh|diffie).*(?:512|768|1024)\s*(?:bit|_bit)",
+        ]);
         
         // Initialize insecure mode patterns
-        let insecure_mode_patterns = vec![
+        let insecure_mode_patterns = Self::compile_patterns(&[
             // ECB mode usage
-            Regex::new(r"(?i)\b(ecb|ECB|EcbMode|ecb_mode)\b").unwrap(),
-            Regex::new(r#"(?i)mode\s*=\s*["']?ecb["']?"#).unwrap(),
-            Regex::new(r#"(?i)cipher.*ecb"#).unwrap(),
-            Regex::new(r#"(?i)encrypt_ecb"#).unwrap(),
+            r"(?i)\b(ecb|ECB|EcbMode|ecb_mode)\b",
+            r#"(?i)mode\s*=\s*["']?ecb["']?"#,
+            r#"(?i)cipher.*ecb"#,
+            r#"(?i)encrypt_ecb"#,
             
             // Static IV usage
-            Regex::new(r#"(?i)iv\s*=\s*(\[0(?:,\s*0)*\]|vec!\[0(?:;\s*\d+)?\])"#).unwrap(),
-            Regex::new(r#"(?i)const\s+IV\s*:\s*\[u8"#).unwrap(),
-            Regex::new(r#"(?i)static\s+IV\s*:\s*\[u8"#).unwrap(),
+            r#"(?i)iv\s*=\s*(\[0(?:,\s*0)*\]|vec!\[0(?:;\s*\d+)?\])"#,
+            r#"(?i)const\s+IV\s*:\s*\[u8"#,
+            r#"(?i)static\s+IV\s*:\s*\[u8"#,
             
             // IV reuse patterns
-            Regex::new(r#"(?i)self\.iv|cached_iv|reuse.*iv"#).unwrap(),
+            r#"(?i)self\.iv|cached_iv|reuse.*iv"#,
             
             // No IV usage with CBC
-            Regex::new(r#"(?i)cbc.*encrypt.*\(\s*[^,)]+\s*\)"#).unwrap(),
-        ];
+            r#"(?i)cbc.*encrypt.*\(\s*[^,)]+\s*\)"#,
+        ]);
         
         // Initialize bad KDF patterns
-        let bad_kdf_patterns = vec![
+        let bad_kdf_patterns = Self::compile_patterns(&[
             // Simple hashing for passwords
-            Regex::new(r#"(?i)(sha256|sha512|md5|sha1)\s*\(\s*password"#).unwrap(),
-            Regex::new(r#"(?i)(Sha256|Sha512|Md5|Sha1)::new\(\)"#).unwrap(),
-            Regex::new(r#"(?i)hasher\.update\(password"#).unwrap(),
+            r#"(?i)(sha256|sha512|md5|sha1)\s*\(\s*password"#,
+            r#"(?i)(Sha256|Sha512|Md5|Sha1)::new\(\)"#,
+            r#"(?i)hasher\.update\(password"#,
             
             // Low iteration counts for PBKDF2
-            Regex::new(r#"(?i)pbkdf2.*iterations?\s*[=:]\s*(?:[1-9]\d{0,3}|10000)\b"#).unwrap(),
+            r#"(?i)pbkdf2.*iterations?\s*[=:]\s*(?:[1-9]\d{0,3}|10000)\b"#,
             
             // Missing salt - simplified pattern without lookahead
-            Regex::new(r#"(?i)simple_hash_password\s*\("#).unwrap(),
+            r#"(?i)simple_hash_password\s*\("#,
             
             // Hardcoded salts
-            Regex::new(r#"(?i)salt\s*=\s*["'][\w\s]+["']"#).unwrap(),
-            Regex::new(r#"(?i)const\s+SALT\s*:\s*(?:&str|&\[u8\])"#).unwrap(),
-        ];
+            r#"(?i)salt\s*=\s*["'][\w\s]+["']"#,
+            r#"(?i)const\s+SALT\s*:\s*(?:&str|&\[u8\])"#,
+        ]);
         
         Self {
             deprecated_hash_patterns,

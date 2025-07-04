@@ -30,6 +30,8 @@ pub fn test_scanner_config() -> ScannerConfig {
         enable_event_buffer: false,
         xss_detection: Some(true),
         enhanced_mode: Some(false),
+        crypto_detection: true,
+        max_content_size: 10_485_760, // 10MB for tests
     }
 }
 

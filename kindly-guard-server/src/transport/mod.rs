@@ -445,6 +445,22 @@ impl TransportFactory for DefaultTransportFactory {
     }
 }
 
+/// Create a transport based on configuration
+pub fn create_transport(config: &crate::config::Config) -> Arc<dyn Transport> {
+    // For now, default to stdio transport
+    // TODO: Read transport config from main Config struct
+    let transport_config = TransportTypeConfig {
+        transport_type: TransportType::Stdio,
+        enabled: true,
+        config: serde_json::json!({}),
+    };
+    
+    let factory = DefaultTransportFactory;
+    factory.create(&transport_config)
+        .unwrap_or_else(|_| Box::new(StdioTransport::new(serde_json::json!({})).unwrap()))
+        .into()
+}
+
 /// Helper for creating transport messages
 pub struct TransportMessageBuilder {
     message: TransportMessage,

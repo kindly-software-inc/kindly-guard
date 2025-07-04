@@ -18,6 +18,77 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use crate::traits::*;
+    
+    #[tokio::test]
+    async fn test_resilience_components_creation() {
+        let config = Config::default();
+        
+        // Test circuit breaker creation
+        let circuit_breaker = crate::resilience::create_circuit_breaker(&config);
+        assert!(circuit_breaker.is_ok(), "Failed to create circuit breaker");
+        
+        // Test retry strategy creation
+        let retry_strategy = crate::resilience::create_retry_strategy(&config);
+        assert!(retry_strategy.is_ok(), "Failed to create retry strategy");
+        
+        // Test bulkhead creation
+        let bulkhead = crate::resilience::create_bulkhead(&config);
+        assert!(bulkhead.is_ok(), "Failed to create bulkhead");
+    }
+    
+    #[tokio::test]
+    async fn test_circuit_breaker_protection() {
+        let config = Config::default();
+        let circuit_breaker = crate::resilience::create_circuit_breaker(&config).unwrap();
+        
+        // Test successful call
+        let result = circuit_breaker
+            .call_json(
+                "test_operation",
+                serde_json::json!({"test": "data"}),
+            )
+            .await;
+        
+        assert!(result.is_ok(), "Circuit breaker should allow calls when closed");
+    }
+    
+    #[tokio::test]
+    async fn test_bulkhead_isolation() {
+        let config = Config::default();
+        let bulkhead = crate::resilience::create_bulkhead(&config).unwrap();
+        
+        // Test capacity check
+        assert!(
+            bulkhead.has_capacity("test_bulkhead"),
+            "Bulkhead should have capacity initially"
+        );
+        
+        // Test execution
+        let result = bulkhead
+            .execute_json(
+                "test_bulkhead",
+                serde_json::json!({"test": "data"}),
+            )
+            .await;
+        
+        assert!(result.is_ok(), "Bulkhead should allow execution with capacity");
+    }
+    
+    #[tokio::test]
+    async fn test_retry_strategy() {
+        let config = Config::default();
+        let retry_strategy = crate::resilience::create_retry_strategy(&config).unwrap();
+        
+        // Test execution
+        let result = retry_strategy
+            .execute_json(
+                "test_operation",
+                serde_json::json!({"test": "data"}),
+            )
+            .await;
+        
+        assert!(result.is_ok(), "Retry strategy should execute successfully");
+    }
     use std::sync::atomic::{AtomicU32, Ordering};
     use std::sync::Arc;
     use tokio::time::{sleep, Duration};

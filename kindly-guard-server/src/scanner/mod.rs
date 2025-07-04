@@ -492,6 +492,8 @@ impl SecurityScanner {
     ///     custom_patterns: None,
     ///     enhanced_mode: Some(false),
     ///     enable_event_buffer: false,
+    ///     crypto_detection: true,
+    ///     max_content_size: 5_242_880, // 5MB
     /// };
     ///
     /// let scanner = SecurityScanner::new(config)?;
@@ -592,7 +594,9 @@ impl SecurityScanner {
         let mut threats = Vec::new();
 
         // Check for oversized content to prevent DoS
-        if text.len() > self.config.max_content_size {
+        // Use max_input_size if set, otherwise fall back to max_content_size
+        let max_size = self.config.max_input_size.unwrap_or(self.config.max_content_size);
+        if text.len() > max_size {
             threats.push(Threat {
                 threat_type: ThreatType::DosPotential,
                 severity: Severity::High,
@@ -603,7 +607,7 @@ impl SecurityScanner {
                 description: format!(
                     "Content size ({} bytes) exceeds maximum allowed size ({} bytes)",
                     text.len(),
-                    self.config.max_content_size
+                    max_size
                 ),
                 remediation: Some(
                     "Reduce content size or increase max_content_size configuration".to_string(),
@@ -1093,6 +1097,14 @@ impl SecurityScanner {
     /// # Ok::<(), Box<dyn std::error::Error>>(())
     /// ```
     pub fn stats(&self) -> ScannerStats {
+        #[cfg(feature = "enhanced")]
+        let mut stats = ScannerStats {
+            unicode_threats_detected: self.unicode_scanner.threats_detected(),
+            injection_threats_detected: self.injection_scanner.threats_detected(),
+            total_scans: self.unicode_scanner.total_scans() + self.injection_scanner.total_scans(),
+        };
+        
+        #[cfg(not(feature = "enhanced"))]
         let stats = ScannerStats {
             unicode_threats_detected: self.unicode_scanner.threats_detected(),
             injection_threats_detected: self.injection_scanner.threats_detected(),
@@ -1180,12 +1192,27 @@ impl fmt::Display for Location {
 pub fn create_security_scanner(
     config: &crate::config::ScannerConfig,
 ) -> Arc<dyn crate::traits::SecurityScannerTrait> {
-    let scanner = SecurityScanner::new(config.clone()).unwrap_or_else(|e| {
-        tracing::error!("Failed to create security scanner: {}", e);
-        // Return a basic scanner with default config on error
-        SecurityScanner::new(Default::default()).expect("Default scanner creation should not fail")
-    });
-    Arc::new(scanner)
+    match SecurityScanner::new(config.clone()) {
+        Ok(scanner) => Arc::new(scanner),
+        Err(e) => {
+            tracing::error!("Failed to create security scanner: {}", e);
+            // Try to create scanner with default config
+            match SecurityScanner::new(Default::default()) {
+                Ok(scanner) => {
+                    tracing::warn!("Created scanner with default configuration as fallback");
+                    Arc::new(scanner)
+                }
+                Err(default_err) => {
+                    tracing::error!(
+                        "FATAL: Cannot create default scanner: {}. Using no-op scanner that denies all requests",
+                        default_err
+                    );
+                    // Return a no-op scanner that denies everything for safety
+                    Arc::new(NoOpScanner::new())
+                }
+            }
+        }
+    }
 }
 
 impl crate::traits::SecurityScannerTrait for SecurityScanner {
@@ -1215,6 +1242,73 @@ impl crate::traits::SecurityScannerTrait for SecurityScanner {
 
     fn reset_stats(&self) {
         // TODO: Implement stats reset when tracking is added
+    }
+}
+
+/// No-op scanner that denies all requests for safety
+/// Used as a last resort when scanner creation fails
+struct NoOpScanner;
+
+impl NoOpScanner {
+    fn new() -> Self {
+        Self
+    }
+}
+
+impl crate::traits::SecurityScannerTrait for NoOpScanner {
+    fn scan_text(&self, text: &str) -> Vec<Threat> {
+        // Return a critical threat for any non-empty input
+        if !text.is_empty() {
+            vec![Threat {
+                threat_type: ThreatType::Custom("Scanner initialization failed".to_string()),
+                severity: Severity::Critical,
+                location: Location::Text {
+                    offset: 0,
+                    length: text.len(),
+                },
+                description: "Security scanner failed to initialize. All requests denied for safety.".to_string(),
+                remediation: Some("Contact system administrator to fix scanner initialization".to_string()),
+            }]
+        } else {
+            vec![]
+        }
+    }
+
+    fn scan_json(&self, value: &serde_json::Value) -> Vec<Threat> {
+        // Return a critical threat for any non-null JSON
+        if !value.is_null() {
+            vec![Threat {
+                threat_type: ThreatType::Custom("Scanner initialization failed".to_string()),
+                severity: Severity::Critical,
+                location: Location::Json {
+                    path: "$".to_string(),
+                },
+                description: "Security scanner failed to initialize. All requests denied for safety.".to_string(),
+                remediation: Some("Contact system administrator to fix scanner initialization".to_string()),
+            }]
+        } else {
+            vec![]
+        }
+    }
+
+    fn scan_with_depth(&self, text: &str, _max_depth: usize) -> Vec<Threat> {
+        // Use the same logic as scan_text
+        self.scan_text(text)
+    }
+
+    fn get_stats(&self) -> crate::traits::ScannerStats {
+        crate::traits::ScannerStats {
+            texts_scanned: 0,
+            threats_found: 0,
+            unicode_threats: 0,
+            injection_threats: 0,
+            pattern_threats: 0,
+            avg_scan_time_us: 0,
+        }
+    }
+
+    fn reset_stats(&self) {
+        // No-op scanner has no stats to reset
     }
 }
 

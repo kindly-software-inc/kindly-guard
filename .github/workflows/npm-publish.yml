@@ -85,10 +85,14 @@ jobs:
       shell: bash
       working-directory: npm-package/npm/${{ matrix.platform }}-${{ matrix.arch }}
       run: |
+        # Extract clean version (remove 'v' prefix if present)
+        VERSION="${{ github.ref_name }}"
+        VERSION="${VERSION#v}"
+        
         cat > package.json <<EOF
         {
           "name": "@kindlyguard/${{ matrix.platform }}-${{ matrix.arch }}",
-          "version": "${{ github.ref_name }}",
+          "version": "${VERSION}",
           "description": "KindlyGuard binaries for ${{ matrix.platform }}-${{ matrix.arch }}",
           "author": "samduchaine",
           "license": "MIT",
@@ -126,6 +130,11 @@ jobs:
         node-version: '18'
         registry-url: 'https://registry.npmjs.org'
     
+    - name: Install jq for JSON processing
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y jq
+    
     - name: Download all platform packages
       uses: actions/download-artifact@v3
       with:
@@ -139,15 +148,50 @@ jobs:
           mv "$dir" "$platform_dir"
         done
     
-    - name: Update main package version
+    - name: Validate and Update Package Versions
       if: startsWith(github.ref, 'refs/tags/v')
       run: |
         cd npm-package
-        VERSION="${GITHUB_REF#refs/tags/}"
-        npm version "$VERSION" --no-git-tag-version
         
-        # Update platform package references
-        sed -i "s/\"0.9.1\"/\"$VERSION\"/g" package.json
+        # Extract version from git tag (remove 'v' prefix if present)
+        TAG_VERSION="${GITHUB_REF#refs/tags/}"
+        VERSION="${TAG_VERSION#v}"
+        
+        # Extract version from Cargo.toml
+        CARGO_VERSION=$(grep -E '^version = ' ../Cargo.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+        
+        # Validate that Cargo.toml version matches the tag
+        if [ "$CARGO_VERSION" != "$VERSION" ]; then
+          echo "Error: Version mismatch!"
+          echo "Git tag version: $VERSION"
+          echo "Cargo.toml version: $CARGO_VERSION"
+          echo "Please ensure Cargo.toml is updated before tagging."
+          exit 1
+        fi
+        
+        # Update package.json version using npm version
+        npm version "$VERSION" --no-git-tag-version --allow-same-version
+        
+        # Update optionalDependencies versions dynamically
+        # Use jq if available, otherwise use a more robust sed approach
+        if command -v jq &> /dev/null; then
+          # Use jq for JSON manipulation (more reliable)
+          jq --arg ver "$VERSION" '.optionalDependencies = .optionalDependencies | to_entries | map(.value = $ver) | from_entries' package.json > package.json.tmp
+          mv package.json.tmp package.json
+        else
+          # Fallback to sed with proper JSON handling
+          # Update each optionalDependency line individually
+          for dep in "kindlyguard-linux-x64" "kindlyguard-darwin-x64" "kindlyguard-darwin-arm64" "kindlyguard-win32-x64"; do
+            sed -i "s/\"$dep\": \"[^\"]*\"/\"$dep\": \"$VERSION\"/g" package.json
+          done
+        fi
+        
+        # Also update prepublishOnly script version reference if it exists
+        sed -i "s/Publishing KindlyGuard v[0-9.]\+/Publishing KindlyGuard v$VERSION/g" package.json
+        
+        echo "Updated package.json to version $VERSION"
+        echo "Package.json content:"
+        cat package.json
     
     - name: Publish platform packages
       env:

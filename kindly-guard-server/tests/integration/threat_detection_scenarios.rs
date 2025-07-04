@@ -1,10 +1,8 @@
 use kindly_guard_server::{
-    scanner::{SecurityScanner, Threat},
-    config::{Config, SecurityConfig, ScannerConfig},
+    scanner::SecurityScanner,
+    config::{Config, ScannerConfig},
     neutralizer::{create_neutralizer, ThreatNeutralizer},
 };
-use std::sync::Arc;
-use std::collections::HashMap;
 
 /// Create a scanner with all detectors enabled
 fn create_full_scanner() -> SecurityScanner {
@@ -12,15 +10,18 @@ fn create_full_scanner() -> SecurityScanner {
     config.scanner = ScannerConfig {
         unicode_detection: true,
         injection_detection: true,
-        xss_detection: true,
-        pattern_detection: true,
-        max_input_size: 10 * 1024 * 1024, // 10MB
-        scan_timeout_ms: 5000,
-        threat_patterns: vec![],
-        cache_size: None,
+        xss_detection: Some(true),
+        path_traversal_detection: true,
+        crypto_detection: true,
+        enhanced_mode: Some(false),
+        custom_patterns: None,
+        max_scan_depth: 10,
+        enable_event_buffer: false,
+        max_content_size: 10 * 1024 * 1024, // 10MB
+        max_input_size: None,
     };
     
-    SecurityScanner::from_config(&config.scanner)
+    SecurityScanner::new(&config.scanner)
 }
 
 /// Test real-world Unicode homograph attack
@@ -337,7 +338,7 @@ async fn test_threat_neutralization() {
         assert!(!threats.is_empty(), "Should detect threat in: {}", description);
         
         // Neutralize the threats
-        let neutralized = neutralizer.neutralize(threat_text, &threats).await.unwrap();
+        let neutralized = neutralizer.neutralize(threat_text, &threats).unwrap();
         
         // Scan neutralized text
         let remaining_threats = scanner.scan_text(&neutralized.text);
@@ -347,12 +348,12 @@ async fn test_threat_neutralization() {
             remaining_threats.is_empty(),
             "Neutralization failed for {}: still has threats in '{}'",
             description,
-            neutralized
+            neutralized.text
         );
         
         // Neutralized text should be different from original
         assert_ne!(
-            threat_text, neutralized,
+            threat_text, neutralized.text,
             "Neutralization should modify threatening text"
         );
     }
@@ -400,7 +401,7 @@ async fn test_concurrent_threat_detection() {
 async fn test_rate_limiting() {
     let mut config = Config::default();
     config.scanner.max_input_size = 1024 * 1024; // 1MB limit for rate testing
-    let scanner = SecurityScanner::from_config(&config.scanner);
+    let scanner = SecurityScanner::new(&config.scanner);
     
     let start = std::time::Instant::now();
     

@@ -166,4 +166,23 @@ impl ResilienceFactory for EnhancedComponentFactory {
             crate::resilience::standard::StandardRecoveryStrategy::new(),
         ))
     }
+    
+    fn create_bulkhead(
+        &self,
+        config: &Config,
+    ) -> Result<Arc<dyn crate::resilience::DynBulkhead>> {
+        use crate::resilience::bulkhead::{BulkheadWrapper, StandardBulkhead};
+        
+        #[cfg(feature = "enhanced")]
+        {
+            use crate::resilience::bulkhead::EnhancedBulkhead;
+            let bulkhead = EnhancedBulkhead::from_config(config);
+            Ok(Arc::new(BulkheadWrapper::new(bulkhead)))
+        }
+        #[cfg(not(feature = "enhanced"))]
+        {
+            let bulkhead = StandardBulkhead::from_config(config);
+            Ok(Arc::new(BulkheadWrapper::new(bulkhead)))
+        }
+    }
 }

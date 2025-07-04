@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Master test runner for KindlyGuard NPM package
-# Runs all test suites and generates a comprehensive report
+# Fixed version that properly handles test execution and result tracking
 
 set -e
 
@@ -12,11 +12,9 @@ RED='\033[0;31m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# Test tracking
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
-SKIPPED_TESTS=0
+# Test tracking - using a temp file to track across subshells
+TEST_RESULTS_FILE=$(mktemp)
+echo "0 0 0 0" > "$TEST_RESULTS_FILE"  # total passed failed skipped
 
 print_header() {
     echo -e "\n${BLUE}=================================================================================${NC}"
@@ -40,59 +38,82 @@ print_info() {
     echo -e "${BLUE}[i]${NC} $1"
 }
 
+update_test_counts() {
+    local delta_total=$1
+    local delta_passed=$2
+    local delta_failed=$3
+    local delta_skipped=$4
+    
+    local counts=$(cat "$TEST_RESULTS_FILE")
+    local total=$(echo $counts | cut -d' ' -f1)
+    local passed=$(echo $counts | cut -d' ' -f2)
+    local failed=$(echo $counts | cut -d' ' -f3)
+    local skipped=$(echo $counts | cut -d' ' -f4)
+    
+    total=$((total + delta_total))
+    passed=$((passed + delta_passed))
+    failed=$((failed + delta_failed))
+    skipped=$((skipped + delta_skipped))
+    
+    echo "$total $passed $failed $skipped" > "$TEST_RESULTS_FILE"
+}
+
 # Function to run a test suite
 run_test_suite() {
     local test_name=$1
     local test_file=$2
     local test_type=$3
+    local log_file=$4
     
     print_header "Running $test_name"
-    ((TOTAL_TESTS++))
+    update_test_counts 1 0 0 0
     
     if [ ! -f "$test_file" ]; then
         print_error "Test file not found: $test_file"
-        ((FAILED_TESTS++))
+        update_test_counts 0 0 1 0
         return 1
     fi
     
     # Make sure test file is executable
     chmod +x "$test_file"
     
-    # Run the test
+    # Run the test and capture output
+    local test_output=$(mktemp)
+    local test_exit_code=0
+    
     if [ "$test_type" = "node" ]; then
-        if node "$test_file"; then
-            print_status "$test_name completed successfully"
-            ((PASSED_TESTS++))
-        else
-            print_error "$test_name failed"
-            ((FAILED_TESTS++))
-        fi
+        node "$test_file" > "$test_output" 2>&1 || test_exit_code=$?
     else
-        if bash "$test_file"; then
-            print_status "$test_name completed successfully"
-            ((PASSED_TESTS++))
-        else
-            print_error "$test_name failed"
-            ((FAILED_TESTS++))
-        fi
+        bash "$test_file" > "$test_output" 2>&1 || test_exit_code=$?
     fi
+    
+    # Display and save output
+    cat "$test_output" | tee "$log_file"
+    
+    # Update counts based on exit code
+    if [ $test_exit_code -eq 0 ]; then
+        print_status "$test_name completed successfully"
+        update_test_counts 0 1 0 0
+    else
+        print_error "$test_name failed"
+        update_test_counts 0 0 1 0
+    fi
+    
+    rm -f "$test_output"
+    return $test_exit_code
 }
 
 # Start time
 START_TIME=$(date +%s)
 
+# Display header
 print_header "KindlyGuard NPM Package Comprehensive Test Suite"
-echo "Date: $(date)"
-echo "Platform: $(uname -s)"
-echo "Architecture: $(uname -m)"
-echo "Node.js: $(node --version)"
-echo "NPM: $(npm --version)"
 
-# Check current directory
-if [ ! -f "../package.json" ]; then
-    print_error "Please run this script from the integration-tests directory"
-    exit 1
-fi
+echo "Date: $(date)"
+echo "Platform: $(uname)"
+echo "Architecture: $(uname -m)"
+echo "Node.js: $(node -v)"
+echo "NPM: $(npm -v)"
 
 # Create test results directory
 RESULTS_DIR="test-results-$(date +%Y%m%d-%H%M%S)"
@@ -102,37 +123,43 @@ print_info "Test results will be saved to: $RESULTS_DIR"
 # Test 1: Installation test
 print_info "Checking for installation test script..."
 if [ -f "../test-install.sh" ]; then
-    run_test_suite "Installation Test" "../test-install.sh" "bash" 2>&1 | tee "$RESULTS_DIR/installation-test.log"
+    # test-install.sh needs to be run from npm-package directory
+    (cd .. && bash test-install.sh > "integration-tests/$RESULTS_DIR/installation-test.log" 2>&1) || test_exit_code=$?
+    if [ "${test_exit_code:-0}" -eq 0 ]; then
+        print_status "Installation Test completed successfully"
+        update_test_counts 1 1 0 0
+    else
+        print_error "Installation Test failed"
+        update_test_counts 1 0 1 0
+    fi
+    cat "$RESULTS_DIR/installation-test.log"
 else
     print_warning "Installation test script not found, skipping"
-    ((SKIPPED_TESTS++))
+    update_test_counts 0 0 0 1
 fi
 
 # Test 2: Platform test harness
 print_info "Running platform-specific tests..."
 if [ -f "../test-harness/run-tests.js" ]; then
-    run_test_suite "Platform Test Harness" "../test-harness/run-tests.js" "node" 2>&1 | tee "$RESULTS_DIR/platform-tests.log"
+    run_test_suite "Platform Test Harness" "../test-harness/run-tests.js" "node" "$RESULTS_DIR/platform-tests.log"
 else
     print_warning "Platform test harness not found, skipping"
-    ((SKIPPED_TESTS++))
+    update_test_counts 0 0 0 1
 fi
 
-# Test 3: Claude Desktop integration
-run_test_suite "Claude Desktop Integration" "test-claude-desktop.js" "node" 2>&1 | tee "$RESULTS_DIR/claude-desktop-test.log"
+# Test 3: Integration tests
+for test_file in test-claude-desktop.js test-npx-usage.js test-programmatic-api.js test-cli-commands.js; do
+    if [ -f "$test_file" ]; then
+        test_name=$(echo "$test_file" | sed 's/test-//; s/\.js//; s/-/ /g' | awk '{for(i=1;i<=NF;i++) $i=toupper(substr($i,1,1)) substr($i,2)} 1')
+        log_name=$(echo "$test_file" | sed 's/\.js/.log/')
+        run_test_suite "$test_name" "$test_file" "node" "$RESULTS_DIR/$log_name"
+    fi
+done
 
-# Test 4: NPX usage
-run_test_suite "NPX Usage Tests" "test-npx-usage.js" "node" 2>&1 | tee "$RESULTS_DIR/npx-usage-test.log"
-
-# Test 5: Programmatic API
-run_test_suite "Programmatic API Tests" "test-programmatic-api.js" "node" 2>&1 | tee "$RESULTS_DIR/programmatic-api-test.log"
-
-# Test 6: CLI commands
-run_test_suite "CLI Commands Tests" "test-cli-commands.js" "node" 2>&1 | tee "$RESULTS_DIR/cli-commands-test.log"
-
-# Additional checks
+# Additional validation checks
 print_header "Additional Validation Checks"
 
-# Check package.json validity
+# Validate package.json
 print_info "Validating package.json..."
 if node -e "JSON.parse(require('fs').readFileSync('../package.json'))" 2>/dev/null; then
     print_status "package.json is valid JSON"
@@ -144,8 +171,8 @@ fi
 print_info "Checking required files..."
 REQUIRED_FILES=(
     "../package.json"
-    "../index.js"
-    "../postinstall.js"
+    "../lib/main.js"
+    "../lib/postinstall.js"
     "../README.md"
     "../LICENSE"
 )
@@ -162,7 +189,7 @@ done
 if [ -f "../package-lock.json" ]; then
     print_info "Running npm audit..."
     cd ..
-    if npm audit --audit-level=high 2>&1 | tee "$RESULTS_DIR/npm-audit.log"; then
+    if npm audit --audit-level=high 2>&1 | tee "integration-tests/$RESULTS_DIR/npm-audit.log"; then
         print_status "No high severity vulnerabilities found"
     else
         print_warning "Security vulnerabilities detected"
@@ -170,15 +197,21 @@ if [ -f "../package-lock.json" ]; then
     cd integration-tests
 fi
 
-# End time
+# Calculate duration
 END_TIME=$(date +%s)
 DURATION=$((END_TIME - START_TIME))
 
-# Generate summary report
-print_header "Test Summary Report"
+# Read final test counts
+counts=$(cat "$TEST_RESULTS_FILE")
+TOTAL_TESTS=$(echo $counts | cut -d' ' -f1)
+PASSED_TESTS=$(echo $counts | cut -d' ' -f2)
+FAILED_TESTS=$(echo $counts | cut -d' ' -f3)
+SKIPPED_TESTS=$(echo $counts | cut -d' ' -f4)
 
+# Generate summary report
 REPORT_FILE="$RESULTS_DIR/summary-report.txt"
 {
+    print_header "Test Summary Report"
     echo "KindlyGuard NPM Package Test Summary"
     echo "==================================="
     echo ""
@@ -203,6 +236,9 @@ REPORT_FILE="$RESULTS_DIR/summary-report.txt"
     echo "Test Logs:"
     ls -la "$RESULTS_DIR"/*.log 2>/dev/null || echo "No log files generated"
 } | tee "$REPORT_FILE"
+
+# Cleanup
+rm -f "$TEST_RESULTS_FILE"
 
 # Display summary
 echo ""

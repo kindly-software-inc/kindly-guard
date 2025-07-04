@@ -156,7 +156,9 @@ async fn test_regex_dos_protection() {
         enable_event_buffer: false,
         xss_detection: Some(true),
         enhanced_mode: Some(false),
+        crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
+            max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -236,7 +238,9 @@ async fn test_path_traversal_prevention() {
         enable_event_buffer: false,
         xss_detection: Some(false),
         enhanced_mode: Some(false),
+        crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
+            max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -272,7 +276,9 @@ async fn test_command_injection_prevention() {
         enable_event_buffer: false,
         xss_detection: Some(true),
         enhanced_mode: Some(false),
+        crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
+            max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -377,7 +383,9 @@ async fn test_unicode_normalization_attacks() {
         enable_event_buffer: false,
         xss_detection: Some(false),
         enhanced_mode: Some(false),
+        crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
+            max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -415,7 +423,9 @@ proptest! {
             enable_event_buffer: false,
             xss_detection: Some(true),
             enhanced_mode: Some(false),
+            crypto_detection: true,
             max_content_size: 5 * 1024 * 1024, // 5MB
+            max_input_size: None,
         };
 
         // Create a tokio runtime for the scanner
@@ -442,7 +452,9 @@ proptest! {
             enable_event_buffer: false,
             xss_detection: Some(true),
             enhanced_mode: Some(false),
+            crypto_detection: true,
             max_content_size: 5 * 1024 * 1024, // 5MB
+            max_input_size: None,
         };
 
         // Create a tokio runtime for the scanner

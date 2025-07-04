@@ -283,7 +283,8 @@ mod tests {
         let cli_shield = CliShield::new(shield, DisplayFormat::Minimal);
 
         let status = cli_shield.status();
-        let json = serde_json::to_string(&status).unwrap();
+        let json = serde_json::to_string(&status)
+            .expect("Shield status should always be serializable");
         assert!(json.contains("active"));
         assert!(json.contains("threats_blocked"));
     }

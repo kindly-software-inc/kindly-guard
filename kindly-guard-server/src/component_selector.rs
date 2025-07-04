@@ -26,6 +26,8 @@ use crate::permissions::{
     ThreatLevel, ToolPermissionManager,
 };
 use crate::plugins::{DefaultPluginManagerFactory, PluginManagerFactory, PluginManagerTrait};
+use crate::resilience::{create_circuit_breaker, create_bulkhead, create_retry_strategy, DynBulkhead};
+use crate::traits::{DynCircuitBreaker, DynRetryStrategy};
 use crate::standard_impl::StandardFactory;
 use crate::storage::{DefaultStorageFactory, StorageProvider, StorageProviderFactory};
 #[cfg(feature = "enhanced")]
@@ -121,6 +123,9 @@ pub struct ComponentManager {
     plugin_manager: Arc<dyn PluginManagerTrait>,
     audit_logger: Arc<dyn AuditLogger>,
     threat_neutralizer: Arc<dyn ThreatNeutralizer>,
+    circuit_breaker: Arc<dyn DynCircuitBreaker>,
+    retry_strategy: Arc<dyn DynRetryStrategy>,
+    bulkhead: Arc<dyn DynBulkhead>,
     enhanced_mode: bool,
 }
 
@@ -189,6 +194,11 @@ impl ComponentManager {
         // Create threat neutralizer with rate limiting
         let threat_neutralizer =
             create_neutralizer(&config.neutralization, Some(rate_limiter.clone()));
+            
+        // Create resilience components
+        let circuit_breaker = create_circuit_breaker(config)?;
+        let retry_strategy = create_retry_strategy(config)?;
+        let bulkhead = create_bulkhead(config)?;
 
         Ok(Self {
             event_processor,
@@ -202,6 +212,9 @@ impl ComponentManager {
             plugin_manager,
             audit_logger,
             threat_neutralizer,
+            circuit_breaker,
+            retry_strategy,
+            bulkhead,
             enhanced_mode: selector.is_enhanced_mode(config),
         })
     }
@@ -254,6 +267,21 @@ impl ComponentManager {
     /// Get threat neutralizer
     pub fn threat_neutralizer(&self) -> &Arc<dyn ThreatNeutralizer> {
         &self.threat_neutralizer
+    }
+    
+    /// Get circuit breaker
+    pub fn circuit_breaker(&self) -> &Arc<dyn DynCircuitBreaker> {
+        &self.circuit_breaker
+    }
+    
+    /// Get retry strategy
+    pub fn retry_strategy(&self) -> &Arc<dyn DynRetryStrategy> {
+        &self.retry_strategy
+    }
+    
+    /// Get bulkhead
+    pub fn bulkhead(&self) -> &Arc<dyn DynBulkhead> {
+        &self.bulkhead
     }
 
     /// Check if running in enhanced mode

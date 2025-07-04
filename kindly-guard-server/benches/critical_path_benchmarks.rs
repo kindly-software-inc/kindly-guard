@@ -77,6 +77,8 @@ fn bench_sql_injection_detection(c: &mut Criterion) {
         custom_patterns: None,
         max_scan_depth: 10,
         enable_event_buffer: false,
+        crypto_detection: true,
+        max_content_size: 10_485_760, // 10MB for benchmarks
     };
     let scanner = SecurityScanner::new(scanner_config).unwrap();
 
@@ -277,6 +279,8 @@ fn bench_memory_patterns(c: &mut Criterion) {
             custom_patterns: None,
             max_scan_depth: 10,
             enable_event_buffer: false,
+            crypto_detection: true,
+            max_content_size: 10_485_760, // 10MB for benchmarks
         };
         let scanner = SecurityScanner::new(scanner_config).unwrap();
         let text = "A".repeat(1000);

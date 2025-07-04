@@ -289,6 +289,16 @@ impl ResilienceFactory for StandardResilienceFactory {
     ) -> Result<Arc<dyn RecoveryStrategyTrait>> {
         Ok(Arc::new(StandardRecoveryStrategy::new()))
     }
+    
+    fn create_bulkhead(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn crate::resilience::DynBulkhead>> {
+        use crate::resilience::bulkhead::{BulkheadWrapper, StandardBulkhead};
+        
+        let bulkhead = StandardBulkhead::from_config(config);
+        Ok(Arc::new(BulkheadWrapper::new(bulkhead)))
+    }
 }
 
 /// Standard health checker implementation

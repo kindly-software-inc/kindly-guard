@@ -1,0 +1,3 @@
+# SHA256 checksums for individual binaries inside the archive
+f36dc4086a7fcba0b1ed32e6528b5eeadb422a24d8affa2338f267f19f5c39a7  kindlyguard
+42eee181449da289efd5f17d3599168c1e2832d465cbbb877d441f89e2f37845  kindlyguard-cli

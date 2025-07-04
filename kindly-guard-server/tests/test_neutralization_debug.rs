@@ -37,6 +37,7 @@ async fn test_problematic_neutralization() -> Result<()> {
         enable_event_buffer: false,
         xss_detection: Some(true),
         enhanced_mode: Some(false),
+        crypto_detection: true,
         max_content_size: 5 * 1024 * 1024,
     };
     let scanner = Arc::new(SecurityScanner::new(scanner_config)?);

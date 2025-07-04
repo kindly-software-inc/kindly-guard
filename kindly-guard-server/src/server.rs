@@ -201,8 +201,23 @@ impl McpServer {
                 AuditEvent::new(audit_event_type, severity).with_client_id(client_id.to_string());
 
             let audit_logger = self.component_manager.audit_logger();
-            if let Err(e) = audit_logger.log(audit_event).await {
-                warn!("Failed to log audit event: {}", e);
+            let retry_strategy = self.component_manager.retry_strategy();
+            
+            // Wrap audit logging with retry logic
+            let audit_event_json = serde_json::to_value(&audit_event).unwrap_or(Value::Null);
+            match retry_strategy
+                .execute_json("audit.log", audit_event_json.clone())
+                .await
+            {
+                Ok(_) => {
+                    // Perform actual audit logging
+                    if let Err(e) = audit_logger.log(audit_event).await {
+                        warn!("Failed to log audit event: {}", e);
+                    }
+                }
+                Err(e) => {
+                    error!("Failed to log audit event after retries: {}", e);
+                }
             }
         }
 
@@ -444,7 +459,10 @@ impl McpServer {
     }
 
     /// Handle JSON-RPC request
-    async fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {
+    /// 
+    /// This is public for testing purposes only.
+    /// In production, use the transport layer methods.
+    pub async fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {
         // Start telemetry span for request handling
         let telemetry = self.component_manager.telemetry_provider();
         let request_span = telemetry.start_span(&format!("mcp.request.{}", request.method));
@@ -824,7 +842,10 @@ impl McpServer {
     }
 
     /// Handle JSON-RPC notification
-    async fn handle_notification(&self, notification: JsonRpcNotification) {
+    /// 
+    /// This is public for testing purposes only.
+    /// In production, use the transport layer methods.
+    pub async fn handle_notification(&self, notification: JsonRpcNotification) {
         debug!("Received notification: {}", notification.method);
 
         match notification.method.as_str() {
@@ -849,21 +870,56 @@ impl McpServer {
     /// Scan request for security threats
     async fn scan_request(&self, request: &JsonRpcRequest) -> Result<Vec<Threat>, ServerError> {
         let mut all_threats = Vec::new();
+        let circuit_breaker = self.component_manager.circuit_breaker();
 
-        // Scan method name
-        match self.scanner.scan_text(&request.method) {
-            Ok(threats) => all_threats.extend(threats),
+        // Scan method name with circuit breaker protection
+        match circuit_breaker
+            .call_json(
+                "scanner.scan_text",
+                serde_json::json!({
+                    "text": &request.method
+                }),
+            )
+            .await
+        {
+            Ok(_) => {
+                // Perform actual scan
+                match self.scanner.scan_text(&request.method) {
+                    Ok(threats) => all_threats.extend(threats),
+                    Err(e) => {
+                        error!("Failed to scan method: {}", e);
+                    }
+                }
+            }
             Err(e) => {
-                error!("Failed to scan method: {}", e);
+                warn!("Circuit breaker open for scanner.scan_text: {}", e);
+                // Continue without scanning if circuit is open
             }
         }
 
-        // Scan parameters if present
+        // Scan parameters if present with circuit breaker protection
         let params = &request.params;
-        match self.scanner.scan_json(params) {
-            Ok(threats) => all_threats.extend(threats),
+        match circuit_breaker
+            .call_json(
+                "scanner.scan_json",
+                serde_json::json!({
+                    "params": params
+                }),
+            )
+            .await
+        {
+            Ok(_) => {
+                // Perform actual scan
+                match self.scanner.scan_json(params) {
+                    Ok(threats) => all_threats.extend(threats),
+                    Err(e) => {
+                        error!("Failed to scan params: {}", e);
+                    }
+                }
+            }
             Err(e) => {
-                error!("Failed to scan params: {}", e);
+                warn!("Circuit breaker open for scanner.scan_json: {}", e);
+                // Continue without scanning if circuit is open
             }
         }
 
@@ -1096,10 +1152,29 @@ impl McpServer {
             }
         }
 
-        // Apply timeout to tool execution
+        // Apply bulkhead protection and timeout to tool execution
+        let bulkhead = self.component_manager.bulkhead();
+        let tool_name = params.name.clone();
+        let arguments = params.arguments;
+        
+        let _bulkhead_result = bulkhead
+            .execute_json(
+                &format!("tool.{}", tool_name),
+                serde_json::json!({
+                    "tool": &tool_name,
+                    "arguments": &arguments
+                }),
+            )
+            .await
+            .map_err(|e| {
+                warn!("Bulkhead rejected tool execution for {}: {}", tool_name, e);
+                ServerError::InternalError(format!("Tool execution rejected: {}", e))
+            })?;
+        
+        // Now execute with timeout
         let result = tokio::time::timeout(
             Duration::from_secs(self.config.server.request_timeout_secs),
-            self.execute_tool(&params.name, params.arguments),
+            self.execute_tool(&tool_name, arguments),
         )
         .await
         .map_err(|_| ServerError::Timeout)??;

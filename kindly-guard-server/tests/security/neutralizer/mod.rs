@@ -92,6 +92,8 @@ mod neutralizer_security_tests {
             custom_patterns: None,
             max_scan_depth: 10,
             enable_event_buffer: false,
+            crypto_detection: true,
+            max_content_size: 10_485_760, // 10MB for tests
         };
         let scanner = Arc::new(SecurityScanner::new(scanner_config).unwrap());
 

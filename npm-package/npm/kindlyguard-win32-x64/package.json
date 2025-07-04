@@ -1,6 +1,6 @@
 {
-  "name": "@kindlyguard/win32-x64",
-  "version": "0.9.1",
+  "name": "kindlyguard-win32-x64",
+  "version": "0.9.2",
   "description": "Windows x64 binary for KindlyGuard",
   "repository": {
     "type": "git",

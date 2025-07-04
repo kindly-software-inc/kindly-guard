@@ -24,9 +24,9 @@
 use kindly_guard_server::{
     config::{Config, NeutralizerConfig},
     neutralizer::{create_neutralizer, NeutralizeAction, NeutralizeResult, ThreatNeutralizer},
-    resilience::{create_circuit_breaker, create_retry_handler},
-    scanner::{create_scanner, Location, SecurityScanner, Severity, Threat, ThreatType},
-    traits::{CircuitBreakerTrait, RetryHandlerTrait},
+    resilience::{create_circuit_breaker, create_retry_strategy},
+    scanner::{Location, SecurityScanner, Severity, Threat, ThreatType},
+    traits::{CircuitBreakerTrait, RetryStrategyTrait},
 };
 use std::sync::Arc;
 use tokio::runtime::Runtime;
@@ -52,11 +52,11 @@ fn create_both_scanners() -> (Arc<dyn SecurityScanner>, Arc<dyn SecurityScanner>
 
     // Create standard version
     config.scanner.enhanced_mode = false;
-    let standard = create_scanner(&config);
+    let standard = Arc::new(SecurityScanner::new(config.scanner.clone()).unwrap());
 
     // Create enhanced version
     config.scanner.enhanced_mode = true;
-    let enhanced = create_scanner(&config);
+    let enhanced = Arc::new(SecurityScanner::new(config.scanner.clone()).unwrap());
 
     (standard, enhanced)
 }
@@ -477,11 +477,11 @@ async fn test_retry_handler_behavioral_equivalence() {
 
     // Create standard version
     config.resilience.enhanced_mode = false;
-    let standard = create_retry_handler(&config);
+    let standard = create_retry_strategy(&config).unwrap();
 
     // Create enhanced version
     config.resilience.enhanced_mode = true;
-    let enhanced = create_retry_handler(&config);
+    let enhanced = create_retry_strategy(&config).unwrap();
 
     // Test successful operation (no retry needed)
     let std_result = standard

@@ -180,7 +180,8 @@ impl Shield {
         // Calculate recent threat rate (threats per minute in last 5 minutes)
         let recent_rate = match self.recent_threats.lock() {
             Ok(recent) => {
-                let five_mins_ago = now.checked_sub(Duration::from_secs(300)).unwrap();
+                let five_mins_ago = now.checked_sub(Duration::from_secs(300))
+                    .unwrap_or(now); // If subtraction fails (shouldn't happen), use current time
                 let recent_count = recent
                     .iter()
                     .filter(|t| t.timestamp > five_mins_ago)

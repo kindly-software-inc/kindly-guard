@@ -1,7 +1,7 @@
 //! Example demonstrating MCP config writer usage
 
 use anyhow::Result;
-use kindly_guard_server::setup::{create_config_writer, JsonConfigWriter, JsonLocalConfigWriter};
+use kindly_guard_server::setup::{create_config_writer, ConfigWriter, JsonConfigWriter, JsonLocalConfigWriter};
 use std::path::Path;
 use tempfile::TempDir;
 

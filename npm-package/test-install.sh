@@ -19,7 +19,7 @@ WARNINGS=0
 
 print_status() {
     echo -e "${GREEN}[✓]${NC} $1"
-    ((TESTS_PASSED++))
+    ((TESTS_PASSED++)) || true
 }
 
 print_info() {
@@ -28,12 +28,12 @@ print_info() {
 
 print_warning() {
     echo -e "${YELLOW}[!]${NC} $1"
-    ((WARNINGS++))
+    ((WARNINGS++)) || true
 }
 
 print_error() {
     echo -e "${RED}[✗]${NC} $1"
-    ((TESTS_FAILED++))
+    ((TESTS_FAILED++)) || true
 }
 
 print_section() {
@@ -139,9 +139,21 @@ test_clean_install() {
     
     # Create mock installation
     mkdir -p node_modules/kindlyguard/bin
+    mkdir -p node_modules/kindlyguard/lib
     cp "$TEST_ROOT/package-source/package.json" node_modules/kindlyguard/
-    cp "$TEST_ROOT/package-source/index.js" node_modules/kindlyguard/ 2>/dev/null || true
-    cp "$TEST_ROOT/package-source/postinstall.js" node_modules/kindlyguard/ 2>/dev/null || true
+    cp -r "$TEST_ROOT/package-source/lib" node_modules/kindlyguard/ 2>/dev/null || true
+    # Copy existing binaries for testing
+    cp "$TEST_ROOT/package-source/bin/kindlyguard" node_modules/kindlyguard/bin/ 2>/dev/null || true
+    cp "$TEST_ROOT/package-source/bin/kindlyguard-cli" node_modules/kindlyguard/bin/ 2>/dev/null || true
+    
+    # Install minimal dependencies for postinstall
+    mkdir -p node_modules/tar node_modules/unzipper node_modules/node-fetch
+    echo '{"main":"index.js"}' > node_modules/tar/package.json
+    echo 'module.exports = {};' > node_modules/tar/index.js
+    echo '{"main":"index.js"}' > node_modules/unzipper/package.json
+    echo 'module.exports = {};' > node_modules/unzipper/index.js
+    echo '{"main":"index.js"}' > node_modules/node-fetch/package.json
+    echo 'module.exports = {};' > node_modules/node-fetch/index.js
     
     # Test postinstall behavior
     print_info "Testing postinstall script..."
@@ -163,7 +175,7 @@ test_clean_install() {
     fi
     
     # Run postinstall
-    node postinstall.js && print_status "Postinstall script completed" || print_error "Postinstall script failed"
+    node lib/postinstall.js && print_status "Postinstall script completed" || print_error "Postinstall script failed"
     
     # Verify binaries exist
     if [ -f "bin/kindlyguard" ] || [ -f "bin/kindlyguard.exe" ]; then
@@ -366,12 +378,13 @@ test_error_handling() {
     
     # Test missing platform package
     mkdir -p node_modules/kindlyguard
-    cp "$TEST_ROOT/package-source/postinstall.js" node_modules/kindlyguard/
+    mkdir -p node_modules/kindlyguard/lib
+    cp -r "$TEST_ROOT/package-source/lib" node_modules/kindlyguard/
     
     cd node_modules/kindlyguard
     
     # Run postinstall without platform packages (should fail gracefully)
-    node postinstall.js 2>&1 | grep -q "Failed to install platform-specific package" && print_status "Missing package error handled" || print_error "Missing package error not handled properly"
+    node lib/postinstall.js 2>&1 | grep -q "ERROR:" && print_status "Missing package error handled" || print_error "Missing package error not handled properly"
     
     # Test unsupported platform
     node -e "
@@ -450,10 +463,10 @@ test_security() {
     fi
     
     # Check for path traversal in postinstall
-    grep -q '\.\.' "$TEST_ROOT/package-source/postinstall.js" && print_warning "Potential path traversal in postinstall" || print_status "No path traversal detected"
+    grep -q '\.\.' "$TEST_ROOT/package-source/lib/postinstall.js" && print_warning "Potential path traversal in postinstall" || print_status "No path traversal detected"
     
     # Check for command injection vulnerabilities
-    grep -E 'exec|eval|Function' "$TEST_ROOT/package-source/postinstall.js" | grep -v 'spawnSync' && print_warning "Potentially dangerous functions used" || print_status "No dangerous function calls found"
+    grep -E 'exec|eval|Function' "$TEST_ROOT/package-source/lib/postinstall.js" | grep -v 'spawnSync' && print_warning "Potentially dangerous functions used" || print_status "No dangerous function calls found"
 }
 
 # Main test execution

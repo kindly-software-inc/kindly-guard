@@ -1,0 +1,22 @@
+KindlyGuard NPM Package Test Summary
+===================================
+
+Test Date: Fri Jul  4 01:26:05 PM EDT 2025
+Duration: 1 seconds
+
+Test Results:
+  Total Tests: 0
+  Passed: 0
+  Failed: 0
+  Skipped: 0
+
+Success Rate: 0%
+
+
+Test Logs:
+-rw-rw-r-- 1 samuel samuel 234 Jul  4 13:26 test-results-20250704-132604/claude-desktop-test.log
+-rw-rw-r-- 1 samuel samuel 226 Jul  4 13:26 test-results-20250704-132604/cli-commands-test.log
+-rw-rw-r-- 1 samuel samuel 225 Jul  4 13:26 test-results-20250704-132604/installation-test.log
+-rw-rw-r-- 1 samuel samuel 223 Jul  4 13:26 test-results-20250704-132604/npx-usage-test.log
+-rw-rw-r-- 1 samuel samuel 229 Jul  4 13:26 test-results-20250704-132604/platform-tests.log
+-rw-rw-r-- 1 samuel samuel 230 Jul  4 13:26 test-results-20250704-132604/programmatic-api-test.log

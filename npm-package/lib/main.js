@@ -196,6 +196,49 @@ class KindlyGuard {
     
     if (options.format === 'json' && result.stdout) {
       try {
+        // Extract just the JSON part - look for complete JSON object
+        // The JSON ends at the first } that closes the root object
+        let braceCount = 0;
+        let inString = false;
+        let escapeNext = false;
+        let jsonEnd = -1;
+        
+        for (let i = 0; i < result.stdout.length; i++) {
+          const char = result.stdout[i];
+          
+          if (escapeNext) {
+            escapeNext = false;
+            continue;
+          }
+          
+          if (char === '\\') {
+            escapeNext = true;
+            continue;
+          }
+          
+          if (char === '"' && !escapeNext) {
+            inString = !inString;
+            continue;
+          }
+          
+          if (!inString) {
+            if (char === '{') braceCount++;
+            else if (char === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                jsonEnd = i + 1;
+                break;
+              }
+            }
+          }
+        }
+        
+        if (jsonEnd > 0) {
+          const jsonStr = result.stdout.substring(0, jsonEnd);
+          return JSON.parse(jsonStr);
+        }
+        
+        // Fallback to parsing the whole output
         return JSON.parse(result.stdout);
       } catch (e) {
         throw new Error(`Failed to parse scan results: ${e.message}`);

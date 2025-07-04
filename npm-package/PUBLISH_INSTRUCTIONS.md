@@ -67,8 +67,8 @@ To trigger automated publishing:
 
 1. **Create a new release tag**:
    ```bash
-   git tag v0.9.1
-   git push origin v0.9.1
+   git tag v0.9.2
+   git push origin v0.9.2
    ```
 
 2. The workflow will automatically:
@@ -78,7 +78,7 @@ To trigger automated publishing:
 
 ## Version Management
 
-- Current version: 0.9.1
+- Current version: 0.9.2
 - Platform packages use same version as main package
 - Follow semantic versioning (MAJOR.MINOR.PATCH)
 

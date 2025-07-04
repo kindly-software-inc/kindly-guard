@@ -443,26 +443,40 @@ async fn test_gradual_ramp() {
     // Sustain at max load
     println!("Sustaining at {} req/s", max_rps);
     let sustain_end = Instant::now() + sustain_duration;
+    let mut request_counter = 0u64;
 
     while Instant::now() < sustain_end && !stop_signal.load(Ordering::Relaxed) {
+        request_counter += 1;
         let server_clone = server.clone();
         let stats_clone = stats.clone();
+        let req_id = request_counter;
 
         tokio::spawn(async move {
             let request_start = Instant::now();
             let payload = create_test_payload(false, "");
 
+            let request = JsonRpcRequest {
+                jsonrpc: "2.0".to_string(),
+                id: RequestId::Number(req_id as i64),
+                method: "tools/call".to_string(),
+                params: json!({
+                    "name": "scan_text",
+                    "arguments": payload
+                }),
+            };
+
             match timeout(
                 Duration::from_secs(5),
-                server_clone.handle_request("scan_text", payload),
+                server_clone.handle_request(request),
             )
             .await
             {
-                Ok(Ok(_)) => {
-                    stats_clone.record_request(true, request_start.elapsed());
-                }
-                Ok(Err(_)) => {
-                    stats_clone.record_request(false, request_start.elapsed());
+                Ok(response) => {
+                    if response.error.is_none() {
+                        stats_clone.record_request(true, request_start.elapsed());
+                    } else {
+                        stats_clone.record_request(false, request_start.elapsed());
+                    }
                 }
                 Err(_) => {
                     stats_clone.record_request(false, Duration::from_secs(5));
@@ -530,30 +544,43 @@ async fn test_mixed_workload() {
             let request_start = Instant::now();
             let payload = create_test_payload(include_threat, &threat_type);
 
+            let request = JsonRpcRequest {
+                jsonrpc: "2.0".to_string(),
+                id: RequestId::Number(i as i64),
+                method: "tools/call".to_string(),
+                params: json!({
+                    "name": "scan_text",
+                    "arguments": payload
+                }),
+            };
+
             match timeout(
                 Duration::from_secs(5),
-                server_clone.handle_request("scan_text", payload),
+                server_clone.handle_request(request),
             )
             .await
             {
-                Ok(Ok(response)) => {
-                    stats_clone.record_request(true, request_start.elapsed());
+                Ok(response) => {
+                    if response.error.is_none() {
+                        stats_clone.record_request(true, request_start.elapsed());
 
-                    if let Some(threats) = response.get("threats") {
-                        if let Some(arr) = threats.as_array() {
-                            if !arr.is_empty() {
-                                stats_clone.record_threat_detected();
+                        if let Some(result) = response.result {
+                            if let Some(threats) = result.get("threats") {
+                                if let Some(arr) = threats.as_array() {
+                                    if !arr.is_empty() {
+                                        stats_clone.record_threat_detected();
 
-                                // Check if neutralization occurred
-                                if response.get("neutralized").is_some() {
-                                    stats_clone.record_threat_neutralized();
+                                        // Check if neutralization occurred
+                                        if result.get("neutralized").is_some() {
+                                            stats_clone.record_threat_neutralized();
+                                        }
+                                    }
                                 }
                             }
                         }
+                    } else {
+                        stats_clone.record_request(false, request_start.elapsed());
                     }
-                }
-                Ok(Err(_)) => {
-                    stats_clone.record_request(false, request_start.elapsed());
                 }
                 Err(_) => {
                     stats_clone.record_request(false, Duration::from_secs(5));
@@ -591,12 +618,18 @@ async fn test_mixed_workload() {
 async fn test_rate_limiting_under_load() {
     let mut config = create_test_config();
     // Configure aggressive rate limiting
-    config.rate_limit = Some(kindly_guard_server::RateLimitConfig {
+    config.rate_limit = kindly_guard_server::rate_limit::RateLimitConfig {
         enabled: true,
-        requests_per_second: 100,
-        burst_size: 200,
-        window_seconds: 1,
-    });
+        default_rpm: 6000, // 100 per second
+        burst_capacity: 200,
+        method_limits: Default::default(),
+        client_limits: Default::default(),
+        ip_limits: Default::default(),
+        global_rpm: None,
+        track_by: Default::default(),
+        whitelist: Default::default(),
+        blacklist: Default::default(),
+    };
 
     let server = create_test_server(config).await;
     let stats = Arc::new(LoadTestStats::default());
@@ -876,7 +909,7 @@ async fn test_performance_degradation() {
 
 /// Helper function to create test config
 fn create_test_config() -> Config {
-    use kindly_guard_server::config::RateLimitConfig;
+    use kindly_guard_server::rate_limit::RateLimitConfig;
 
     Config {
         scanner: ScannerConfig {
@@ -888,13 +921,22 @@ fn create_test_config() -> Config {
             custom_patterns: None,
             max_scan_depth: 10,
             enable_event_buffer: false,
+            crypto_detection: true,
+            max_content_size: 10_485_760, // 10MB for load testing
+            max_input_size: None,
         },
-        rate_limit: Some(RateLimitConfig {
+        rate_limit: RateLimitConfig {
             enabled: true,
-            requests_per_second: 1000,
-            burst_size: 2000,
-            window_seconds: 1,
-        }),
+            default_rpm: 60000, // 1000 per second
+            burst_capacity: 2000,
+            method_limits: Default::default(),
+            client_limits: Default::default(),
+            ip_limits: Default::default(),
+            global_rpm: None,
+            track_by: Default::default(),
+            whitelist: Default::default(),
+            blacklist: Default::default(),
+        },
         ..Default::default()
     }
 }

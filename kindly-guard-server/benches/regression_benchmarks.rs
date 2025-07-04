@@ -40,6 +40,8 @@ fn bench_unicode_scanning_regression(c: &mut Criterion) {
         custom_patterns: None,
         max_scan_depth: 10,
         enable_event_buffer: false,
+        crypto_detection: false, // Disabled for this specific benchmark
+        max_content_size: 10_485_760, // 10MB for benchmarks
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -264,6 +266,8 @@ fn bench_json_scanning_regression(c: &mut Criterion) {
         custom_patterns: None,
         max_scan_depth: 10,
         enable_event_buffer: false,
+        crypto_detection: true,
+        max_content_size: 10_485_760, // 10MB for benchmarks
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -333,6 +337,8 @@ fn bench_large_payload_regression(c: &mut Criterion) {
         custom_patterns: None,
         max_scan_depth: 10,
         enable_event_buffer: false,
+        crypto_detection: true,
+        max_content_size: 50_000_000, // 50MB for large payload tests
     };
 
     let scanner = SecurityScanner::new(config).unwrap();

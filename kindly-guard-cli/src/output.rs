@@ -181,7 +181,20 @@ fn print_json_results(
         }).collect::<Vec<_>>(),
     });
 
-    println!("{}", serde_json::to_string_pretty(&json_output).unwrap());
+    match serde_json::to_string_pretty(&json_output) {
+        Ok(json_str) => println!("{}", json_str),
+        Err(e) => {
+            eprintln!("Error serializing output to JSON: {}", e);
+            // Fall back to compact JSON format
+            match serde_json::to_string(&json_output) {
+                Ok(json_str) => println!("{}", json_str),
+                Err(_) => {
+                    // Last resort: print error JSON
+                    println!(r#"{{"error": "Failed to serialize scan results"}}"#);
+                }
+            }
+        }
+    }
 }
 
 fn print_brief_results(

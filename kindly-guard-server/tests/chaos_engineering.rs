@@ -18,15 +18,13 @@
 
 use kindly_guard_server::{
     config::Config,
-    error::{ErrorKind, KindlyError},
-    metrics::MetricsCollector,
-    resilience::{CircuitBreakerTrait, RetryPolicy},
-    scanner::{SecurityScanner, ThreatSeverity},
-    server::Server,
-    storage::StorageTrait,
-    transport::TransportTrait,
+    error::KindlyError,
+    protocol::ThreatSeverity,
+    scanner::SecurityScanner,
+    storage::{InMemoryStorage, StorageProvider},
+    telemetry::MetricsCollector,
 };
-use rand::{distributions::Uniform, thread_rng, Rng};
+use rand::{thread_rng, Rng};
 use std::{
     collections::HashMap,
     sync::{
@@ -144,9 +142,9 @@ impl ChaosMonkey {
         match fault {
             FaultType::NetworkTimeout => {
                 sleep(Duration::from_secs(30)).await;
-                Err(KindlyError::new(ErrorKind::Timeout, "Network timeout"))
+                Err(KindlyError::TimeoutError(30))
             }
-            FaultType::NetworkError => Err(KindlyError::new(ErrorKind::Network, "Network error")),
+            FaultType::NetworkError => Err(KindlyError::NetworkError("Network error".to_string())),
             FaultType::ResourceExhaustion => {
                 // Simulate resource exhaustion
                 let _memory_hog: Vec<u8> = vec![0; 100_000_000]; // 100MB
@@ -169,7 +167,7 @@ impl ChaosMonkey {
                 }
                 Ok(())
             }
-            FaultType::DiskFull => Err(KindlyError::new(ErrorKind::Storage, "Disk full")),
+            FaultType::DiskFull => Err(KindlyError::ResourceError { resource: "disk".to_string(), limit: "full".to_string() }),
             FaultType::RandomDelay => {
                 let mut rng = self.rng.lock().await;
                 let delay_ms = rng.gen_range(10..500);
@@ -180,13 +178,11 @@ impl ChaosMonkey {
                 // Return success but with incomplete data
                 Ok(())
             }
-            FaultType::CorruptedData => Err(KindlyError::new(
-                ErrorKind::InvalidData,
-                "Data corruption detected",
-            )),
-            FaultType::ServiceUnavailable => Err(KindlyError::new(
-                ErrorKind::ServiceUnavailable,
-                "Service temporarily unavailable",
+            FaultType::CorruptedData => Err(KindlyError::InvalidInput {
+                reason: "Data corruption detected".to_string(),
+            }),
+            FaultType::ServiceUnavailable => Err(KindlyError::Internal(
+                "Service temporarily unavailable".to_string(),
             )),
         }
     }
@@ -200,89 +196,92 @@ impl ChaosMonkey {
     }
 }
 
-/// Chaos-enabled transport wrapper
-struct ChaosTransport<T: TransportTrait> {
-    inner: T,
-    chaos: Arc<ChaosMonkey>,
-}
+// NOTE: Transport wrapper commented out as TransportTrait is not defined
+// /// Chaos-enabled transport wrapper
+// struct ChaosTransport<T: TransportTrait> {
+//     inner: T,
+//     chaos: Arc<ChaosMonkey>,
+// }
+//
+// impl<T: TransportTrait> ChaosTransport<T> {
+//     fn new(inner: T, chaos: Arc<ChaosMonkey>) -> Self {
+//         Self { inner, chaos }
+//     }
+// }
+//
+// #[async_trait::async_trait]
+// impl<T: TransportTrait> TransportTrait for ChaosTransport<T> {
+//     async fn send(&self, data: &[u8]) -> Result<(), KindlyError> {
+//         if let Some(fault) = self.chaos.inject_fault().await {
+//             self.chaos.apply_fault(fault).await?;
+//         }
+//         self.inner.send(data).await
+//     }
+//
+//     async fn receive(&self) -> Result<Vec<u8>, KindlyError> {
+//         if let Some(fault) = self.chaos.inject_fault().await {
+//             self.chaos.apply_fault(fault).await?;
+//         }
+//         self.inner.receive().await
+//     }
+//
+//     async fn close(&self) -> Result<(), KindlyError> {
+//         self.inner.close().await
+//     }
+// }
 
-impl<T: TransportTrait> ChaosTransport<T> {
-    fn new(inner: T, chaos: Arc<ChaosMonkey>) -> Self {
-        Self { inner, chaos }
-    }
-}
+// NOTE: Storage wrapper commented out as StorageTrait is not defined
+// /// Chaos-enabled storage wrapper
+// struct ChaosStorage<S: StorageTrait> {
+//     inner: S,
+//     chaos: Arc<ChaosMonkey>,
+// }
+//
+// impl<S: StorageTrait> ChaosStorage<S> {
+//     fn new(inner: S, chaos: Arc<ChaosMonkey>) -> Self {
+//         Self { inner, chaos }
+//     }
+// }
+//
+// #[async_trait::async_trait]
+// impl<S: StorageTrait> StorageTrait for ChaosStorage<S> {
+//     async fn store(&self, key: &str, value: &[u8]) -> Result<(), KindlyError> {
+//         if let Some(fault) = self.chaos.inject_fault().await {
+//             self.chaos.apply_fault(fault).await?;
+//         }
+//         self.inner.store(key, value).await
+//     }
+//
+//     async fn retrieve(&self, key: &str) -> Result<Option<Vec<u8>>, KindlyError> {
+//         if let Some(fault) = self.chaos.inject_fault().await {
+//             self.chaos.apply_fault(fault).await?;
+//         }
+//         self.inner.retrieve(key).await
+//     }
+//
+//     async fn delete(&self, key: &str) -> Result<(), KindlyError> {
+//         if let Some(fault) = self.chaos.inject_fault().await {
+//             self.chaos.apply_fault(fault).await?;
+//         }
+//         self.inner.delete(key).await
+//     }
+//
+//     async fn list_keys(&self, prefix: &str) -> Result<Vec<String>, KindlyError> {
+//         if let Some(fault) = self.chaos.inject_fault().await {
+//             self.chaos.apply_fault(fault).await?;
+//         }
+//         self.inner.list_keys(prefix).await
+//     }
+// }
 
-#[async_trait::async_trait]
-impl<T: TransportTrait> TransportTrait for ChaosTransport<T> {
-    async fn send(&self, data: &[u8]) -> Result<(), KindlyError> {
-        if let Some(fault) = self.chaos.inject_fault().await {
-            self.chaos.apply_fault(fault).await?;
-        }
-        self.inner.send(data).await
-    }
-
-    async fn receive(&self) -> Result<Vec<u8>, KindlyError> {
-        if let Some(fault) = self.chaos.inject_fault().await {
-            self.chaos.apply_fault(fault).await?;
-        }
-        self.inner.receive().await
-    }
-
-    async fn close(&self) -> Result<(), KindlyError> {
-        self.inner.close().await
-    }
-}
-
-/// Chaos-enabled storage wrapper
-struct ChaosStorage<S: StorageTrait> {
-    inner: S,
-    chaos: Arc<ChaosMonkey>,
-}
-
-impl<S: StorageTrait> ChaosStorage<S> {
-    fn new(inner: S, chaos: Arc<ChaosMonkey>) -> Self {
-        Self { inner, chaos }
-    }
-}
-
-#[async_trait::async_trait]
-impl<S: StorageTrait> StorageTrait for ChaosStorage<S> {
-    async fn store(&self, key: &str, value: &[u8]) -> Result<(), KindlyError> {
-        if let Some(fault) = self.chaos.inject_fault().await {
-            self.chaos.apply_fault(fault).await?;
-        }
-        self.inner.store(key, value).await
-    }
-
-    async fn retrieve(&self, key: &str) -> Result<Option<Vec<u8>>, KindlyError> {
-        if let Some(fault) = self.chaos.inject_fault().await {
-            self.chaos.apply_fault(fault).await?;
-        }
-        self.inner.retrieve(key).await
-    }
-
-    async fn delete(&self, key: &str) -> Result<(), KindlyError> {
-        if let Some(fault) = self.chaos.inject_fault().await {
-            self.chaos.apply_fault(fault).await?;
-        }
-        self.inner.delete(key).await
-    }
-
-    async fn list_keys(&self, prefix: &str) -> Result<Vec<String>, KindlyError> {
-        if let Some(fault) = self.chaos.inject_fault().await {
-            self.chaos.apply_fault(fault).await?;
-        }
-        self.inner.list_keys(prefix).await
-    }
-}
-
-/// Test harness for chaos testing
-struct ChaosTestHarness {
-    server: Arc<Server>,
-    chaos: Arc<ChaosMonkey>,
-    metrics: Arc<MetricsCollector>,
-    consistency_checker: Arc<ConsistencyChecker>,
-}
+// NOTE: Test harness commented out as Server type is not defined
+// /// Test harness for chaos testing
+// struct ChaosTestHarness {
+//     server: Arc<Server>,
+//     chaos: Arc<ChaosMonkey>,
+//     metrics: Arc<MetricsCollector>,
+//     consistency_checker: Arc<ConsistencyChecker>,
+// }
 
 /// Checks data consistency during chaos
 struct ConsistencyChecker {
@@ -401,12 +400,12 @@ async fn test_network_resilience() {
             let mut attempts = 0;
             loop {
                 attempts += 1;
-                match timeout(Duration::from_secs(5), scanner.scan_text(&test_data)).await {
-                    Ok(Ok(threats)) => {
+                match scanner.scan_text(&test_data) {
+                    Ok(threats) => {
                         metrics.record_scan_success();
                         return Ok(threats.len());
                     }
-                    Ok(Err(e)) => {
+                    Err(e) => {
                         if attempts >= 3 {
                             metrics.record_error(&e);
                             return Err(KindlyError::from(e));
@@ -415,7 +414,7 @@ async fn test_network_resilience() {
                     }
                     Err(_) => {
                         if attempts >= 3 {
-                            let e = KindlyError::new(ErrorKind::Timeout, "Scan timeout");
+                            let e = KindlyError::TimeoutError(30);
                             metrics.record_error(&e);
                             return Err(e);
                         }
@@ -470,9 +469,7 @@ async fn test_storage_consistency() {
     }));
 
     // Create storage with chaos wrapper
-    let base_storage = kindly_guard_server::storage::create_storage(&config.storage)
-        .await
-        .expect("Failed to create storage");
+    let base_storage: Arc<dyn StorageProvider> = Arc::new(InMemoryStorage::new());
     let storage = Arc::new(ChaosStorage::new(base_storage, chaos.clone()));
     let consistency = Arc::new(ConsistencyChecker::new());
 
@@ -573,10 +570,10 @@ async fn test_resource_exhaustion() {
             let _permit = match timeout(Duration::from_secs(10), semaphore.acquire()).await {
                 Ok(Ok(permit)) => permit,
                 _ => {
-                    return Err(KindlyError::new(
-                        ErrorKind::ResourceExhausted,
-                        "Cannot acquire permit",
-                    ))
+                    return Err(KindlyError::ResourceError {
+                        resource: "permit".to_string(),
+                        limit: "exhausted".to_string(),
+                    })
                 }
             };
 
@@ -589,10 +586,9 @@ async fn test_resource_exhaustion() {
 
             // Perform scan
             let data = format!("Resource test {}: potentially malicious content", i);
-            match timeout(Duration::from_secs(5), scanner.scan_text(&data)).await {
-                Ok(Ok(_)) => Ok(()),
-                Ok(Err(e)) => Err(KindlyError::from(e)),
-                Err(_) => Err(KindlyError::new(ErrorKind::Timeout, "Operation timeout")),
+            match scanner.scan_text(&data) {
+                Ok(_) => Ok(()),
+                Err(e) => Err(KindlyError::from(e)),
             }
         });
     }
@@ -605,9 +601,9 @@ async fn test_resource_exhaustion() {
     while let Some(result) = tasks.join_next().await {
         match result {
             Ok(Ok(_)) => completed += 1,
-            Ok(Err(e)) => match e.kind() {
-                ErrorKind::ResourceExhausted => resource_errors += 1,
-                ErrorKind::Timeout => timeouts += 1,
+            Ok(Err(e)) => match &e {
+                KindlyError::ResourceError { .. } => resource_errors += 1,
+                KindlyError::TimeoutError(_) => timeouts += 1,
                 _ => {}
             },
             _ => {}
@@ -673,11 +669,11 @@ async fn test_circuit_breaker_chaos() {
                 Ok(_) => {
                     success_count.fetch_add(1, Ordering::Relaxed);
                 }
-                Err(e) => match e.kind() {
-                    ErrorKind::CircuitBreakerOpen => {
+                Err(e) => {
+                    // Circuit breaker errors would be Internal errors
+                    if matches!(&e, KindlyError::Internal(msg) if msg.contains("circuit")) {
                         circuit_open_count.fetch_add(1, Ordering::Relaxed);
-                    }
-                    _ => {
+                    } else {
                         failure_count.fetch_add(1, Ordering::Relaxed);
                     }
                 },
@@ -756,8 +752,8 @@ async fn test_security_under_chaos() {
                 }
 
                 // Scan payload
-                match timeout(Duration::from_secs(10), scanner.scan_text(&payload)).await {
-                    Ok(Ok(threats)) => {
+                match scanner.scan_text(&payload) {
+                    Ok(threats) => {
                         if threats.is_empty() {
                             error!("Security breach: Payload {} #{} not detected", i, j);
                             security_breaches.fetch_add(1, Ordering::Relaxed);
@@ -777,11 +773,8 @@ async fn test_security_under_chaos() {
                             }
                         }
                     }
-                    Ok(Err(e)) => {
+                    Err(e) => {
                         warn!("Scan error for payload {} #{}: {}", i, j, e);
-                    }
-                    Err(_) => {
-                        warn!("Scan timeout for payload {} #{}", i, j);
                     }
                 }
             });
@@ -834,8 +827,8 @@ async fn test_graceful_degradation() {
             let data = format!("Test {}: <script>alert('test')</script>", i);
 
             // Try full service first
-            match timeout(Duration::from_secs(2), scanner.scan_text(&data)).await {
-                Ok(Ok(threats)) if !threats.is_empty() => {
+            match scanner.scan_text(&data) {
+                Ok(threats) if !threats.is_empty() => {
                     full_service.fetch_add(1, Ordering::Relaxed);
                     metrics.record_scan_success();
                     return;
@@ -902,13 +895,13 @@ async fn test_recovery_after_chaos() {
         phase1_total += 1;
         let data = format!("Phase 1 test {}: malicious content", i);
 
-        match timeout(Duration::from_secs(2), scanner.scan_text(&data)).await {
-            Ok(Ok(_)) => {
+        match scanner.scan_text(&data) {
+            Ok(_) => {
                 phase1_success += 1;
                 metrics.record_scan_success();
             }
             _ => {
-                metrics.record_error(&KindlyError::new(ErrorKind::Unknown, "Scan failed"));
+                metrics.record_error(&KindlyError::Internal("Scan failed".to_string()));
             }
         }
 
@@ -931,13 +924,13 @@ async fn test_recovery_after_chaos() {
         phase2_total += 1;
         let data = format!("Phase 2 test {}: malicious content", i);
 
-        match timeout(Duration::from_secs(2), scanner.scan_text(&data)).await {
-            Ok(Ok(_)) => {
+        match scanner.scan_text(&data) {
+            Ok(_) => {
                 phase2_success += 1;
                 metrics.record_scan_success();
             }
             _ => {
-                metrics.record_error(&KindlyError::new(ErrorKind::Unknown, "Scan failed"));
+                metrics.record_error(&KindlyError::Internal("Scan failed".to_string()));
             }
         }
 
@@ -973,9 +966,7 @@ async fn test_multi_component_chaos() {
     // Create all components with chaos wrappers
     let scanner = Arc::new(SecurityScanner::new(&config.scanner));
     let storage = {
-        let base = kindly_guard_server::storage::create_storage(&config.storage)
-            .await
-            .expect("Failed to create storage");
+        let base: Arc<dyn StorageProvider> = Arc::new(InMemoryStorage::new());
         Arc::new(ChaosStorage::new(base, chaos.clone()))
     };
     let metrics = Arc::new(MetricsCollector::new());
@@ -997,7 +988,7 @@ async fn test_multi_component_chaos() {
             let data = format!("Test {}: <script>alert('xss')</script> OR 1=1--", i);
 
             // Step 1: Scan for threats
-            let threats = match scanner.scan_text(&data).await {
+            let threats = match scanner.scan_text(&data) {
                 Ok(t) => t,
                 Err(e) => {
                     metrics.record_error(&e);
@@ -1027,15 +1018,13 @@ async fn test_multi_component_chaos() {
                         metrics.record_verification_success();
                         Ok(())
                     } else {
-                        Err(KindlyError::new(
-                            ErrorKind::ConsistencyViolation,
-                            "Data mismatch",
+                        Err(KindlyError::Internal(
+                            "Data consistency violation: mismatch".to_string(),
                         ))
                     }
                 }
-                Ok(None) => Err(KindlyError::new(
-                    ErrorKind::NotFound,
-                    "Data not found after storage",
+                Ok(None) => Err(KindlyError::Internal(
+                    "Data not found after storage".to_string(),
                 )),
                 Err(e) => {
                     metrics.record_error(&e);
@@ -1052,11 +1041,13 @@ async fn test_multi_component_chaos() {
     while let Some(result) = tasks.join_next().await {
         match result {
             Ok(Ok(_)) => successes += 1,
-            Ok(Err(e)) => {
-                *failures.entry(e.kind()).or_insert(0) += 1;
+            Ok(Err(_e)) => {
+                // Count errors by type (simplified without ErrorKind)
+                *failures.entry("error".to_string()).or_insert(0) += 1;
             }
             Err(_) => {
-                *failures.entry(ErrorKind::Unknown).or_insert(0) += 1;
+                // Count as generic failure
+                *failures.entry("panic".to_string()).or_insert(0) += 1;
             }
         }
     }
@@ -1190,7 +1181,7 @@ async fn test_monitoring_during_chaos() {
                 }
             }
 
-            match scanner.scan_text(&data).await {
+            match scanner.scan_text(&data) {
                 Ok(_) => {
                     metrics.record_scan_success();
                     Ok(())

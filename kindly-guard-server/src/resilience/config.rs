@@ -34,6 +34,9 @@ pub struct ResilienceConfig {
 
     /// Recovery configuration
     pub recovery: RecoveryConfig,
+    
+    /// Bulkhead configuration
+    pub bulkhead: BulkheadConfig,
 }
 
 /// Circuit breaker configuration
@@ -140,6 +143,22 @@ pub struct RecoveryConfig {
     pub predictive_recovery: bool,
 }
 
+/// Bulkhead configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BulkheadConfig {
+    /// Maximum concurrent operations per bulkhead
+    #[serde(default = "default_max_concurrent")]
+    pub max_concurrent: Option<u32>,
+    
+    /// Timeout for bulkhead operations
+    #[serde(default = "default_bulkhead_timeout")]
+    pub timeout_ms: Option<u64>,
+    
+    /// Enable adaptive limits (enhanced mode only)
+    #[serde(default = "default_false")]
+    pub adaptive_limits: bool,
+}
+
 impl Default for CircuitBreakerConfig {
     fn default() -> Self {
         Self {
@@ -186,6 +205,16 @@ impl Default for RecoveryConfig {
             max_attempts: default_max_recovery_attempts(),
             timeout: default_recovery_timeout(),
             predictive_recovery: false,
+        }
+    }
+}
+
+impl Default for BulkheadConfig {
+    fn default() -> Self {
+        Self {
+            max_concurrent: default_max_concurrent(),
+            timeout_ms: default_bulkhead_timeout(),
+            adaptive_limits: false,
         }
     }
 }
@@ -250,4 +279,10 @@ const fn default_cache_ttl() -> Duration {
 }
 const fn default_max_recovery_attempts() -> u32 {
     3
+}
+fn default_max_concurrent() -> Option<u32> {
+    Some(10)
+}
+fn default_bulkhead_timeout() -> Option<u64> {
+    Some(5000)
 }

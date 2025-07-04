@@ -1,6 +1,40 @@
 {
+  "name": "kindly-guard-workspace",
+  "version": "0.9.2",
+  "description": "Security-focused MCP server protecting against unicode attacks, injection threats, and other AI vulnerabilities - Workspace root",
+  "private": true,
   "license": "Apache-2.0",
-  "dependencies": {
+  "author": "samduchaine",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samduchaine/kindly-guard.git"
+  },
+  "homepage": "https://github.com/samduchaine/kindly-guard#readme",
+  "workspaces": [
+    "npm-package",
+    "kindly-guard-shield",
+    "claude-code-kindlyguard"
+  ],
+  "scripts": {
+    "install:all": "npm install && cargo build --all",
+    "build:npm": "cd npm-package && npm run build-platform-packages",
+    "build:shield": "cd kindly-guard-shield && npm run build",
+    "build:extension": "cd claude-code-kindlyguard && npm run compile",
+    "build:all": "npm run build:npm && npm run build:shield && npm run build:extension",
+    "test:npm": "cd npm-package && npm test",
+    "test:all": "npm run test:npm && cargo test --all",
+    "clean": "rm -rf node_modules */node_modules */*/node_modules",
+    "clean:all": "npm run clean && cargo clean",
+    "security:audit": "npm audit --audit-level=moderate",
+    "security:audit-fix": "npm audit fix --audit-level=moderate",
+    "security:check": "bash ./scripts/check-secrets.sh",
+    "prepublish": "npm run security:audit && npm run security:check"
+  },
+  "devDependencies": {
     "ws": "^8.18.3"
+  },
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
   }
 }

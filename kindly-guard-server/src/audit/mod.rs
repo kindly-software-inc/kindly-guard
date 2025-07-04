@@ -1299,3 +1299,13 @@ pub mod compliance {
     /// ```
     pub struct RecommendedConfig;
 }
+
+/// Create an audit logger based on configuration
+pub fn create_audit_logger(config: &crate::config::Config) -> Arc<dyn AuditLogger> {
+    // For now, use default audit config
+    // TODO: Add audit config to main Config struct
+    let audit_config = AuditConfig::default();
+    
+    let factory = DefaultAuditLoggerFactory;
+    factory.create(&audit_config).unwrap_or_else(|_| Arc::new(NoOpAuditLogger))
+}

@@ -27,6 +27,9 @@ fn test_xss_detection_simple() {
         enable_event_buffer: false,
         xss_detection: Some(true),
         enhanced_mode: Some(false),
+        crypto_detection: false, // Not needed for XSS testing
+        max_content_size: 5_242_880, // 5MB default
+        max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();

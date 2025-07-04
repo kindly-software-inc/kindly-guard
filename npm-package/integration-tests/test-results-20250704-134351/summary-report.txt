@@ -1,0 +1,31 @@
+
+[0;34m=================================================================================[0m
+[0;34mTest Summary Report[0m
+[0;34m=================================================================================[0m
+
+KindlyGuard NPM Package Test Summary
+===================================
+
+Test Date: Fri Jul  4 01:43:52 PM EDT 2025
+Duration: 1 seconds
+
+Test Results:
+  Total Tests: 6
+  Passed: 5
+  Failed: 1
+  Skipped: 0
+
+Success Rate: 83%
+
+Failed Tests:
+[0;31m[✗][0m Postinstall script failed
+[0;31m[✗][0m Missing package error not handled properly
+
+Test Logs:
+-rw-rw-r-- 1 samuel samuel 3814 Jul  4 13:43 test-results-20250704-134351/installation-test.log
+-rw-rw-r-- 1 samuel samuel  103 Jul  4 13:43 test-results-20250704-134351/npm-audit.log
+-rw-rw-r-- 1 samuel samuel 2360 Jul  4 13:43 test-results-20250704-134351/platform-tests.log
+-rw-rw-r-- 1 samuel samuel  550 Jul  4 13:43 test-results-20250704-134351/test-claude-desktop.log
+-rw-rw-r-- 1 samuel samuel  668 Jul  4 13:43 test-results-20250704-134351/test-cli-commands.log
+-rw-rw-r-- 1 samuel samuel  692 Jul  4 13:43 test-results-20250704-134351/test-npx-usage.log
+-rw-rw-r-- 1 samuel samuel  166 Jul  4 13:43 test-results-20250704-134351/test-programmatic-api.log

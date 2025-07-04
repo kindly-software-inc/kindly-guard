@@ -1,0 +1,17 @@
+{
+  "name": "@kindlyguard/linux-x64",
+  "version": "0.9.2",
+  "description": "KindlyGuard binaries for linux-x64",
+  "author": "samduchaine",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samduchaine/kindly-guard.git"
+  },
+  "files": [
+    "kindlyguard",
+    "kindlyguard-cli"
+  ],
+  "os": ["linux"],
+  "cpu": ["x64"]
+}

@@ -314,6 +314,12 @@ pub trait ResilienceFactory: Send + Sync {
         &self,
         config: &crate::config::Config,
     ) -> Result<Arc<dyn RecoveryStrategyTrait>>;
+    
+    /// Create bulkhead (returns dyn-compatible wrapper)
+    fn create_bulkhead(
+        &self,
+        config: &crate::config::Config,
+    ) -> Result<Arc<dyn crate::resilience::DynBulkhead>>;
 }
 
 /// Circuit breaker error types

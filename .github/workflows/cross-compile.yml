@@ -1,0 +1,157 @@
+name: Cross-Platform Build
+
+on:
+  push:
+    branches: [ main, master ]
+    tags:
+      - 'v*'
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            artifact_name: linux-x64
+            
+          # macOS Intel
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            artifact_name: macos-x64
+            
+          # macOS ARM
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            artifact_name: macos-arm64
+            
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            artifact_name: windows-x64
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+
+    - name: Cache cargo dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ matrix.target }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ matrix.target }}-
+          ${{ runner.os }}-cargo-
+
+    - name: Build
+      run: |
+        cargo build --release --target ${{ matrix.target }} --package kindly-guard-server
+        cargo build --release --target ${{ matrix.target }} --package kindly-guard-cli
+
+    - name: Prepare artifacts (Unix)
+      if: runner.os != 'Windows'
+      run: |
+        mkdir -p artifacts
+        cp target/${{ matrix.target }}/release/kindly-guard-server artifacts/kindlyguard || \
+        cp target/${{ matrix.target }}/release/kindlyguard artifacts/kindlyguard
+        cp target/${{ matrix.target }}/release/kindly-guard-cli artifacts/kindly-guard-cli
+        chmod +x artifacts/*
+        cd artifacts && tar czf ../${{ matrix.artifact_name }}.tar.gz *
+
+    - name: Prepare artifacts (Windows)
+      if: runner.os == 'Windows'
+      run: |
+        New-Item -ItemType Directory -Force -Path artifacts
+        Copy-Item "target/${{ matrix.target }}/release/kindly-guard-server.exe" -Destination "artifacts/kindlyguard.exe" -ErrorAction SilentlyContinue
+        Copy-Item "target/${{ matrix.target }}/release/kindlyguard.exe" -Destination "artifacts/kindlyguard.exe" -ErrorAction SilentlyContinue
+        Copy-Item "target/${{ matrix.target }}/release/kindly-guard-cli.exe" -Destination "artifacts/kindly-guard-cli.exe"
+        Compress-Archive -Path artifacts/* -DestinationPath "${{ matrix.artifact_name }}.zip"
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: kindlyguard-${{ matrix.artifact_name }}
+        path: |
+          ${{ matrix.artifact_name }}.tar.gz
+          ${{ matrix.artifact_name }}.zip
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download all artifacts
+      uses: actions/download-artifact@v3
+      
+    - name: Create checksums
+      run: |
+        sha256sum kindlyguard-*/*.tar.gz kindlyguard-*/*.zip > checksums.txt
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          kindlyguard-*/*.tar.gz
+          kindlyguard-*/*.zip
+          checksums.txt
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+
+  cross-build:
+    name: Cross Build with cross-rs
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        target:
+          - x86_64-unknown-linux-musl
+          - aarch64-unknown-linux-gnu
+          - armv7-unknown-linux-gnueabihf
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    
+    - name: Install cross
+      run: |
+        cargo install cross --git https://github.com/cross-rs/cross
+    
+    - name: Build with cross
+      run: |
+        cross build --release --target ${{ matrix.target }} --package kindly-guard-server
+        cross build --release --target ${{ matrix.target }} --package kindly-guard-cli
+    
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: kindlyguard-${{ matrix.target }}
+        path: |
+          target/${{ matrix.target }}/release/kindly-guard-server
+          target/${{ matrix.target }}/release/kindlyguard
+          target/${{ matrix.target }}/release/kindly-guard-cli

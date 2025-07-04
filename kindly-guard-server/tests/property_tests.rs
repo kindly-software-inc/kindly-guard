@@ -61,6 +61,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         if let Ok(scanner) = SecurityScanner::new(config) {
@@ -82,6 +83,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         if let Ok(scanner) = SecurityScanner::new(config) {
@@ -113,6 +115,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         if let Ok(scanner1) = SecurityScanner::new(config.clone()) {
@@ -153,6 +156,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         // Create deeply nested JSON
@@ -219,6 +223,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         if let Ok(scanner) = SecurityScanner::new(config) {
@@ -258,6 +263,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         if let Ok(scanner) = SecurityScanner::new(config) {
@@ -296,6 +302,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         if let Ok(scanner) = SecurityScanner::new(config) {
@@ -321,6 +328,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         let input: String = std::iter::repeat(char_to_repeat).take(repeat_count).collect();
@@ -349,6 +357,7 @@ proptest! {
             enhanced_mode: Some(false),
             crypto_detection: true,
             max_content_size: 10 * 1024 * 1024, // 10MB
+            max_input_size: None,
         };
 
         let mut input = base.clone();

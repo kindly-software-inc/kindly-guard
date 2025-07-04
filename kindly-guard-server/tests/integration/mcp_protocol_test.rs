@@ -1,16 +1,15 @@
 use kindly_guard_server::{
     config::Config,
     server::McpServer,
-    protocol::types::{McpRequest, McpResponse, ToolInfo},
+    protocol::{JsonRpcRequest, JsonRpcNotification},
 };
-use serde_json::{json, Value};
+use serde_json::json;
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 /// Helper to create a test server
 async fn create_test_server() -> Arc<McpServer> {
     let config = Config::default();
-    let server = McpServer::new(config).await
+    let server = McpServer::new(config)
         .expect("Failed to create server");
     Arc::new(server)
 }
@@ -39,28 +38,26 @@ async fn test_mcp_handshake() {
 
     let response = server.handle_request(
         serde_json::from_value(init_request).unwrap()
-    ).await.unwrap();
+    ).await;
 
     // Verify response
-    match response {
-        McpResponse::Initialize { capabilities, .. } => {
-            assert!(capabilities.tools.is_some());
-        }
-        _ => panic!("Expected Initialize response"),
-    }
+    assert!(response.error.is_none(), "Initialize failed: {:?}", response.error);
+    assert!(response.result.is_some());
+    let result = response.result.unwrap();
+    assert!(result.get("capabilities").is_some());
+    assert!(result["capabilities"].get("tools").is_some());
 
     // Initialized notification
-    let initialized_request = json!({
+    let initialized_notification = json!({
         "jsonrpc": "2.0",
-        "method": "notifications/initialized",
+        "method": "initialized",
         "params": {}
     });
 
-    let response = server.handle_request(
-        serde_json::from_value(initialized_request).unwrap()
+    // Notifications don't return responses
+    server.handle_notification(
+        serde_json::from_value(initialized_notification).unwrap()
     ).await;
-
-    assert!(response.is_ok());
 }
 
 /// Test that all tool methods work correctly
@@ -69,44 +66,51 @@ async fn test_all_tool_methods() {
     let server = create_test_server().await;
     
     // Initialize first
-    let init_request: McpRequest = serde_json::from_value(json!({
+    let init_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "initialize",
         "params": {
             "protocolVersion": "2024-11-05",
             "capabilities": {
                 "tools": {}
+            },
+            "clientInfo": {
+                "name": "test-client",
+                "version": "1.0.0"
             }
         },
         "id": 1
     })).unwrap();
     
-    server.handle_request(init_request).await.unwrap();
+    let response = server.handle_request(init_request).await;
+    assert!(response.error.is_none(), "Initialize failed");
 
     // List tools
-    let list_tools_request: McpRequest = serde_json::from_value(json!({
+    let list_tools_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "tools/list",
         "params": {},
         "id": 2
     })).unwrap();
 
-    let response = server.handle_request(list_tools_request).await.unwrap();
+    let response = server.handle_request(list_tools_request).await;
     
-    let tools = match response {
-        McpResponse::ToolsList { tools } => tools,
-        _ => panic!("Expected ToolsList response"),
-    };
+    assert!(response.error.is_none(), "List tools failed: {:?}", response.error);
+    assert!(response.result.is_some());
+    let result = response.result.unwrap();
+    let tools = result["tools"].as_array().expect("Expected tools array");
 
     // Verify we have the expected tools
-    let tool_names: Vec<&str> = tools.iter().map(|t| t.name.as_str()).collect();
+    let tool_names: Vec<&str> = tools.iter()
+        .filter_map(|t| t.get("name").and_then(|n| n.as_str()))
+        .collect();
     assert!(tool_names.contains(&"scan_text"));
     assert!(tool_names.contains(&"scan_file"));
     assert!(tool_names.contains(&"get_stats"));
     assert!(tool_names.contains(&"clear_threats"));
 
     // Test scan_text tool
-    let scan_request: McpRequest = serde_json::from_value(json!({
+    let scan_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
         "params": {
@@ -118,16 +122,14 @@ async fn test_all_tool_methods() {
         "id": 3
     })).unwrap();
 
-    let response = server.handle_request(scan_request).await.unwrap();
+    let response = server.handle_request(scan_request).await;
     
-    match response {
-        McpResponse::ToolCall { content } => {
-            assert!(!content.is_empty());
-            let result = &content[0];
-            assert_eq!(result.type_, "text");
-        }
-        _ => panic!("Expected ToolCall response"),
-    }
+    assert!(response.error.is_none(), "Scan text failed: {:?}", response.error);
+    assert!(response.result.is_some());
+    let result = response.result.unwrap();
+    let content = result["content"].as_array().expect("Expected content array");
+    assert!(!content.is_empty());
+    assert_eq!(content[0]["type"], "text");
 }
 
 /// Test error handling for malformed requests
@@ -142,11 +144,11 @@ async fn test_malformed_request_handling() {
         // Missing params and id
     });
 
-    let result = serde_json::from_value::<McpRequest>(bad_request);
+    let result = serde_json::from_value::<JsonRpcRequest>(bad_request);
     assert!(result.is_err(), "Should fail to parse malformed request");
 
     // Invalid method
-    let invalid_method: McpRequest = serde_json::from_value(json!({
+    let invalid_method: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "invalid/method",
         "params": {},
@@ -154,10 +156,10 @@ async fn test_malformed_request_handling() {
     })).unwrap();
 
     let response = server.handle_request(invalid_method).await;
-    assert!(response.is_err(), "Should fail on invalid method");
+    assert!(response.error.is_some(), "Should fail on invalid method");
 
     // Wrong tool name
-    let wrong_tool: McpRequest = serde_json::from_value(json!({
+    let wrong_tool: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
         "params": {
@@ -168,7 +170,7 @@ async fn test_malformed_request_handling() {
     })).unwrap();
 
     let response = server.handle_request(wrong_tool).await;
-    assert!(response.is_err(), "Should fail on nonexistent tool");
+    assert!(response.error.is_some(), "Should fail on nonexistent tool");
 }
 
 /// Test concurrent request handling
@@ -177,7 +179,7 @@ async fn test_concurrent_requests() {
     let server = create_test_server().await;
     
     // Initialize first
-    let init_request: McpRequest = serde_json::from_value(json!({
+    let init_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "initialize",
         "params": {
@@ -189,7 +191,8 @@ async fn test_concurrent_requests() {
         "id": 0
     })).unwrap();
     
-    server.handle_request(init_request).await.unwrap();
+    let response = server.handle_request(init_request).await;
+    assert!(response.error.is_none(), "Initialize failed");
 
     // Create multiple concurrent requests
     let mut handles = vec![];
@@ -197,7 +200,7 @@ async fn test_concurrent_requests() {
     for i in 1..=10 {
         let server_clone = Arc::clone(&server);
         let handle = tokio::spawn(async move {
-            let request: McpRequest = serde_json::from_value(json!({
+            let request: JsonRpcRequest = serde_json::from_value(json!({
                 "jsonrpc": "2.0",
                 "method": "tools/call",
                 "params": {
@@ -209,7 +212,9 @@ async fn test_concurrent_requests() {
                 "id": i
             })).unwrap();
             
-            server_clone.handle_request(request).await
+            let response = server_clone.handle_request(request).await;
+            assert!(response.error.is_none(), "Request failed: {:?}", response.error);
+            Ok::<_, anyhow::Error>(response)
         });
         handles.push(handle);
     }
@@ -226,12 +231,12 @@ async fn test_concurrent_requests() {
             result
         );
         
-        let response = result.as_ref().unwrap();
+        let response = result.as_ref().unwrap().as_ref().unwrap();
         assert!(
-            response.is_ok(),
+            response.error.is_none(),
             "Request {} returned error: {:?}",
             i + 1,
-            response
+            response.error
         );
     }
 }
@@ -242,26 +247,31 @@ async fn test_scan_file_tool() {
     let server = create_test_server().await;
     
     // Initialize
-    let init_request: McpRequest = serde_json::from_value(json!({
+    let init_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "initialize",
         "params": {
             "protocolVersion": "2024-11-05",
             "capabilities": {
                 "tools": {}
+            },
+            "clientInfo": {
+                "name": "test-client",
+                "version": "1.0.0"
             }
         },
         "id": 1
     })).unwrap();
     
-    server.handle_request(init_request).await.unwrap();
+    let response = server.handle_request(init_request).await;
+    assert!(response.error.is_none(), "Initialize failed");
 
     // Create a test file
     let test_file = std::env::temp_dir().join("test_scan.txt");
     std::fs::write(&test_file, "SELECT * FROM users WHERE id = 1").unwrap();
 
     // Scan the file
-    let scan_request: McpRequest = serde_json::from_value(json!({
+    let scan_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
         "params": {
@@ -273,20 +283,19 @@ async fn test_scan_file_tool() {
         "id": 2
     })).unwrap();
 
-    let response = server.handle_request(scan_request).await.unwrap();
+    let response = server.handle_request(scan_request).await;
     
-    match response {
-        McpResponse::ToolCall { content } => {
-            assert!(!content.is_empty());
-            // Should detect SQL pattern
-            let result_text = &content[0].text;
-            assert!(
-                result_text.contains("SQL") || result_text.contains("pattern"),
-                "Should detect SQL pattern in file"
-            );
-        }
-        _ => panic!("Expected ToolCall response"),
-    }
+    assert!(response.error.is_none(), "Scan file failed: {:?}", response.error);
+    assert!(response.result.is_some());
+    let result = response.result.unwrap();
+    let content = result["content"].as_array().expect("Expected content array");
+    assert!(!content.is_empty());
+    // Should detect SQL pattern
+    let result_text = content[0]["text"].as_str().unwrap();
+    assert!(
+        result_text.contains("SQL") || result_text.contains("pattern"),
+        "Should detect SQL pattern in file"
+    );
 
     // Clean up
     std::fs::remove_file(test_file).ok();
@@ -298,22 +307,27 @@ async fn test_get_stats_tool() {
     let server = create_test_server().await;
     
     // Initialize
-    let init_request: McpRequest = serde_json::from_value(json!({
+    let init_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "initialize",
         "params": {
             "protocolVersion": "2024-11-05",
             "capabilities": {
                 "tools": {}
+            },
+            "clientInfo": {
+                "name": "test-client",
+                "version": "1.0.0"
             }
         },
         "id": 1
     })).unwrap();
     
-    server.handle_request(init_request).await.unwrap();
+    let response = server.handle_request(init_request).await;
+    assert!(response.error.is_none(), "Initialize failed");
 
     // Scan some text to generate stats
-    let scan_request: McpRequest = serde_json::from_value(json!({
+    let scan_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
         "params": {
@@ -325,10 +339,11 @@ async fn test_get_stats_tool() {
         "id": 2
     })).unwrap();
 
-    server.handle_request(scan_request).await.unwrap();
+    let response = server.handle_request(scan_request).await;
+    assert!(response.error.is_none(), "Scan failed");
 
     // Get stats
-    let stats_request: McpRequest = serde_json::from_value(json!({
+    let stats_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
         "method": "tools/call",
         "params": {
@@ -338,17 +353,16 @@ async fn test_get_stats_tool() {
         "id": 3
     })).unwrap();
 
-    let response = server.handle_request(stats_request).await.unwrap();
+    let response = server.handle_request(stats_request).await;
     
-    match response {
-        McpResponse::ToolCall { content } => {
-            assert!(!content.is_empty());
-            let stats_text = &content[0].text;
-            assert!(stats_text.contains("scanned"));
-            assert!(stats_text.contains("threat"));
-        }
-        _ => panic!("Expected ToolCall response"),
-    }
+    assert!(response.error.is_none(), "Get stats failed: {:?}", response.error);
+    assert!(response.result.is_some());
+    let result = response.result.unwrap();
+    let content = result["content"].as_array().expect("Expected content array");
+    assert!(!content.is_empty());
+    let stats_text = content[0]["text"].as_str().unwrap();
+    assert!(stats_text.contains("scanned"));
+    assert!(stats_text.contains("threat"));
 }
 
 /// Test protocol version negotiation
@@ -360,7 +374,7 @@ async fn test_protocol_version_negotiation() {
     let versions = ["2024-11-05", "2024-10-01", "2023-01-01"];
     
     for version in &versions {
-        let init_request: McpRequest = serde_json::from_value(json!({
+        let init_request: JsonRpcRequest = serde_json::from_value(json!({
             "jsonrpc": "2.0",
             "method": "initialize",
             "params": {
@@ -376,10 +390,10 @@ async fn test_protocol_version_negotiation() {
         
         // Should handle all versions gracefully
         assert!(
-            response.is_ok(),
+            response.error.is_none(),
             "Failed to handle protocol version {}: {:?}",
             version,
-            response
+            response.error
         );
     }
 }

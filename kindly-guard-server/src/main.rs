@@ -107,14 +107,30 @@ async fn main() -> Result<()> {
     // Parse command line arguments
     let args = Args::parse();
 
-    // Initialize logging
-    tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| "kindly_guard=info".into()),
-        )
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    // Check if running in command mode with JSON output
+    let is_json_command = args.command.is_some() && 
+        args.format.as_ref().map(|f| f == "json").unwrap_or(false);
+
+    // Initialize logging - suppress for JSON command output
+    if is_json_command {
+        // For JSON output, disable all logging or set to error level only
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "kindly_guard=error".into()),
+            )
+            .with(tracing_subscriber::fmt::layer().with_writer(std::io::stderr))
+            .init();
+    } else {
+        // Normal logging initialization
+        tracing_subscriber::registry()
+            .with(
+                tracing_subscriber::EnvFilter::try_from_default_env()
+                    .unwrap_or_else(|_| "kindly_guard=info".into()),
+            )
+            .with(tracing_subscriber::fmt::layer())
+            .init();
+    }
 
     // Check if running in command mode
     if args.command.is_some() {
