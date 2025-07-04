@@ -1,0 +1,57 @@
+# Hadolint configuration for KindlyGuard
+# Security-focused Dockerfile linting
+
+# Ignore specific rules if needed
+ignored:
+  # DL3008: Pin versions in apt-get install
+  # Sometimes we need latest security patches
+  # - DL3008
+
+# Override severity for specific rules
+override:
+  error:
+    - DL3002  # Do not switch to root USER
+    - DL3003  # Do not use cd, use WORKDIR
+    - DL3004  # Do not use sudo
+    - DL3009  # Delete apt-get lists after install
+    - DL3015  # Avoid additional packages
+    - DL3025  # Do not use JSON notation for CMD
+    - DL4006  # Set SHELL option -o pipefail
+  warning:
+    - DL3007  # Using latest tag
+    - DL3008  # Pin versions in apt
+    - DL3027  # Do not use apt
+    - DL4001  # Either use wget or curl
+  info:
+    - DL3013  # Pin versions in pip
+    - DL3018  # Pin versions in apk
+    - DL3028  # Pin versions in gem
+    - DL3029  # Do not use --platform flag
+
+# Trusted registries for base images
+trustedRegistries:
+  - docker.io
+  - ghcr.io
+  - quay.io
+  - registry.access.redhat.com
+
+# Label schema to enforce
+label-schema:
+  # OCI standard labels
+  org.opencontainers.image.title: required
+  org.opencontainers.image.description: required
+  org.opencontainers.image.version: required
+  org.opencontainers.image.created: optional
+  org.opencontainers.image.source: required
+  org.opencontainers.image.licenses: required
+  org.opencontainers.image.vendor: required
+  
+  # Security-specific labels
+  security.scan: optional
+  security.contact: required
+
+# Strict mode - fail on any warning
+strict-labels: true
+
+# Format for output
+format: tty

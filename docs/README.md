@@ -4,20 +4,16 @@ Welcome to the KindlyGuard documentation. This directory contains all project do
 
 ## 🚀 Latest Updates
 
-### Atomic State Machine Implementation
+### Version 0.9.4 - Cross-Platform Support
 
-KindlyGuard includes a high-performance **bit-packed atomic state machine** in the enhanced event buffer implementation:
+This release focuses on improving cross-platform compatibility:
 
-- **3-5x performance improvement** under high concurrency
-- **Lock-free operation** eliminating mutex contention
-- **Security-hardened** with compression bomb detection
-- **Cache-efficient** design using single 64-bit atomics
+- **Fixed NPM package installation** for all platforms
+- **Added Windows binary support** via cross-compilation
+- **Enhanced build infrastructure** with Docker improvements
+- **Comprehensive deployment documentation** added
 
-New documentation:
-- [Atomic State Machine Architecture](./ATOMIC_STATE_MACHINE.md) - Implementation details
-- [Compression Security](./COMPRESSION_SECURITY.md) - Security measures for compressed data
-- [Performance Analysis](./PERFORMANCE_ATOMIC_STATE.md) - Detailed benchmarks and optimization
-- [Future Innovations](./FUTURE_INNOVATIONS.md) - Advanced features planned for v2.0+
+See [RELEASE_NOTES_v0.9.4.md](../RELEASE_NOTES_v0.9.4.md) for full details.
 
 ## Documentation Structure
 
@@ -33,14 +29,18 @@ New documentation:
 - [CURRENT_TEST_STATUS.md](development/CURRENT_TEST_STATUS.md) - Current test suite status
 - [MULTI_PROTOCOL_SECURITY_TEST_PLAN.md](development/MULTI_PROTOCOL_SECURITY_TEST_PLAN.md) - Security test planning
 
-### 🔒 Security & Performance
-- [ATOMIC_STATE_MACHINE.md](./ATOMIC_STATE_MACHINE.md) - Bit-packed atomic state implementation
-- [COMPRESSION_SECURITY.md](./COMPRESSION_SECURITY.md) - Compression attack prevention
-- [PERFORMANCE_ATOMIC_STATE.md](./PERFORMANCE_ATOMIC_STATE.md) - Performance benchmarks
-- [FUTURE_INNOVATIONS.md](./FUTURE_INNOVATIONS.md) - Advanced optimizations for future releases
+### 🔒 Security
+- [SECURITY_AUDIT_REPORT.md](./SECURITY_AUDIT_REPORT.md) - Security analysis and findings
+- [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) - API security guidelines
 
 ### ✨ [Features](features/)
 - [FEATURES.md](features/FEATURES.md) - Complete feature inventory with locations
+
+### 🐳 Deployment
+- [DOCKER_DEPLOYMENT.md](./DOCKER_DEPLOYMENT.md) - Comprehensive Docker deployment guide
+- [DOCKER_SECURITY.md](./DOCKER_SECURITY.md) - Docker security hardening checklist
+- [CONFIGURATION.md](./CONFIGURATION.md) - Configuration reference
+- [MCP_SERVER_SETUP.md](./MCP_SERVER_SETUP.md) - MCP integration setup
 
 ### 📦 [Archive](archive/)
 Contains session-specific documentation and historical records:

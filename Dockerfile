@@ -68,48 +68,56 @@ RUN cargo build --profile=secure --package kindly-guard-server || \
     cargo build --release --package kindly-guard-server
 
 # Copy the built binary to a consistent location
-RUN if [ -f /build/target/secure/kindly-guard ]; then \
-        cp /build/target/secure/kindly-guard /build/kindly-guard-binary; \
+RUN if [ -f /build/target/secure/kindlyguard ]; then \
+        cp /build/target/secure/kindlyguard /build/kindly-guard-binary; \
     else \
-        cp /build/target/release/kindly-guard /build/kindly-guard-binary; \
+        cp /build/target/release/kindlyguard /build/kindly-guard-binary; \
     fi
 
 # Change ownership of built artifacts to build user
 RUN chown -R builduser:builduser /build/target /build/kindly-guard-binary
 
-# Runtime stage
-FROM debian:bookworm-slim
+# Runtime stage - Using distroless for minimal attack surface
+# Pin to specific digest for reproducibility
+FROM gcr.io/distroless/cc-debian12:latest@sha256:e1065a1d58800a7294f74e67c32ec4146d09d6cbe471c1fa7ed456b2d2bf06e0 AS runtime-base
 
-# Install runtime dependencies and security tools
-RUN apt-get update && apt-get install -y \
-    ca-certificates \
-    libssl3 \
-    dumb-init \
-    && rm -rf /var/lib/apt/lists/*
+# Create directories needed at runtime (distroless doesn't have shell)
+FROM debian:bookworm-slim AS runtime-setup
+RUN mkdir -p /etc/kindly-guard /var/lib/kindly-guard /var/log/kindly-guard && \
+    chmod 755 /etc/kindly-guard /var/lib/kindly-guard /var/log/kindly-guard
 
-# Create runtime user
-RUN useradd -m -u 1001 -s /bin/false kindlyguard && \
-    mkdir -p /etc/kindly-guard /var/lib/kindly-guard /var/log/kindly-guard && \
-    chown -R kindlyguard:kindlyguard /etc/kindly-guard /var/lib/kindly-guard /var/log/kindly-guard
+# Final runtime stage
+FROM runtime-base
 
-# Copy binary from builder
-COPY --from=builder --chown=kindlyguard:kindlyguard /build/kindly-guard-binary /usr/local/bin/kindly-guard
+# Copy directories from setup stage
+COPY --from=runtime-setup /etc/kindly-guard /etc/kindly-guard
+COPY --from=runtime-setup /var/lib/kindly-guard /var/lib/kindly-guard
+COPY --from=runtime-setup /var/log/kindly-guard /var/log/kindly-guard
+
+# Copy binary from builder with numeric UID
+COPY --from=builder --chown=1001:1001 /build/kindly-guard-binary /usr/local/bin/kindly-guard
 
 # Set up configuration directory
 WORKDIR /etc/kindly-guard
 
-# Switch to non-root user
-USER kindlyguard
+# Switch to non-root user using numeric UID (distroless doesn't have user names)
+USER 1001:1001
 
 # Expose MCP server port (stdio mode doesn't need ports, but included for TCP mode)
 EXPOSE 3000
 
-# Health check for container orchestration
-HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD ["/usr/local/bin/kindly-guard", "health"] || exit 1
+# Add security labels
+LABEL org.opencontainers.image.source="https://github.com/kindly-software-inc/kindly-guard"
+LABEL org.opencontainers.image.description="Security-focused MCP server protecting against unicode attacks, injection threats, and other AI vulnerabilities"
+LABEL org.opencontainers.image.licenses="Apache-2.0"
+LABEL security.scan="enabled"
+LABEL security.distroless="true"
 
-# Use dumb-init to handle signals properly
-ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+# Health check for container orchestration
+# Using status command which exists in the CLI
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD ["/usr/local/bin/kindly-guard", "status"] || exit 1
 
 # Default to stdio mode for MCP compatibility
+# No shell or init system in distroless, direct execution
 CMD ["/usr/local/bin/kindly-guard", "--config", "/etc/kindly-guard/config.toml", "--stdio"]

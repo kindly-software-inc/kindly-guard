@@ -3,7 +3,7 @@
 # Supports: linux/amd64, linux/arm64, linux/arm/v7, linux/386, linux/ppc64le, linux/s390x
 
 # Build stage
-FROM --platform=$BUILDPLATFORM rust:1.75-slim AS builder
+FROM --platform=$BUILDPLATFORM rust:1.87-slim AS builder
 
 # Build arguments
 ARG TARGETPLATFORM
@@ -105,16 +105,38 @@ RUN mkdir -p kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/sr
     echo "fn main() {}" > kindly-guard-shield/src/main.rs && \
     touch crates-io-package/kindlyguard/src/lib.rs
 
+# Create stub benchmark files to satisfy Cargo.toml
+RUN mkdir -p kindly-guard-server/benches && \
+    echo "fn main() {}" > kindly-guard-server/benches/simple_benchmark.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/regression_benchmarks.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/critical_path_benchmarks.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/memory_profile_bench.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/comprehensive_benchmarks.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/rate_limiter_comparison.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/scanner_benchmarks.rs && \
+    echo "fn main() {}" > kindly-guard-server/benches/real_world.rs
+
 # Build dependencies only (for caching)
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/build/target \
     cargo build --release --target $(cat /rust_target) --package kindly-guard-server
 
 # Remove stub files
-RUN rm -rf kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/src crates-io-package/kindlyguard/src
+RUN rm -rf kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/src crates-io-package/kindlyguard/src kindly-guard-server/benches
 
 # Copy actual source code
 COPY . .
+
+# Create stub benchmark files after copying source (since they're excluded by .dockerignore)
+RUN mkdir -p kindly-guard-server/benches && \
+    for bench in simple_benchmark regression_benchmarks critical_path_benchmarks \
+                 memory_profile_bench comprehensive_benchmarks rate_limiter_comparison \
+                 scanner_benchmarks real_world cli_bench comparative_benchmarks \
+                 display_bench neutralization; do \
+        echo "fn main() {}" > kindly-guard-server/benches/${bench}.rs; \
+    done && \
+    mkdir -p kindly-guard-shield/src-tauri/benches && \
+    echo "fn main() {}" > kindly-guard-shield/src-tauri/benches/protocol_benchmark.rs
 
 # Change ownership to build user
 RUN chown -R builduser:builduser /build
@@ -122,11 +144,16 @@ RUN chown -R builduser:builduser /build
 # Switch to build user
 USER builduser
 
-# Build the server with secure profile
+# Build the server with secure profile (with fallback to release)
 RUN --mount=type=cache,target=/usr/local/cargo/registry,uid=1001,gid=1001 \
     --mount=type=cache,target=/build/target,uid=1001,gid=1001 \
-    cargo build --profile=secure --target $(cat /rust_target) --package kindly-guard-server && \
-    cp /build/target/$(cat /rust_target)/secure/kindly-guard /build/kindly-guard
+    (cargo build --profile=secure --target $(cat /rust_target) --package kindly-guard-server || \
+     cargo build --release --target $(cat /rust_target) --package kindly-guard-server) && \
+    if [ -f /build/target/$(cat /rust_target)/secure/kindlyguard ]; then \
+        cp /build/target/$(cat /rust_target)/secure/kindlyguard /build/kindly-guard-binary; \
+    else \
+        cp /build/target/$(cat /rust_target)/release/kindlyguard /build/kindly-guard-binary; \
+    fi
 
 # Runtime stage
 FROM --platform=$TARGETPLATFORM debian:bookworm-slim
@@ -162,7 +189,7 @@ RUN useradd -m -u 1001 -s /bin/false kindlyguard && \
     chown -R kindlyguard:kindlyguard /etc/kindly-guard /var/lib/kindly-guard /var/log/kindly-guard
 
 # Copy binary from builder
-COPY --from=builder --chown=kindlyguard:kindlyguard /build/kindly-guard /usr/local/bin/kindly-guard
+COPY --from=builder --chown=kindlyguard:kindlyguard /build/kindly-guard-binary /usr/local/bin/kindly-guard
 
 # Add version file
 RUN echo "$VERSION" > /etc/kindly-guard/version && \

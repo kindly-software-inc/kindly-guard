@@ -145,3 +145,12 @@ SECURITY_AUDIT_PROPRIETARY_CODE.md
 # Claude configuration (contains sensitive project info)
 CLAUDE.md
 claude.md
+
+# Docker
+docker-buildx-cache/
+.dockerignore.local
+docker-compose.override.yml
+
+# Local Docker publish configuration
+docker-publish.local.sh
+.docker-hub-token

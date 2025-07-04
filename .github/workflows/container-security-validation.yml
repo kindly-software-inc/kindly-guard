@@ -1,0 +1,218 @@
+name: Container Security Validation
+
+on:
+  pull_request:
+    paths:
+      - 'Dockerfile*'
+      - '.dockerignore'
+      - '.github/workflows/*docker*.yml'
+      - '.github/workflows/*container*.yml'
+  workflow_dispatch:
+
+jobs:
+  validate-dockerfile:
+    name: Validate Dockerfile Security
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Hadolint
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile
+        config: .hadolint.yaml
+        failure-threshold: warning
+
+    - name: Run Dockerfile security check
+      uses: aquasecurity/trivy-action@master
+      with:
+        scan-type: 'config'
+        scan-ref: '.'
+        format: 'sarif'
+        output: 'dockerfile-security.sarif'
+
+    - name: Upload Dockerfile scan results
+      uses: github/codeql-action/upload-sarif@v3
+      with:
+        sarif_file: 'dockerfile-security.sarif'
+        category: 'dockerfile-security'
+
+    - name: Check for security best practices
+      run: |
+        echo "## Dockerfile Security Check" > dockerfile-report.md
+        echo "" >> dockerfile-report.md
+        
+        # Check for non-root user
+        if grep -q "USER " Dockerfile; then
+          echo "✅ Non-root user configured" >> dockerfile-report.md
+        else
+          echo "❌ WARNING: No USER instruction found - container will run as root" >> dockerfile-report.md
+        fi
+        
+        # Check for COPY instead of ADD
+        if grep -q "ADD " Dockerfile; then
+          echo "⚠️  ADD instruction used - consider using COPY instead" >> dockerfile-report.md
+        else
+          echo "✅ No ADD instructions found" >> dockerfile-report.md
+        fi
+        
+        # Check for specific version tags
+        if grep -E "FROM .+:latest" Dockerfile; then
+          echo "❌ WARNING: Using 'latest' tag - pin to specific version" >> dockerfile-report.md
+        else
+          echo "✅ Base image uses specific version" >> dockerfile-report.md
+        fi
+        
+        # Check for secret exposure
+        if grep -iE "(password|secret|key|token)=" Dockerfile; then
+          echo "❌ CRITICAL: Potential secrets found in Dockerfile" >> dockerfile-report.md
+        else
+          echo "✅ No hardcoded secrets detected" >> dockerfile-report.md
+        fi
+
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      with:
+        name: dockerfile-security-report
+        path: dockerfile-report.md
+
+  validate-multiplatform-dockerfile:
+    name: Validate Multi-platform Dockerfile
+    runs-on: ubuntu-latest
+    if: hashFiles('Dockerfile.multiplatform') != ''
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Run Hadolint on multiplatform Dockerfile
+      uses: hadolint/hadolint-action@v3.1.0
+      with:
+        dockerfile: Dockerfile.multiplatform
+        failure-threshold: warning
+
+  check-workflow-security:
+    name: Check Workflow Security
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Validate workflow configurations
+      run: |
+        echo "## Workflow Security Validation" > workflow-report.md
+        echo "" >> workflow-report.md
+        
+        cd .github/workflows
+        
+        # Check for consistent secret usage
+        echo "### Secret Usage Check" >> ../../workflow-report.md
+        
+        # Check Docker workflows for correct token usage
+        for file in *docker*.yml *container*.yml; do
+          if [ -f "$file" ]; then
+            echo "" >> ../../workflow-report.md
+            echo "#### $file" >> ../../workflow-report.md
+            
+            # Check for DOCKER_TOKEN usage
+            if grep -q "DOCKER_TOKEN" "$file"; then
+              echo "✅ Uses DOCKER_TOKEN" >> ../../workflow-report.md
+            elif grep -q "DOCKER_PASSWORD" "$file"; then
+              echo "⚠️  Uses DOCKER_PASSWORD (should be DOCKER_TOKEN)" >> ../../workflow-report.md
+            fi
+            
+            # Check for cosign signing
+            if grep -q "cosign sign" "$file"; then
+              echo "✅ Container signing enabled" >> ../../workflow-report.md
+            else
+              echo "⚠️  No container signing found" >> ../../workflow-report.md
+            fi
+            
+            # Check for vulnerability scanning
+            if grep -q "trivy\|grype\|snyk" "$file"; then
+              echo "✅ Vulnerability scanning enabled" >> ../../workflow-report.md
+            else
+              echo "⚠️  No vulnerability scanning found" >> ../../workflow-report.md
+            fi
+            
+            # Check for SBOM generation
+            if grep -q "sbom" "$file"; then
+              echo "✅ SBOM generation enabled" >> ../../workflow-report.md
+            else
+              echo "⚠️  No SBOM generation found" >> ../../workflow-report.md
+            fi
+            
+            # Check for proper permissions
+            if grep -q "id-token: write" "$file"; then
+              echo "✅ OIDC permissions configured for signing" >> ../../workflow-report.md
+            fi
+          fi
+        done
+
+    - name: Upload workflow report
+      uses: actions/upload-artifact@v4
+      with:
+        name: workflow-security-report
+        path: workflow-report.md
+
+  security-summary:
+    name: Generate Security Summary
+    needs: [validate-dockerfile, check-workflow-security]
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Download all artifacts
+      uses: actions/download-artifact@v4
+
+    - name: Generate combined report
+      run: |
+        echo "# Container Security Validation Summary" > security-summary.md
+        echo "" >> security-summary.md
+        echo "**Date:** $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> security-summary.md
+        echo "**Workflow:** ${{ github.workflow }} #${{ github.run_number }}" >> security-summary.md
+        echo "" >> security-summary.md
+        
+        # Combine all reports
+        for report in */**.md; do
+          if [ -f "$report" ]; then
+            echo "" >> security-summary.md
+            cat "$report" >> security-summary.md
+            echo "" >> security-summary.md
+          fi
+        done
+        
+        # Add recommendations
+        echo "## Recommendations" >> security-summary.md
+        echo "" >> security-summary.md
+        echo "1. Ensure all Docker workflows use DOCKER_TOKEN instead of DOCKER_PASSWORD" >> security-summary.md
+        echo "2. Enable container signing with cosign for all published images" >> security-summary.md
+        echo "3. Run vulnerability scans on all container builds" >> security-summary.md
+        echo "4. Generate SBOM for supply chain transparency" >> security-summary.md
+        echo "5. Use specific version tags instead of 'latest' for base images" >> security-summary.md
+        echo "6. Always run containers as non-root user" >> security-summary.md
+        echo "7. Scan for secrets and misconfigurations regularly" >> security-summary.md
+
+    - name: Comment on PR
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          const summary = fs.readFileSync('security-summary.md', 'utf8');
+          
+          await github.rest.issues.createComment({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            issue_number: context.issue.number,
+            body: summary
+          });
+
+    - name: Upload final summary
+      uses: actions/upload-artifact@v4
+      with:
+        name: container-security-summary
+        path: security-summary.md

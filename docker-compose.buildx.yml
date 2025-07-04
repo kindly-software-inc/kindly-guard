@@ -7,7 +7,7 @@ services:
   kindly-guard:
     build:
       context: .
-      dockerfile: Dockerfile.multiplatform
+      dockerfile: Dockerfile
       # Buildx-specific configuration
       x-bake:
         platforms:
@@ -55,13 +55,15 @@ services:
       - ./config/production.toml:/etc/kindly-guard/config.toml:ro
       - kindly-guard-data:/var/lib/kindly-guard
       - kindly-guard-logs:/var/log/kindly-guard
-      - /tmp  # Writable temp directory for runtime needs
+      # Note: distroless doesn't have /tmp
     
     # Environment variables
     environment:
       - RUST_LOG=kindly_guard=info,warn
-      - RUST_BACKTRACE=1
       - KINDLY_GUARD_ENV=production
+    
+    # Command - matching Dockerfile CMD format
+    command: ["/usr/local/bin/kindly-guard", "--config", "/etc/kindly-guard/config.toml", "--http", "--bind", "0.0.0.0:3000"]
     
     # Networking
     networks:
@@ -113,7 +115,7 @@ x-bake:
     target:
       kindly-guard:
         context: .
-        dockerfile: Dockerfile.multiplatform
+        dockerfile: Dockerfile
         platforms:
           - linux/amd64
           - linux/arm64

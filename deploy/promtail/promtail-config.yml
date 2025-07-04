@@ -1,0 +1,45 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # KindlyGuard application logs
+  - job_name: kindly-guard
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: kindly-guard
+          __path__: /var/log/kindly-guard/*.log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\S+)\s+(?P<level>\w+)\s+(?P<message>.*)$'
+      - timestamp:
+          source: timestamp
+          format: RFC3339
+      - labels:
+          level:
+
+  # System logs
+  - job_name: system
+    static_configs:
+      - targets:
+          - localhost
+        labels:
+          job: varlogs
+          __path__: /var/log/*log
+    pipeline_stages:
+      - regex:
+          expression: '^(?P<timestamp>\w+\s+\d+\s+\d+:\d+:\d+)\s+(?P<hostname>\S+)\s+(?P<service>\S+?)(?:\[(?P<pid>\d+)\])?:\s+(?P<message>.*)$'
+      - timestamp:
+          source: timestamp
+          format: 'Jan 02 15:04:05'
+      - labels:
+          hostname:
+          service:

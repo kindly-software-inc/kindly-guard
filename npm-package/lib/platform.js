@@ -118,11 +118,12 @@ function validateBinary(binaryPath) {
 function downloadUrl(version = process.env.npm_package_version || 'latest') {
   const platformKey = getPlatformKey();
   const baseUrl = process.env.KINDLYGUARD_DOWNLOAD_BASE || 
-    'https://github.com/kindlysoftware/kindlyguard/releases/download';
+    'https://github.com/kindly-software-inc/kindly-guard/releases/download';
   
   // Handle Windows differently (uses .zip instead of .tar.gz)
   const extension = platformKey.startsWith('win') ? 'zip' : 'tar.gz';
-  const assetName = `kindlyguard-${version}-${platformKey}.${extension}`;
+  // Note: Current release assets don't include version in filename
+  const assetName = `kindlyguard-${platformKey}.${extension}`;
   return `${baseUrl}/v${version}/${assetName}`;
 }
 

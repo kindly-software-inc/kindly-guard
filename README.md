@@ -23,8 +23,17 @@ cargo install kindlyguard-cli && kindlyguard-cli --stdio
 
 ### Docker
 ```bash
-docker run -it kindlysoftware/kindlyguard --stdio
+# Quick start with Docker
+docker run -it kindlysoftware/kindlyguard:latest --stdio
+
+# With persistent configuration
+docker run -it \
+  -v $(pwd)/config:/etc/kindlyguard:ro \
+  -v kindly-data:/var/lib/kindlyguard \
+  kindlysoftware/kindlyguard:latest
 ```
+
+📚 **[Full Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md)** | **[Docker Security Guide](docs/DOCKER_SECURITY.md)**
 
 **That's it!** You're now protected. Try it:
 ```bash
@@ -222,11 +231,17 @@ Once configured, KindlyGuard:
 
 ## 📚 Documentation
 
+### Core Documentation
 - [API Documentation](docs/API_DOCUMENTATION.md) - Complete API reference
 - [Configuration Guide](docs/CONFIGURATION.md) - Detailed configuration options
 - [Security Audit](docs/SECURITY_AUDIT_REPORT.md) - Security analysis and findings
 - [Architecture](ARCHITECTURE.md) - System design and patterns
 - [Testing Guide](TESTING.md) - Comprehensive testing documentation
+
+### Deployment Guides
+- [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md) - Complete Docker deployment documentation
+- [Docker Security Guide](docs/DOCKER_SECURITY.md) - Docker security best practices
+- [MCP Server Setup](docs/MCP_SERVER_SETUP.md) - MCP integration guide
 
 ### Project Analysis
 - [Project Analysis Summary](PROJECT_ANALYSIS_SUMMARY.md) - Comprehensive architectural analysis
@@ -283,14 +298,33 @@ sudo systemctl enable kindlyguard
 version: '3.8'
 services:
   kindlyguard:
-    image: kindlyguard/kindlyguard:latest
+    image: kindlysoftware/kindlyguard:latest
+    restart: unless-stopped
+    user: "10001:10001"  # Non-root user
+    read_only: true      # Security hardening
     volumes:
-      - ./config:/etc/kindlyguard
-      - ./data:/var/lib/kindlyguard
+      - ./config:/etc/kindlyguard:ro
+      - kindly-data:/var/lib/kindlyguard
+      - kindly-logs:/var/log/kindlyguard
+    tmpfs:
+      - /tmp/kindlyguard
     environment:
       - RUST_LOG=info
-    restart: unless-stopped
+      - KINDLY_AUTH_ENABLED=true
+    ports:
+      - "127.0.0.1:8080:8080"  # Only expose locally
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/kindlyguard", "health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  kindly-data:
+  kindly-logs:
 ```
+
+📚 See [Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md) for production configurations.
 
 ### Kubernetes
 ```yaml

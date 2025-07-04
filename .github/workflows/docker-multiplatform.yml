@@ -100,6 +100,7 @@ jobs:
           echo "version=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image
+        id: build
         uses: docker/build-push-action@v5
         with:
           context: .
@@ -154,6 +155,54 @@ jobs:
             docker run --rm test-image:latest --version || true
             docker run --rm test-image:latest --help || true
           fi
+
+      - name: Install cosign
+        if: github.event_name != 'pull_request' && success()
+        uses: sigstore/cosign-installer@v3
+        with:
+          cosign-release: 'v2.2.3'
+
+      - name: Sign container images
+        if: github.event_name != 'pull_request' && success() && steps.build.outputs.digest != ''
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          images=""
+          for tag in ${TAGS}; do
+            images+="${tag}@${DIGEST} "
+          done
+          cosign sign --yes ${images}
+
+      - name: Container vulnerability scan
+        if: github.event_name != 'pull_request' && success()
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload vulnerability scan results
+        if: github.event_name != 'pull_request' && success()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Generate SBOM
+        if: github.event_name != 'pull_request' && success()
+        uses: anchore/sbom-action@v0
+        with:
+          image: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}
+          format: cyclonedx-json
+          output-file: sbom-multiplatform.json
+
+      - name: Upload SBOM
+        if: github.event_name != 'pull_request' && success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-multiplatform
+          path: sbom-multiplatform.json
 
   test-platforms:
     name: Test Individual Platform Build

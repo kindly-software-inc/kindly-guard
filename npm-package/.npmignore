@@ -1,28 +1,46 @@
+# Test files
+test-install.sh
+test-harness/
+integration-tests/
+test-package.js
+*.test.js
+*.spec.js
+
 # Build artifacts
-npm/
-scripts/
-*.sh
-test-*.js
+*.tgz
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
 # Development files
 .gitignore
-.editorconfig
-tsconfig.json
+.eslintrc*
+.prettierrc*
 
-# Documentation
-*.md
-!README.md
+# Documentation source
+docs/
+
+# Platform packages (handled by postinstall)
+npm/
+
+# Scripts that shouldn't be distributed
+scripts/
+publish-all.sh
+build-platform-packages.js
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Local test files
-test/
-tests/
-coverage/
-
-# Build scripts
-build-*.js
-publish-*.js
-auto-*.js
+# Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
