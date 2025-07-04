@@ -17,10 +17,10 @@ Thank you for your interest in contributing to KindlyGuard! We're excited to hav
 
 ### Prerequisites
 
-- **Rust toolchain** (1.80 or newer - see [MSRV Policy](docs/MSRV_POLICY.md))
+- **Rust toolchain** (1.81 or newer - see [MSRV Policy](docs/MSRV_POLICY.md))
   ```bash
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-  rustup install 1.80  # Install our MSRV
+  rustup install 1.81  # Install our MSRV
   ```
 - **Git** for version control
 - **SQLite3** development libraries (for storage features)

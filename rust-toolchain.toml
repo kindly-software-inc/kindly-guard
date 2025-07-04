@@ -5,7 +5,7 @@
 [toolchain]
 # Use the MSRV (Minimum Supported Rust Version) for development
 # This ensures we don't accidentally use features from newer versions
-channel = "1.80.0"
+channel = "1.81.0"
 components = [
     "rustfmt",
     "clippy",

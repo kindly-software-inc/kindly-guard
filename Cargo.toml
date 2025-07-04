@@ -17,7 +17,7 @@ exclude = [
 [workspace.package]
 version = "0.9.7"
 edition = "2021"
-rust-version = "1.80"  # MSRV - Minimum Supported Rust Version
+rust-version = "1.81"  # MSRV - Minimum Supported Rust Version
 authors = ["samduchaine"]
 license = "Apache-2.0"
 repository = "https://github.com/samduchaine/kindly-guard"

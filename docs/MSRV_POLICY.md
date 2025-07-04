@@ -1,19 +1,19 @@
 # Minimum Supported Rust Version (MSRV) Policy
 
-## Current MSRV: 1.80
+## Current MSRV: 1.81
 
 KindlyGuard maintains a Minimum Supported Rust Version (MSRV) policy to balance stability, security, and access to modern Rust features.
 
 ## Policy Overview
 
-### MSRV: 1.80.0
+### MSRV: 1.81.0
 - **Established**: January 2025
 - **Next Review**: July 2025
 - **Update Cycle**: Every 6 months
 
 ## Rationale
 
-We chose Rust 1.80 as our MSRV for the following reasons:
+We chose Rust 1.81 as our MSRV for the following reasons:
 
 ### Security Features
 - **Stable async traits**: Essential for our async security scanning
@@ -22,7 +22,7 @@ We chose Rust 1.80 as our MSRV for the following reasons:
 - **Enhanced pattern matching**: Cleaner threat detection code
 
 ### Ecosystem Compatibility
-- Most production environments have access to Rust 1.80+
+- Most production environments have access to Rust 1.81+
 - Major Linux distributions ship compatible versions:
   - Ubuntu 24.04 LTS: 1.75+ (can use rustup)
   - RHEL 9: 1.62+ (can use rustup)
@@ -37,7 +37,7 @@ KindlyGuard requires these Rust features:
 - `let-else` (1.65+)
 - Stabilized async traits (1.75+)
 - Improved async performance (1.79+)
-- Security-relevant stdlib improvements (1.80+)
+- Security-relevant stdlib improvements (1.81+)
 
 ## Update Schedule
 
@@ -81,14 +81,14 @@ To propose an MSRV bump:
 All code must compile and pass tests on the MSRV:
 ```bash
 # Install MSRV
-rustup install 1.80
+rustup install 1.81
 
 # Test with MSRV
-rustup run 1.80 cargo test --all-features
+rustup run 1.81 cargo test --all-features
 ```
 
 CI automatically tests against:
-- MSRV (1.80)
+- MSRV (1.81)
 - Stable
 - Beta
 
@@ -120,9 +120,9 @@ If a critical security issue requires a newer Rust version:
 Before each release:
 ```bash
 # Run MSRV checks
-cargo +1.80 check --all-features
-cargo +1.80 test --all-features
-cargo +1.80 clippy --all-features
+cargo +1.81 check --all-features
+cargo +1.81 test --all-features
+cargo +1.81 clippy --all-features
 
 # Verify rust-version in Cargo.toml
 grep rust-version Cargo.toml
@@ -134,7 +134,7 @@ grep rust-version Cargo.toml
 
 | Version | MSRV | Date | Reason |
 |---------|------|------|--------|
-| 1.0.0   | 1.80 | Jan 2025 | Initial release |
+| 1.0.0   | 1.81 | Jan 2025 | Initial release |
 
 ## Related Documentation
 

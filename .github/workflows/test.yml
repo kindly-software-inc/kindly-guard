@@ -13,7 +13,7 @@ env:
 jobs:
   # Test with MSRV to ensure compatibility
   test-msrv:
-    name: Test MSRV (1.80)
+    name: Test MSRV (1.81)
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
@@ -23,7 +23,7 @@ jobs:
     - name: Install Rust MSRV
       uses: dtolnay/rust-toolchain@master
       with:
-        toolchain: "1.80"
+        toolchain: "1.81"
         components: rustfmt, clippy
     
     - name: Cache cargo registry

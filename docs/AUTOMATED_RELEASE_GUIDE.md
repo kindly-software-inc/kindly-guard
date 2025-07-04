@@ -283,7 +283,7 @@ Always ensure before releasing:
 - ✅ CHANGELOG.md is updated
 - ✅ No uncommitted changes
 - ✅ On correct branch
-- ✅ MSRV compatibility verified (`cargo +1.80 test --all-features`)
+- ✅ MSRV compatibility verified (`cargo +1.81 test --all-features`)
 - ✅ rust-toolchain.toml matches workspace MSRV
 
 ### 2. Version Numbering

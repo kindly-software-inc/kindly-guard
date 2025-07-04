@@ -385,7 +385,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ### Development Setup
 
 #### Requirements
-- **Rust**: 1.80 or newer ([MSRV Policy](docs/MSRV_POLICY.md))
+- **Rust**: 1.81 or newer ([MSRV Policy](docs/MSRV_POLICY.md))
 - **Operating System**: Linux, macOS, or Windows
 - **Optional**: Docker for containerized development
 
@@ -394,7 +394,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 git clone https://github.com/kindlyguard/kindlyguard
 cd kindlyguard
 
-# Verify Rust version (must be 1.80+)
+# Verify Rust version (must be 1.81+)
 rustc --version
 
 # Install dependencies and dev tools

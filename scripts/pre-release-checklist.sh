@@ -154,7 +154,7 @@ check "Cargo fmt" "cargo fmt --all -- --check"
 
 # MSRV (Minimum Supported Rust Version) check
 echo -e "\n${YELLOW}📋 MSRV Compatibility Check${NC}"
-MSRV="1.80"
+MSRV="1.81"
 echo -e "Testing against MSRV: ${MAGENTA}$MSRV${NC}"
 if rustup toolchain list | grep -q "$MSRV"; then
     check "MSRV build" "cargo +$MSRV build --all-features"
