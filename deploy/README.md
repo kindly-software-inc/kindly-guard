@@ -280,4 +280,4 @@ RUST_LOG=kindly_guard=debug,tower_http=debug kindly-guard server
 
 - Documentation: https://github.com/samduchaine/kindly-guard
 - Issues: https://github.com/samduchaine/kindly-guard/issues
-- Security: security@kindlyguard.com
+- Security: samuel@kindly.software

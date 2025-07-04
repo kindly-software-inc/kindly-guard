@@ -79,4 +79,4 @@ Thank you to the Rust community for creating such excellent security-focused lib
 
 **Join us in building a kinder, safer AI ecosystem. Every contribution makes a difference.**
 
-[GitHub](https://github.com/kindlyguard/kindly-guard) | [Documentation](https://docs.kindlyguard.com) | [Discord](https://discord.gg/kindlyguard)
+[GitHub](https://github.com/kindlyguard/kindly-guard) | [Documentation](https://github.com/kindly-software/kindly-guard) | [Discord](https://github.com/kindly-software/kindly-guard/discussions)

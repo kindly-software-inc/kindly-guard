@@ -45,7 +45,7 @@ The following behaviors are considered harassment and are unacceptable:
 
 If you experience or witness unacceptable behavior, please report it immediately:
 
-- **Email**: security@kindlyguard.com
+- **Email**: samuel@kindly.software
 - **Subject Line**: "Code of Conduct Violation"
 - **Include**: Description of the incident, parties involved, and any relevant evidence
 

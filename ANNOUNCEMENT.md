@@ -59,8 +59,8 @@ We believe security should be accessible to everyone. Core features will always 
 
 ⭐ Star us on [GitHub](https://github.com/kindlyguard/kindly-guard)
 🐛 Report issues or contribute
-💬 Join our [Discord](https://discord.gg/kindlyguard)
-📖 Read the [docs](https://docs.kindlyguard.com)
+💬 Join our [Discord](https://github.com/kindly-software/kindly-guard/discussions)
+📖 Read the [docs](https://github.com/kindly-software/kindly-guard)
 
 Together, let's make AI interactions safer for everyone.
 

@@ -367,7 +367,7 @@ KindlyGuard takes security seriously:
 - Security-first development practices
 - No unsafe code in public APIs
 
-For security issues, please email security@kindlyguard.com instead of using the issue tracker.
+For security issues, please email samuel@kindly.software instead of using the issue tracker.
 
 ## 📄 License
 

@@ -330,7 +330,7 @@ Look for issues labeled `good first issue` if you're new to the project.
 
 ### Reporting Security Vulnerabilities
 
-1. **Email:** security@kindlyguard.com
+1. **Email:** samuel@kindly.software
 2. **Include:**
    - Description of the vulnerability
    - Steps to reproduce
@@ -362,7 +362,7 @@ Look for issues labeled `good first issue` if you're new to the project.
 
 ### Getting Help
 
-- **Discord:** [Join our community](https://discord.gg/kindlyguard)
+- **Discord:** [Join our community](https://github.com/kindly-software/kindly-guard/discussions)
 - **Documentation:** Check `/docs` folder
 - **Examples:** See `/examples` directory
 - **Discussions:** Use GitHub Discussions for questions
