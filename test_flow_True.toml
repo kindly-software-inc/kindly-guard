@@ -1,0 +1,42 @@
+
+# KindlyGuard Flow Test Configuration
+[server]
+name = "kindly-guard-flow-test"
+version = "0.2.0"
+
+[scanner]
+unicode_detection = true
+injection_detection = true
+path_traversal_detection = true
+max_scan_depth = 10
+
+[shield]
+enabled = true
+update_interval = 100  # Fast updates for testing
+show_threats = true
+color = true
+auto_connect = true
+
+[event_processor]
+enabled = true
+
+[resilience]
+enhanced_mode = true
+
+[resilience.circuit_breaker]
+failure_threshold = 5
+recovery_timeout = "30s"
+
+[resilience.retry]
+max_attempts = 3
+initial_delay = "100ms"
+
+[neutralizer]
+enabled = true
+mode = enhanced
+max_queue_size = 1000
+worker_threads = 4
+
+[logging]
+level = "debug"
+format = "json"  # For easier parsing

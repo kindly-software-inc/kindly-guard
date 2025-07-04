@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Standard Shield - Blue Theme -->
+  <defs>
+    <!-- Gradient for depth -->
+    <linearGradient id="standard-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4A90E2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#2C5AA0;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Inner glow -->
+    <radialGradient id="standard-glow">
+      <stop offset="0%" style="stop-color:#6BB6FF;stop-opacity:0.5" />
+      <stop offset="100%" style="stop-color:#4A90E2;stop-opacity:0" />
+    </radialGradient>
+    
+    <!-- Shadow filter -->
+    <filter id="drop-shadow">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2"/>
+      <feOffset dx="0" dy="2" result="offsetblur"/>
+      <feFlood flood-color="#000000" flood-opacity="0.2"/>
+      <feComposite in2="offsetblur" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Shield Shape -->
+  <path d="M32 4 L52 12 L52 28 C52 42 42 54 32 58 C22 54 12 42 12 28 L12 12 Z" 
+        fill="url(#standard-gradient)" 
+        stroke="#2C5AA0" 
+        stroke-width="2"
+        filter="url(#drop-shadow)"/>
+  
+  <!-- Inner glow effect -->
+  <path d="M32 8 L48 14 L48 28 C48 38 40 48 32 52 C24 48 16 38 16 28 L16 14 Z" 
+        fill="url(#standard-glow)" 
+        opacity="0.3"/>
+  
+  <!-- Check mark -->
+  <path d="M22 30 L28 36 L42 22" 
+        stroke="#FFFFFF" 
+        stroke-width="3" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"
+        fill="none"/>
+  
+  <!-- Subtle highlight -->
+  <ellipse cx="32" cy="18" rx="12" ry="6" fill="#FFFFFF" opacity="0.2"/>
+</svg>

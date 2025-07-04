@@ -1,0 +1,49 @@
+# Docker Compose Override for Development
+# Copy to docker-compose.override.yml and modify as needed
+
+version: '3.8'
+
+services:
+  kindly-guard:
+    # Development build with debug symbols
+    build:
+      target: builder
+      args:
+        - RUST_PROFILE=debug
+    
+    # Development environment
+    environment:
+      - RUST_LOG=kindly_guard=debug,tower_http=debug
+      - RUST_BACKTRACE=full
+      - KINDLY_GUARD_ENV=development
+    
+    # Mount source code for hot reload (if using cargo-watch)
+    volumes:
+      - ./kindly-guard-server/src:/build/kindly-guard-server/src:ro
+      - ./config/development.toml:/etc/kindly-guard/config.toml:ro
+      - cargo-cache:/usr/local/cargo/registry
+      - target-cache:/build/target
+    
+    # Expose additional ports for debugging
+    ports:
+      - "127.0.0.1:3000:3000"  # MCP server
+      - "127.0.0.1:9090:9090"  # Metrics
+    
+    # Override security settings for development
+    security_opt:
+      - seccomp:unconfined  # Allow debugging tools
+    cap_add:
+      - SYS_PTRACE  # For debugging
+    read_only: false  # Allow writing for development
+    
+    # Development command with live reload
+    # command: ["cargo", "watch", "-x", "run -- --config /etc/kindly-guard/config.toml --stdio"]
+    
+    # Or use the debug binary
+    command: ["/build/target/debug/kindly-guard", "--config", "/etc/kindly-guard/config.toml", "--stdio"]
+
+volumes:
+  cargo-cache:
+    driver: local
+  target-cache:
+    driver: local

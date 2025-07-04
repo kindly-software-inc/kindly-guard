@@ -1,0 +1,90 @@
+graph TD
+    subgraph "KindlyGuard Server"
+        SERVER[main.rs]
+        LIB[lib.rs]
+        
+        subgraph "Security Components"
+            SCANNER[scanner/]
+            SCANNER --> INJECTION[injection.rs]
+            SCANNER --> UNICODE[unicode.rs]
+            SCANNER --> XSS[xss_scanner.rs]
+            SCANNER --> PATTERNS[patterns.rs]
+            
+            NEUTRALIZER[neutralizer/]
+            NEUTRALIZER --> STANDARD[standard.rs]
+            NEUTRALIZER --> ENHANCED[enhanced.rs]
+            NEUTRALIZER --> RATE_LIMITED[rate_limited.rs]
+            
+            AUDIT[audit/]
+            AUDIT --> FILE_AUDIT[file.rs]
+            AUDIT --> MEMORY_AUDIT[memory.rs]
+            AUDIT --> NEUTRALIZATION[neutralization.rs]
+        end
+        
+        subgraph "Transport Layer"
+            TRANSPORT[transport/]
+            TRANSPORT --> WS[websocket.rs]
+            TRANSPORT --> HTTP[http.rs]
+            TRANSPORT --> STDIO[stdio.rs]
+            TRANSPORT --> PROXY[proxy.rs]
+        end
+        
+        subgraph "Core Components"
+            CONFIG[config.rs]
+            AUTH[auth.rs]
+            METRICS[metrics.rs]
+            LOGGING[logging.rs]
+            TRAITS[traits.rs]
+        end
+        
+        SERVER --> LIB
+        LIB --> SCANNER
+        LIB --> NEUTRALIZER
+        LIB --> AUDIT
+        LIB --> TRANSPORT
+        LIB --> CONFIG
+        LIB --> AUTH
+        LIB --> METRICS
+        LIB --> TRAITS
+    end
+    
+    subgraph "KindlyGuard CLI"
+        CLI_MAIN[cli/main.rs]
+        CLI_OUTPUT[cli/output.rs]
+        CLI_MAIN --> CLI_OUTPUT
+        CLI_MAIN -.-> LIB
+    end
+    
+    subgraph "KindlyGuard Shield"
+        SHIELD_MAIN[shield/main.rs]
+        IPC[ipc/]
+        IPC --> SHM[shm.rs]
+        IPC --> BINARY[binary.rs]
+        SHIELD_MAIN --> IPC
+        SHIELD_MAIN --> WS_CLIENT[websocket/client.rs]
+    end
+    
+    subgraph "KindlyGuard Core (Private)"
+        CORE_LIB[core/lib.rs]
+        EVENT_BUFFER[atomic_event_buffer.rs]
+        BINARY_PROTO[binary_protocol.rs]
+        PATTERN_MATCHER[pattern_matcher.rs]
+        CORE_LIB --> EVENT_BUFFER
+        CORE_LIB --> BINARY_PROTO
+        CORE_LIB --> PATTERN_MATCHER
+    end
+    
+    %% Optional dependencies
+    ENHANCED -.->|enhanced feature| CORE_LIB
+    SHIELD_MAIN -.->|enhanced feature| CORE_LIB
+    
+    %% Styling
+    classDef security fill:#f99,stroke:#333,stroke-width:2px
+    classDef transport fill:#99f,stroke:#333,stroke-width:2px
+    classDef core fill:#9f9,stroke:#333,stroke-width:2px
+    classDef private fill:#ff9,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class SCANNER,NEUTRALIZER,AUDIT security
+    class TRANSPORT,WS,HTTP,STDIO transport
+    class CONFIG,AUTH,METRICS,TRAITS core
+    class CORE_LIB,EVENT_BUFFER,BINARY_PROTO,PATTERN_MATCHER private

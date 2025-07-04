@@ -1,0 +1,38 @@
+# KindlyGuard Demo Configuration - Standard Mode
+# Demonstrates basic threat detection capabilities
+
+[server]
+bind_address = "127.0.0.1:8080"
+max_connections = 100
+timeout_seconds = 30
+
+[security]
+# Standard security configuration
+mode = "standard"
+unicode_detection = true
+injection_detection = true
+xss_detection = true
+max_input_size = 10485760  # 10MB
+
+[scanner]
+# Pattern-based threat detection
+patterns = [
+    "sql_injection",
+    "xss_basic",
+    "unicode_bidi",
+    "path_traversal"
+]
+
+[shield]
+# Blue shield for standard mode
+color = "blue"
+show_notifications = true
+notification_duration = 5
+
+[logging]
+level = "info"
+format = "pretty"
+
+[metrics]
+enabled = true
+export_interval = 10

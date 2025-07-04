@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard Module Structure</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .description {
+            max-width: 800px;
+            margin: 0 auto 30px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #graph {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin: 0 auto;
+            max-width: 1400px;
+            overflow-x: auto;
+        }
+        .mermaid {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>KindlyGuard Module Structure</h1>
+    
+    <div class="description">
+        <h2>Internal Module Organization</h2>
+        <p>This diagram illustrates the internal structure of KindlyGuard's main components:</p>
+        <ul>
+            <li><strong>Red (Security)</strong>: Security-related modules (scanner, neutralizer, audit)</li>
+            <li><strong>Blue (Transport)</strong>: Communication and transport layers</li>
+            <li><strong>Green (Core)</strong>: Core functionality and utilities</li>
+            <li><strong>Yellow (Private)</strong>: Private enhanced features (dashed borders)</li>
+        </ul>
+        <p>The diagram shows how different modules interact within each component and highlights the optional enhanced features available through the private core library.</p>
+    </div>
+    
+    <div id="graph">
+        <div class="mermaid">
+graph TD
+    subgraph "KindlyGuard Server"
+        SERVER[main.rs]
+        LIB[lib.rs]
+        
+        subgraph "Security Components"
+            SCANNER[scanner/]
+            SCANNER --> INJECTION[injection.rs]
+            SCANNER --> UNICODE[unicode.rs]
+            SCANNER --> XSS[xss_scanner.rs]
+            SCANNER --> PATTERNS[patterns.rs]
+            
+            NEUTRALIZER[neutralizer/]
+            NEUTRALIZER --> STANDARD[standard.rs]
+            NEUTRALIZER --> ENHANCED[enhanced.rs]
+            NEUTRALIZER --> RATE_LIMITED[rate_limited.rs]
+            
+            AUDIT[audit/]
+            AUDIT --> FILE_AUDIT[file.rs]
+            AUDIT --> MEMORY_AUDIT[memory.rs]
+            AUDIT --> NEUTRALIZATION[neutralization.rs]
+        end
+        
+        subgraph "Transport Layer"
+            TRANSPORT[transport/]
+            TRANSPORT --> WS[websocket.rs]
+            TRANSPORT --> HTTP[http.rs]
+            TRANSPORT --> STDIO[stdio.rs]
+            TRANSPORT --> PROXY[proxy.rs]
+        end
+        
+        subgraph "Core Components"
+            CONFIG[config.rs]
+            AUTH[auth.rs]
+            METRICS[metrics.rs]
+            LOGGING[logging.rs]
+            TRAITS[traits.rs]
+        end
+        
+        SERVER --> LIB
+        LIB --> SCANNER
+        LIB --> NEUTRALIZER
+        LIB --> AUDIT
+        LIB --> TRANSPORT
+        LIB --> CONFIG
+        LIB --> AUTH
+        LIB --> METRICS
+        LIB --> TRAITS
+    end
+    
+    subgraph "KindlyGuard CLI"
+        CLI_MAIN[cli/main.rs]
+        CLI_OUTPUT[cli/output.rs]
+        CLI_MAIN --> CLI_OUTPUT
+        CLI_MAIN -.-> LIB
+    end
+    
+    subgraph "KindlyGuard Shield"
+        SHIELD_MAIN[shield/main.rs]
+        IPC[ipc/]
+        IPC --> SHM[shm.rs]
+        IPC --> BINARY[binary.rs]
+        SHIELD_MAIN --> IPC
+        SHIELD_MAIN --> WS_CLIENT[websocket/client.rs]
+    end
+    
+    subgraph "KindlyGuard Core (Private)"
+        CORE_LIB[core/lib.rs]
+        EVENT_BUFFER[atomic_event_buffer.rs]
+        BINARY_PROTO[binary_protocol.rs]
+        PATTERN_MATCHER[pattern_matcher.rs]
+        CORE_LIB --> EVENT_BUFFER
+        CORE_LIB --> BINARY_PROTO
+        CORE_LIB --> PATTERN_MATCHER
+    end
+    
+    %% Optional dependencies
+    ENHANCED -.->|enhanced feature| CORE_LIB
+    SHIELD_MAIN -.->|enhanced feature| CORE_LIB
+    
+    %% Styling
+    classDef security fill:#f99,stroke:#333,stroke-width:2px
+    classDef transport fill:#99f,stroke:#333,stroke-width:2px
+    classDef core fill:#9f9,stroke:#333,stroke-width:2px
+    classDef private fill:#ff9,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class SCANNER,NEUTRALIZER,AUDIT security
+    class TRANSPORT,WS,HTTP,STDIO transport
+    class CONFIG,AUTH,METRICS,TRAITS core
+    class CORE_LIB,EVENT_BUFFER,BINARY_PROTO,PATTERN_MATCHER private
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                fontSize: '14px'
+            },
+            flowchart: {
+                rankSpacing: 50,
+                nodeSpacing: 30
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,10 @@
+*)(uid=*))(|(uid=*
+admin)(&(password=*)
+*)(objectClass=*))(&(objectClass=*
+)(cn=*))(|(cn=*
+*)(&(|(objectClass=user)(objectClass=person))
+admin))(&((objectClass=*)
+*)(mail=*))(&(mail=*
+)(userPassword=*))(|(userPassword=*
+*))(accountStatus=*
+admin*)(|(cn=*

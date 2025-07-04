@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard Dependency Graph</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        .description {
+            max-width: 800px;
+            margin: 0 auto 30px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #graph {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin: 0 auto;
+            max-width: 1200px;
+            overflow-x: auto;
+        }
+        .mermaid {
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>KindlyGuard Dependency Graph</h1>
+    
+    <div class="description">
+        <h2>Overview</h2>
+        <p>This diagram shows the dependency relationships between different components of the KindlyGuard project:</p>
+        <ul>
+            <li><strong>Pink (Core)</strong>: Workspace root</li>
+            <li><strong>Blue (Main)</strong>: Main components of the system</li>
+            <li><strong>Green (Integration)</strong>: External integrations and extensions</li>
+            <li><strong>Yellow (Optional)</strong>: Optional enhanced features (dashed lines indicate optional dependencies)</li>
+        </ul>
+    </div>
+    
+    <div id="graph">
+        <div class="mermaid">
+graph TD
+    %% Main workspace root
+    KG[kindly-guard<br/>workspace root]
+    
+    %% Core components
+    KGS[kindly-guard-server<br/>Main MCP Server]
+    KGC[kindly-guard-cli<br/>CLI Tool]
+    KGSH[kindly-guard-shield<br/>Tauri App]
+    KGCORE[kindly-guard-core<br/>Private Enhanced Core]
+    KGCRATE[crates-io-package<br/>Public Crate]
+    
+    %% Integrations
+    CLAUDE_AI[claude-ai-kindlyguard<br/>Browser Extension]
+    CLAUDE_CODE[claude-code-kindlyguard<br/>VS Code Extension]
+    NPM[npm-package<br/>NPM Distribution]
+    
+    %% Dependencies
+    KG --> KGS
+    KG --> KGC
+    KG --> KGSH
+    KG --> KGCRATE
+    
+    KGC --> KGS
+    KGS -.->|optional<br/>enhanced| KGCORE
+    KGSH -.->|optional<br/>enhanced| KGCORE
+    
+    %% External integrations
+    KGS --> CLAUDE_AI
+    KGS --> CLAUDE_CODE
+    KGS --> NPM
+    
+    %% Styling
+    classDef core fill:#f9f,stroke:#333,stroke-width:4px
+    classDef main fill:#bbf,stroke:#333,stroke-width:2px
+    classDef integration fill:#bfb,stroke:#333,stroke-width:2px
+    classDef optional fill:#ffa,stroke:#333,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class KG core
+    class KGS,KGC,KGSH,KGCRATE main
+    class CLAUDE_AI,CLAUDE_CODE,NPM integration
+    class KGCORE optional
+        </div>
+    </div>
+    
+    <script>
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            themeVariables: {
+                fontSize: '16px'
+            }
+        });
+    </script>
+</body>
+</html>

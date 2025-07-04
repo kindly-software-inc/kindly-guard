@@ -1,0 +1,26 @@
+{
+  "name": "Large test file",
+  "description": "100KB test file for stress testing",
+  "dataset": [
+    {
+      "id": "ENTRY_001",
+      "timestamp": "2024-01-01T00:00:01Z",
+      "type": "user_registration",
+      "data": {
+        "username": "user001",
+        "email": "user001@example.com",
+        "ip_address": "192.168.1.100",
+        "user_agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "referrer": "https://example.com/signup",
+        "session_id": "550e8400-e29b-41d4-a716-446655440001",
+        "metadata": {
+          "country": "US",
+          "region": "CA",
+          "city": "San Francisco",
+          "timezone": "America/Los_Angeles"
+        }
+      }
+    }
+  ],
+  "note": "This file would normally contain thousands of entries. For demo purposes, imagine this pattern repeated 1000+ times with different data to reach ~100KB. The actual file would include various types of data: user registrations, login attempts, API calls, error logs, performance metrics, security events, and more. Each entry would have different fields and nested structures to test the scanner's ability to handle complex JSON structures efficiently."
+}

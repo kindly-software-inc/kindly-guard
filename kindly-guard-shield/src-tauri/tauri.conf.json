@@ -1,0 +1,103 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "KindlyGuard Shield",
+  "version": "0.1.0",
+  "identifier": "com.kindlyguard.shield",
+  "build": {
+    "beforeDevCommand": "",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "",
+    "frontendDist": "../src"
+  },
+  "app": {
+    "security": {
+      "csp": {
+        "default-src": "'self'",
+        "script-src": "'self' 'unsafe-inline'",
+        "style-src": "'self' 'unsafe-inline'",
+        "img-src": "'self' data:",
+        "connect-src": "'self' ws://localhost:* wss://localhost:*"
+      },
+      "freezePrototype": true,
+      "dangerousDisableAssetCspModification": false,
+      "assetProtocol": {
+        "enable": true,
+        "scope": ["$RESOURCE/**"]
+      }
+    },
+    "macOSPrivateApi": false,
+    "withGlobalTauri": false,
+    "windows": [
+      {
+        "title": "KindlyGuard Shield",
+        "width": 400,
+        "height": 600,
+        "resizable": false,
+        "fullscreen": false,
+        "alwaysOnTop": true,
+        "decorations": false,
+        "transparent": true,
+        "skipTaskbar": false,
+        "center": true,
+        "visible": false,
+        "focus": false,
+        "acceptFirstMouse": false,
+        "hiddenTitle": false,
+        "tabbingIdentifier": "shield",
+        "theme": "Dark"
+      }
+    ],
+    "trayIcon": {
+      "iconPath": "icons/icon.png",
+      "iconAsTemplate": true,
+      "menuOnLeftClick": false,
+      "title": "KindlyGuard",
+      "tooltip": "KindlyGuard Security Shield"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app", "dmg", "msi", "deb", "rpm"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "entitlements": null,
+      "exceptionDomain": "",
+      "frameworks": [],
+      "providerShortName": null,
+      "signingIdentity": null,
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {
+      "appimage": {
+        "bundleMediaFramework": true
+      },
+      "deb": {
+        "depends": []
+      }
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "digestAlgorithm": "sha256",
+      "timestampUrl": "",
+      "webviewInstallMode": {
+        "type": "embedBootstrapper"
+      }
+    }
+  },
+  "plugins": {
+    "shell": {
+      "open": false,
+      "all": false,
+      "execute": false,
+      "sidecar": false,
+      "scope": []
+    }
+  }
+}

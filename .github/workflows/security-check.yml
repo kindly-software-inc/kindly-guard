@@ -1,0 +1,125 @@
+name: Security Check
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  push:
+    branches: [main, master]
+
+jobs:
+  check-sensitive-content:
+    runs-on: ubuntu-latest
+    name: Check for Proprietary Content
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - name: Check for sensitive terms
+        run: |
+          set +e  # Don't exit on first error
+          
+          # Define sensitive terms - HIGH RISK
+          HIGH_RISK_EXACT=(
+            "AtomicBitPackedEventBuffer"
+            "HierarchicalRateLimiter"
+            "CpuTokenBucket"
+            "EventRingBuffer"
+            "TokenStealer"
+            "AtomicMetrics"
+            "kindly-guard-core"
+            "FLAG_COMPRESSED"
+            "MAX_COMPRESSION_RATIO"
+          )
+          
+          HIGH_RISK_PATTERNS=(
+            "Chase[- ]?Lev\s+(deque|algorithm)"
+            "bit[- ]?packed\s+atomic\s+state\s+machine"
+            "per[- ]?CPU\s+token\s+bucket"
+            "NUMA[- ]?aware\s+stealing"
+            "work[- ]?stealing.*rate.*limit"
+            "compression\s+bomb\s+(detection|prevention)"
+            "constant[- ]?time\s+compression"
+            "27x.*throughput.*improvement"
+            "9\.9x.*improvement"
+            "56\.7x.*latency"
+            "90%.*local\s+hit\s+rate"
+            "linear\s+scaling.*64\+?\s+cores"
+          )
+          
+          # Combine all terms
+          SENSITIVE_TERMS=("${HIGH_RISK_EXACT[@]}" "${HIGH_RISK_PATTERNS[@]}")
+          
+          # Files allowed to contain sensitive terms
+          ALLOWED_FILES=(
+            "docs/FUTURE_INNOVATIONS.md"
+            "docs/HIERARCHICAL_RATE_LIMITER.md"
+            "docs/ATOMIC_STATE_MACHINE.md"
+            "src/enhanced_impl/hierarchical_rate_limiter.rs"
+            "src/enhanced_impl/event_buffer.rs"
+            "benches/rate_limiter_comparison.rs"
+          )
+          
+          # Function to check if file is allowed
+          is_allowed() {
+            local file=$1
+            for allowed in "${ALLOWED_FILES[@]}"; do
+              if [[ "$file" == *"$allowed" ]]; then
+                return 0
+              fi
+            done
+            return 1
+          }
+          
+          # Get changed files
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            FILES=$(git diff --name-only ${{ github.event.pull_request.base.sha }} ${{ github.sha }})
+          else
+            FILES=$(git diff --name-only HEAD^ HEAD)
+          fi
+          
+          FOUND_ISSUES=0
+          
+          # Check each file
+          for file in $FILES; do
+            if [ ! -f "$file" ]; then
+              continue
+            fi
+            
+            if is_allowed "$file"; then
+              echo "ℹ️ Skipping allowed file: $file"
+              continue
+            fi
+            
+            # Check for sensitive terms
+            for term in "${SENSITIVE_TERMS[@]}"; do
+              if grep -qiE "$term" "$file"; then
+                echo "❌ Found sensitive term in $file: $term"
+                FOUND_ISSUES=1
+              fi
+            done
+          done
+          
+          if [ $FOUND_ISSUES -eq 1 ]; then
+            echo ""
+            echo "⚠️ Security check failed!"
+            echo "Please remove references to proprietary implementations."
+            echo "These should only be in docs/FUTURE_INNOVATIONS.md"
+            exit 1
+          else
+            echo "✅ Security check passed!"
+          fi
+      
+      - name: Comment on PR
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '⚠️ **Security Check Failed**\n\nThis PR contains references to proprietary implementation details. Please move these to `docs/FUTURE_INNOVATIONS.md` or remove them entirely.\n\nSee the [Security Check workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.'
+            })

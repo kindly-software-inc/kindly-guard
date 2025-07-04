@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Technical Blog</title>
+</head>
+<body>
+    <h1>Understanding Web Security</h1>
+    
+    <p>Welcome to my blog! Today we'll discuss web security.</p>
+    
+    <!-- This is a legitimate comment -->
+    
+    <h2>Common Vulnerabilities</h2>
+    
+    <p>One common attack is SQL injection. Attackers might try something like:</p>
+    <pre>' OR '1'='1</pre>
+    
+    <p>But this is just an example for educational purposes.</p>
+    
+    <!-- Hidden threat: <script>alert('XSS')</script> -->
+    
+    <h2>User Comments</h2>
+    
+    <div class="comment">
+        <p>Great article! Check out my site at pаypal.com</p>
+    </div>
+    
+    <div class="comment">
+        <p>Thanks for sharing! Here's a useful command: ls -la</p>
+    </div>
+    
+    <div class="comment">
+        <p>Nice post<script>alert('hacked')</script></p>
+    </div>
+    
+    <footer>
+        <p>© 2024 My Blog. All rights reserved.</p>
+    </footer>
+</body>
+</html>

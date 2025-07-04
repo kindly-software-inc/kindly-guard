@@ -1,0 +1,43 @@
+#!/usr/bin/env node
+
+/**
+ * KindlyGuard CLI wrapper
+ * This script launches the native KindlyGuard binary
+ */
+
+const { spawn } = require('child_process');
+const path = require('path');
+const platform = require('../lib/platform');
+
+try {
+  // Find the binary
+  const binaryPath = platform.getBinaryPath('kindlyguard');
+  
+  // Validate it exists and is executable
+  const validation = platform.validateBinary(binaryPath);
+  if (!validation.valid) {
+    throw new Error(`Binary validation failed: ${validation.error}`);
+  }
+  
+  // Spawn the actual binary with all arguments
+  const proc = spawn(binaryPath, process.argv.slice(2), {
+    stdio: 'inherit',
+    env: process.env
+  });
+  
+  proc.on('exit', (code) => {
+    process.exit(code || 0);
+  });
+  
+  proc.on('error', (err) => {
+    console.error('Failed to start KindlyGuard:', err.message);
+    console.error('\nTry reinstalling: npm install -g kindlyguard');
+    process.exit(1);
+  });
+  
+} catch (error) {
+  console.error('Error:', error.message);
+  console.error('\nKindlyGuard binary not found or invalid.');
+  console.error('Please reinstall: npm install -g kindlyguard');
+  process.exit(1);
+}

@@ -1,0 +1,16 @@
+{
+  "users": [
+    {
+      "bio": "Software developer",
+      "name": "Alice"
+    },
+    {
+      "bio": "'; DELETE FROM users; --",
+      "name": "Bob‌"
+    },
+    {
+      "bio": "<script>alert(1)</script>",
+      "name": "Charlie"
+    }
+  ]
+}

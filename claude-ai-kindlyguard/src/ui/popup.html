@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard for Claude.ai</title>
+    <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+    <div class="popup-container">
+        <header class="popup-header">
+            <div class="logo">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                    <path d="M12 2L4 7V12C4 16.5 6.84 20.74 11 21.92C11.35 22.02 11.66 22.02 12 21.92C16.16 20.74 20 16.5 20 12V7L12 2Z" 
+                          fill="currentColor" stroke="currentColor" stroke-width="1.5"/>
+                    <path d="M9 12L11 14L15 10" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </div>
+            <h1>KindlyGuard</h1>
+            <span class="version">v1.0.0</span>
+        </header>
+        
+        <main class="popup-content">
+            <div class="status-section">
+                <div class="status-row">
+                    <span class="status-label">Shield Status</span>
+                    <span class="status-value" id="shield-status">Checking...</span>
+                </div>
+                <div class="status-row">
+                    <span class="status-label">Protection Mode</span>
+                    <span class="status-value" id="protection-mode">Standard</span>
+                </div>
+            </div>
+            
+            <div class="stats-section">
+                <h2>Session Statistics</h2>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-scanned">0</span>
+                        <span class="stat-label">Messages Scanned</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="stat-blocked">0</span>
+                        <span class="stat-label">Threats Blocked</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h2>Quick Settings</h2>
+                <label class="toggle-setting">
+                    <input type="checkbox" id="auto-scan" checked>
+                    <span>Auto-scan messages</span>
+                </label>
+                <label class="toggle-setting">
+                    <input type="checkbox" id="show-notifications">
+                    <span>Show notifications</span>
+                </label>
+            </div>
+            
+            <div class="actions-section">
+                <button class="action-btn" id="open-shield">
+                    Open Shield App
+                </button>
+                <button class="action-btn secondary" id="view-logs">
+                    View Logs
+                </button>
+            </div>
+        </main>
+        
+        <footer class="popup-footer">
+            <a href="#" id="help-link">Help</a>
+            <span class="separator">•</span>
+            <a href="#" id="about-link">About</a>
+        </footer>
+    </div>
+    
+    <script src="popup.js"></script>
+</body>
+</html>

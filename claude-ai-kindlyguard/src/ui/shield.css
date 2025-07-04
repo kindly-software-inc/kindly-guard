@@ -1,0 +1,344 @@
+/* KindlyGuard Shield Styles for Claude.ai */
+
+.kg-shield {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 999999;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.kg-shield-container {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 0 0 0 1px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 280px;
+}
+
+/* Header */
+.kg-shield-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  cursor: pointer;
+  user-select: none;
+  background: linear-gradient(135deg, #6B46C1 0%, #7C3AED 100%);
+  color: white;
+}
+
+.kg-shield-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.kg-shield-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.kg-shield-status {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.kg-status-text {
+  font-weight: 600;
+  font-size: 16px;
+}
+
+.kg-status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #10B981;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  animation: pulse 2s infinite;
+}
+
+.kg-status-indicator.kg-disconnected {
+  background: #EF4444;
+  box-shadow: 0 0 0 2px rgba(239, 68, 68, 0.2);
+  animation: none;
+}
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.1);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.2);
+  }
+}
+
+/* Body */
+.kg-shield-body {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.kg-expanded .kg-shield-body {
+  max-height: 400px;
+  opacity: 1;
+}
+
+/* Stats */
+.kg-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  padding: 20px;
+  background: #F9FAFB;
+}
+
+.kg-stat {
+  text-align: center;
+}
+
+.kg-stat-value {
+  display: block;
+  font-size: 24px;
+  font-weight: 700;
+  color: #1F2937;
+}
+
+.kg-stat-label {
+  display: block;
+  font-size: 12px;
+  color: #6B7280;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Mode */
+.kg-mode {
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.kg-mode-label {
+  color: #6B7280;
+}
+
+.kg-mode-value {
+  font-weight: 600;
+  color: #1F2937;
+}
+
+/* Enhanced mode glow */
+.kg-enhanced .kg-shield-container {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.1), 
+              0 0 0 1px rgba(0, 0, 0, 0.05),
+              0 0 24px rgba(124, 58, 237, 0.3);
+}
+
+.kg-enhanced .kg-shield-header {
+  background: linear-gradient(135deg, #7C3AED 0%, #9333EA 100%);
+}
+
+.kg-enhanced .kg-mode-value {
+  color: #7C3AED;
+}
+
+/* Threats */
+.kg-threats {
+  padding: 16px 20px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.kg-threats-header {
+  font-weight: 600;
+  color: #1F2937;
+  margin-bottom: 12px;
+}
+
+.kg-threats-list {
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.kg-threat-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #F3F4F6;
+}
+
+.kg-threat-item:last-child {
+  border-bottom: none;
+}
+
+.kg-threat-type {
+  font-weight: 500;
+  color: #DC2626;
+  font-size: 13px;
+}
+
+.kg-threat-time {
+  font-size: 12px;
+  color: #9CA3AF;
+}
+
+.kg-no-threats {
+  text-align: center;
+  color: #9CA3AF;
+  padding: 16px 0;
+}
+
+/* Actions */
+.kg-actions {
+  padding: 16px 20px;
+  border-top: 1px solid #E5E7EB;
+}
+
+.kg-action-btn {
+  width: 100%;
+  padding: 8px 16px;
+  background: #F3F4F6;
+  border: none;
+  border-radius: 6px;
+  color: #4B5563;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.kg-action-btn:hover {
+  background: #E5E7EB;
+  color: #1F2937;
+}
+
+/* Disconnected state */
+.kg-disconnected .kg-shield-header {
+  background: linear-gradient(135deg, #6B7280 0%, #4B5563 100%);
+}
+
+.kg-disconnected .kg-action-btn {
+  background: #DC2626;
+  color: white;
+}
+
+.kg-disconnected .kg-action-btn:hover {
+  background: #B91C1C;
+}
+
+/* Minimized state */
+.kg-shield:not(.kg-expanded) .kg-shield-container {
+  width: auto;
+}
+
+.kg-shield:not(.kg-expanded) .kg-shield-header {
+  border-radius: 12px;
+}
+
+/* Dark mode support (if Claude.ai has dark mode) */
+@media (prefers-color-scheme: dark) {
+  .kg-shield-container {
+    background: #1F2937;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+  
+  .kg-stats {
+    background: #111827;
+  }
+  
+  .kg-stat-value {
+    color: #F9FAFB;
+  }
+  
+  .kg-stat-label {
+    color: #9CA3AF;
+  }
+  
+  .kg-mode {
+    border-top-color: #374151;
+  }
+  
+  .kg-mode-label {
+    color: #9CA3AF;
+  }
+  
+  .kg-mode-value {
+    color: #F9FAFB;
+  }
+  
+  .kg-threats {
+    border-top-color: #374151;
+  }
+  
+  .kg-threats-header {
+    color: #F9FAFB;
+  }
+  
+  .kg-threat-item {
+    border-bottom-color: #374151;
+  }
+  
+  .kg-actions {
+    border-top-color: #374151;
+  }
+  
+  .kg-action-btn {
+    background: #374151;
+    color: #D1D5DB;
+  }
+  
+  .kg-action-btn:hover {
+    background: #4B5563;
+    color: #F9FAFB;
+  }
+}
+
+/* Animations */
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.kg-shield {
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Scrollbar styling */
+.kg-threats-list::-webkit-scrollbar {
+  width: 4px;
+}
+
+.kg-threats-list::-webkit-scrollbar-track {
+  background: #F3F4F6;
+  border-radius: 2px;
+}
+
+.kg-threats-list::-webkit-scrollbar-thumb {
+  background: #D1D5DB;
+  border-radius: 2px;
+}
+
+.kg-threats-list::-webkit-scrollbar-thumb:hover {
+  background: #9CA3AF;
+}

@@ -1,0 +1,95 @@
+# Docker ignore file for KindlyGuard
+
+# Build artifacts
+target/
+**/target/
+*.orig
+*.rej
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Documentation (not needed for build)
+docs/
+*.md
+!README.md
+LICENSE
+
+# Test files
+tests/
+**/tests/
+benches/
+**/benches/
+test-*.toml
+**/fixtures/
+
+# CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Development files
+docker-compose.override.yml
+.env
+.env.local
+*.log
+
+# Cache and temporary files
+.cache/
+tmp/
+temp/
+*.tmp
+
+# Node modules (for shield UI)
+node_modules/
+**/node_modules/
+npm-debug.log
+yarn-error.log
+
+# Python files (if any analysis scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+.venv/
+
+# Deployment files (except what we need)
+deploy/
+!deploy/systemd/
+
+# Examples and demos
+examples/
+demo/
+example-*.toml
+
+# Analysis outputs
+analysis/
+*.html
+*.json
+!package.json
+!package-lock.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+.directory
+.Trash-*

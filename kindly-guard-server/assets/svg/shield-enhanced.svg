@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <!-- Enhanced Shield - Purple Theme with Animation Support -->
+  <defs>
+    <!-- Purple gradient -->
+    <linearGradient id="enhanced-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#9B59B6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6C3483;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Animated pulse gradient -->
+    <radialGradient id="enhanced-pulse">
+      <stop offset="0%" style="stop-color:#E8B4FF;stop-opacity:0.8">
+        <animate attributeName="stop-opacity" 
+                 values="0.8;0.3;0.8" 
+                 dur="2s" 
+                 repeatCount="indefinite"/>
+      </stop>
+      <stop offset="50%" style="stop-color:#C589E8;stop-opacity:0.4">
+        <animate attributeName="stop-opacity" 
+                 values="0.4;0.1;0.4" 
+                 dur="2s" 
+                 repeatCount="indefinite"/>
+      </stop>
+      <stop offset="100%" style="stop-color:#9B59B6;stop-opacity:0"/>
+    </radialGradient>
+    
+    <!-- Energy field effect -->
+    <filter id="enhanced-glow">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge>
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    
+    <!-- Electric arc pattern -->
+    <pattern id="energy-pattern" x="0" y="0" width="4" height="4" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.5" fill="#E8B4FF" opacity="0.6">
+        <animate attributeName="r" 
+                 values="0.5;1;0.5" 
+                 dur="3s" 
+                 repeatCount="indefinite"/>
+      </circle>
+    </pattern>
+  </defs>
+  
+  <!-- Outer energy field -->
+  <circle cx="32" cy="32" r="30" fill="none" stroke="url(#enhanced-pulse)" stroke-width="2" opacity="0.5">
+    <animate attributeName="r" 
+             values="28;32;28" 
+             dur="2s" 
+             repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- Shield Shape with enhanced gradient -->
+  <path d="M32 4 L52 12 L52 28 C52 42 42 54 32 58 C22 54 12 42 12 28 L12 12 Z" 
+        fill="url(#enhanced-gradient)" 
+        stroke="#6C3483" 
+        stroke-width="2"
+        filter="url(#enhanced-glow)"/>
+  
+  <!-- Energy field overlay -->
+  <path d="M32 8 L48 14 L48 28 C48 38 40 48 32 52 C24 48 16 38 16 28 L16 14 Z" 
+        fill="url(#energy-pattern)" 
+        opacity="0.3"/>
+  
+  <!-- Animated inner glow -->
+  <path d="M32 8 L48 14 L48 28 C48 38 40 48 32 52 C24 48 16 38 16 28 L16 14 Z" 
+        fill="url(#enhanced-pulse)" 
+        opacity="0.4"/>
+  
+  <!-- Lightning bolt symbol (enhanced protection indicator) -->
+  <path d="M28 18 L24 32 L32 32 L28 46 L40 28 L32 28 L36 18 Z" 
+        fill="#FFFFFF" 
+        stroke="#E8B4FF" 
+        stroke-width="1"
+        opacity="0.9">
+    <animate attributeName="opacity" 
+             values="0.9;1;0.9" 
+             dur="1.5s" 
+             repeatCount="indefinite"/>
+  </path>
+  
+  <!-- Rotating protective ring -->
+  <g transform="translate(32, 32)">
+    <animateTransform attributeName="transform" 
+                      type="rotate" 
+                      from="0 0 0" 
+                      to="360 0 0" 
+                      dur="20s" 
+                      repeatCount="indefinite"/>
+    <circle cx="0" cy="-26" r="2" fill="#E8B4FF" opacity="0.8"/>
+    <circle cx="26" cy="0" r="2" fill="#E8B4FF" opacity="0.8"/>
+    <circle cx="0" cy="26" r="2" fill="#E8B4FF" opacity="0.8"/>
+    <circle cx="-26" cy="0" r="2" fill="#E8B4FF" opacity="0.8"/>
+  </g>
+</svg>

@@ -1,0 +1,95 @@
+version: '3.8'
+
+services:
+  kindly-guard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+    image: kindly-guard:latest
+    container_name: kindly-guard-server
+    hostname: kindly-guard
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE  # Only if using TCP mode on privileged ports
+    read_only: true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    
+    # Volumes
+    volumes:
+      - ./config/production.toml:/etc/kindly-guard/config.toml:ro
+      - kindly-guard-data:/var/lib/kindly-guard
+      - kindly-guard-logs:/var/log/kindly-guard
+      - /tmp  # Writable temp directory for runtime needs
+    
+    # Environment variables
+    environment:
+      - RUST_LOG=kindly_guard=info,warn
+      - RUST_BACKTRACE=1
+      - KINDLY_GUARD_ENV=production
+      # Override config via environment if needed
+      # - KINDLY_GUARD__SERVER__HOST=0.0.0.0
+      # - KINDLY_GUARD__SERVER__PORT=3000
+    
+    # Networking
+    networks:
+      - kindly-guard-net
+    ports:
+      - "127.0.0.1:3000:3000"  # Only expose to localhost
+    
+    # Health and lifecycle
+    restart: unless-stopped
+    stop_grace_period: 30s
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service=kindly-guard"
+    
+    # Dependencies (if using with other services)
+    # depends_on:
+    #   - redis
+    #   - postgres
+
+  # Optional: Metrics exporter sidecar
+  # metrics-exporter:
+  #   image: prom/node-exporter:latest
+  #   container_name: kindly-guard-metrics
+  #   security_opt:
+  #     - no-new-privileges:true
+  #   cap_drop:
+  #     - ALL
+  #   networks:
+  #     - kindly-guard-net
+  #   restart: unless-stopped
+
+volumes:
+  kindly-guard-data:
+    driver: local
+  kindly-guard-logs:
+    driver: local
+
+networks:
+  kindly-guard-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16

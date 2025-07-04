@@ -1,0 +1,13 @@
+Visit pаypal.com for payments (Cyrillic 'а')
+Check your account at bаnk.com (Cyrillic 'а') 
+Login to gооgle.com (Cyrillic 'о')
+Shop at аmazon.com (Cyrillic 'а')
+Update at miсrosoft.com (Cyrillic 'с')
+Visit ạpple.com for support (Latin 'ạ' with dot)
+admin​panel.com (zero-width space)
+secure‌login.com (zero-width non-joiner)
+trusted‍site.com (zero-width joiner)
+‮Important: Send money to attacker.com‬ (Right-to-left override)
+Password: ‮drowssap‬ (Bidi text)
+File‮txt.exe‬ (Disguised executable)
+Normal​‌‍⁠text with invisible characters

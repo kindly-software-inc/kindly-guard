@@ -1,0 +1,283 @@
+/* Shield Pulse Animation - Professional Security Visualization */
+
+/* Base shield styles */
+.shield-container {
+    position: relative;
+    display: inline-block;
+    width: 64px;
+    height: 64px;
+}
+
+/* Standard Shield Animation (Blue Theme) */
+.shield-standard {
+    animation: shield-breathe 3s ease-in-out infinite;
+}
+
+.shield-standard.active {
+    animation: shield-breathe 3s ease-in-out infinite, subtle-glow 2s ease-in-out infinite;
+}
+
+@keyframes shield-breathe {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.02);
+    }
+}
+
+@keyframes subtle-glow {
+    0%, 100% {
+        filter: drop-shadow(0 0 4px rgba(74, 144, 226, 0.4));
+    }
+    50% {
+        filter: drop-shadow(0 0 8px rgba(74, 144, 226, 0.6));
+    }
+}
+
+/* Enhanced Shield Animation (Purple Theme) */
+.shield-enhanced {
+    animation: enhanced-pulse 2s ease-in-out infinite, energy-field 4s linear infinite;
+}
+
+@keyframes enhanced-pulse {
+    0%, 100% {
+        transform: scale(1);
+        filter: drop-shadow(0 0 10px rgba(155, 89, 182, 0.6));
+    }
+    25% {
+        transform: scale(1.05);
+        filter: drop-shadow(0 0 20px rgba(155, 89, 182, 0.8));
+    }
+    50% {
+        transform: scale(1.03);
+        filter: drop-shadow(0 0 15px rgba(232, 180, 255, 0.7));
+    }
+    75% {
+        transform: scale(1.01);
+        filter: drop-shadow(0 0 12px rgba(155, 89, 182, 0.6));
+    }
+}
+
+@keyframes energy-field {
+    0% {
+        opacity: 0.8;
+    }
+    50% {
+        opacity: 1;
+    }
+    100% {
+        opacity: 0.8;
+    }
+}
+
+/* Threat Detection Animation */
+.shield-threat-detected {
+    animation: threat-alert 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes threat-alert {
+    0% {
+        transform: scale(1) rotate(0deg);
+        filter: drop-shadow(0 0 10px rgba(231, 76, 60, 0.8));
+    }
+    100% {
+        transform: scale(1.1) rotate(-2deg);
+        filter: drop-shadow(0 0 20px rgba(231, 76, 60, 1));
+    }
+}
+
+/* Energy Particles for Enhanced Mode */
+.energy-particles {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.energy-particle {
+    position: absolute;
+    width: 4px;
+    height: 4px;
+    background: radial-gradient(circle, rgba(232, 180, 255, 0.8) 0%, transparent 70%);
+    border-radius: 50%;
+    animation: particle-float 3s linear infinite;
+}
+
+.energy-particle:nth-child(1) {
+    top: 10%;
+    left: 20%;
+    animation-delay: 0s;
+}
+
+.energy-particle:nth-child(2) {
+    top: 20%;
+    right: 15%;
+    animation-delay: 0.5s;
+}
+
+.energy-particle:nth-child(3) {
+    bottom: 15%;
+    left: 25%;
+    animation-delay: 1s;
+}
+
+.energy-particle:nth-child(4) {
+    bottom: 20%;
+    right: 20%;
+    animation-delay: 1.5s;
+}
+
+@keyframes particle-float {
+    0% {
+        transform: translateY(0) scale(1);
+        opacity: 0;
+    }
+    10% {
+        opacity: 0.8;
+    }
+    50% {
+        transform: translateY(-20px) scale(1.2);
+        opacity: 0.6;
+    }
+    90% {
+        opacity: 0.8;
+    }
+    100% {
+        transform: translateY(-40px) scale(0.8);
+        opacity: 0;
+    }
+}
+
+/* Protection Ring Animation */
+.protection-ring {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    border: 2px solid transparent;
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.shield-enhanced .protection-ring {
+    animation: ring-expand 3s ease-out infinite;
+    border-color: rgba(155, 89, 182, 0.6);
+}
+
+@keyframes ring-expand {
+    0% {
+        width: 64px;
+        height: 64px;
+        opacity: 0.8;
+    }
+    100% {
+        width: 100px;
+        height: 100px;
+        opacity: 0;
+    }
+}
+
+/* Status Indicators */
+.shield-status {
+    position: absolute;
+    bottom: -5px;
+    right: -5px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    border: 2px solid white;
+    background: #27AE60;
+    animation: status-pulse 2s ease-in-out infinite;
+}
+
+.shield-status.warning {
+    background: #F39C12;
+    animation: status-warning 1s ease-in-out infinite;
+}
+
+.shield-status.critical {
+    background: #E74C3C;
+    animation: status-critical 0.5s ease-in-out infinite;
+}
+
+@keyframes status-pulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+
+@keyframes status-warning {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+@keyframes status-critical {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 0.8;
+    }
+}
+
+/* Loading State */
+.shield-loading {
+    animation: shield-rotate 2s linear infinite;
+}
+
+@keyframes shield-rotate {
+    0% {
+        transform: rotate(0deg);
+    }
+    100% {
+        transform: rotate(360deg);
+    }
+}
+
+/* Transition Effects */
+.shield-container * {
+    transition: all 0.3s ease-out;
+}
+
+/* Hover Effects */
+.shield-container:hover .shield-standard {
+    transform: scale(1.05);
+    filter: drop-shadow(0 0 12px rgba(74, 144, 226, 0.7));
+}
+
+.shield-container:hover .shield-enhanced {
+    transform: scale(1.08);
+    filter: drop-shadow(0 0 25px rgba(155, 89, 182, 1));
+}
+
+/* Responsive Adjustments */
+@media (prefers-reduced-motion: reduce) {
+    .shield-standard,
+    .shield-enhanced,
+    .shield-threat-detected,
+    .energy-particle,
+    .protection-ring,
+    .shield-status {
+        animation: none;
+    }
+    
+    .shield-container:hover .shield-standard,
+    .shield-container:hover .shield-enhanced {
+        transform: scale(1.03);
+    }
+}

@@ -1,0 +1,28 @@
+# Build artifacts
+npm/
+scripts/
+*.sh
+test-*.js
+
+# Development files
+.gitignore
+.editorconfig
+tsconfig.json
+
+# Documentation
+*.md
+!README.md
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Local test files
+test/
+tests/
+coverage/
+
+# Build scripts
+build-*.js
+publish-*.js
+auto-*.js

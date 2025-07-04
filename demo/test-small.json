@@ -1,0 +1,15 @@
+{
+  "name": "Small test file",
+  "description": "1KB test file for performance benchmarking",
+  "data": {
+    "user_input": "Hello world, this is a safe message",
+    "query": "SELECT * FROM users WHERE id = 1",
+    "filename": "document.pdf",
+    "comment": "This is a normal comment without any threats",
+    "metadata": {
+      "timestamp": "2024-01-01T00:00:00Z",
+      "source": "demo",
+      "verified": true
+    }
+  }
+}
