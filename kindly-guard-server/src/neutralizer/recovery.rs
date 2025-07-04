@@ -370,7 +370,7 @@ impl CircuitBreaker {
         }
     }
 
-    const fn record_success(&mut self) {
+    fn record_success(&mut self) {
         match self.state {
             CircuitState::HalfOpen => {
                 // Recovery successful, close the circuit

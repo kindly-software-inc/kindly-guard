@@ -238,7 +238,7 @@ fn parse_format(format: &str) -> DisplayFormat {
 
 /// Check if terminal supports color
 fn supports_color() -> bool {
-    std::env::var("NO_COLOR").is_err() && std::env::var("TERM").ok().is_none_or(|t| t != "dumb")
+    std::env::var("NO_COLOR").is_err() && std::env::var("TERM").ok().map_or(true, |t| t != "dumb")
 }
 
 /// Show current shield status

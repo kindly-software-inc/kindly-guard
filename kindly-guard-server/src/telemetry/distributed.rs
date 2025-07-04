@@ -379,7 +379,7 @@ pub struct ProbabilitySampler {
 }
 
 impl ProbabilitySampler {
-    pub const fn new(sampling_rate: f64) -> Self {
+    pub fn new(sampling_rate: f64) -> Self {
         Self {
             sampling_rate: sampling_rate.clamp(0.0, 1.0),
         }

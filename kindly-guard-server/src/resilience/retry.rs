@@ -248,13 +248,13 @@ impl RetryBuilder {
     }
 
     /// Set jitter factor
-    pub const fn jitter(mut self, factor: f64) -> Self {
+    pub fn jitter(mut self, factor: f64) -> Self {
         self.config.jitter_factor = factor.clamp(0.0, 1.0);
         self
     }
 
     /// Set total timeout
-    pub const fn timeout(mut self, timeout: Duration) -> Self {
+    pub fn timeout(mut self, timeout: Duration) -> Self {
         self.config.timeout = Some(timeout);
         self
     }

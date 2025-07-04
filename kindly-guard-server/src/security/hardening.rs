@@ -271,7 +271,7 @@ impl NeutralizationContext {
     }
 
     /// Record failed neutralization
-    pub const fn record_failure(&mut self) {
+    pub fn record_failure(&mut self) {
         self.neutralization_failures += 1;
     }
 
