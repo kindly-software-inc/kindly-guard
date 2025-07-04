@@ -262,6 +262,7 @@ struct RateLimitKey {
 pub struct RateLimiter {
     config: RateLimitConfig,
     buckets: Arc<RwLock<HashMap<RateLimitKey, Arc<Mutex<TokenBucket>>>>>,
+    #[allow(dead_code)] // Reserved for periodic bucket cleanup
     last_cleanup: Arc<Mutex<Instant>>,
 }
 

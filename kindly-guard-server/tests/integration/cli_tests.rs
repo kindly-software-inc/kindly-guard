@@ -6,7 +6,7 @@ use tempfile::NamedTempFile;
 /// Helper to run CLI commands
 fn run_cli_command(args: &[&str]) -> std::process::Output {
     Command::new("cargo")
-        .args(&["run", "--bin", "kindly-guard-cli", "--"])
+        .args(&["run", "--manifest-path", "../kindly-guard-cli/Cargo.toml", "--"])
         .args(args)
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()

@@ -127,3 +127,23 @@ harness = false
 [[bench]]
 name = "real_world"
 harness = false
+
+[[test]]
+name = "dependency_tests"
+path = "tests/integration/dependency_tests.rs"
+
+[[test]]
+name = "mcp_protocol_test"
+path = "tests/integration/mcp_protocol_test.rs"
+
+[[test]]
+name = "cli_tests"
+path = "tests/integration/cli_tests.rs"
+
+[[test]]
+name = "threat_detection_scenarios"
+path = "tests/integration/threat_detection_scenarios.rs"
+
+[[test]]
+name = "basic_functionality_test"
+path = "tests/integration/basic_functionality_test_fixed.rs"

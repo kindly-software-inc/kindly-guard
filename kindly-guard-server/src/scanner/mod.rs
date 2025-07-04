@@ -516,7 +516,7 @@ impl SecurityScanner {
     /// scanning modes without exposing proprietary technology.
     pub fn with_processor(
         config: crate::config::ScannerConfig,
-        event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>>,
+        _event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>>,
     ) -> Result<Self, ScanError> {
         let patterns = if let Some(path) = &config.custom_patterns {
             ThreatPatterns::load_from_file(path)?
@@ -533,7 +533,7 @@ impl SecurityScanner {
         };
 
         #[cfg(not(feature = "enhanced"))]
-        let event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>> = None;
+        let _event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>> = None;
 
         // Create scanners with optional enhancement
         let unicode_scanner = UnicodeScanner::new();

@@ -387,7 +387,7 @@ async fn monitor_command(url: String, interval: u64) -> Result<()> {
     }
 }
 
-async fn fetch_server_status(url: &str) -> Result<serde_json::Value> {
+async fn fetch_server_status(_url: &str) -> Result<serde_json::Value> {
     // For now, return a placeholder
     // TODO: Implement actual HTTP request to server
     Ok(serde_json::json!({

@@ -211,6 +211,7 @@ pub struct HttpConnection {
     stats: Arc<Mutex<ConnectionStats>>,
     transport_stats: Arc<Mutex<TransportStats>>,
     message_queue: Arc<Mutex<mpsc::UnboundedReceiver<TransportMessage>>>,
+    #[allow(dead_code)] // Message sender for future async processing
     message_tx: mpsc::UnboundedSender<TransportMessage>,
 }
 

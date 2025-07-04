@@ -61,13 +61,11 @@ pub use server::McpServer;
 pub use shield::Shield;
 pub use traits::{CorrelationEngine, EnhancedScanner, RateLimiter, SecurityEventProcessor};
 
-use anyhow::Result;
-
 /// Create an event buffer based on configuration
 #[cfg(feature = "enhanced")]
 pub fn create_event_buffer(
     config: &event_processor::EventProcessorConfig,
-) -> Result<Option<Box<dyn traits::EventBufferTrait>>> {
+) -> anyhow::Result<Option<Box<dyn traits::EventBufferTrait>>> {
     if !config.enabled {
         return Ok(None);
     }
@@ -82,15 +80,18 @@ pub fn create_event_buffer(
                 max_endpoints = config.max_endpoints,
                 "Initializing enhanced atomic bit-packed event buffer"
             );
-            // Use the factory function from kindly-guard-core
-            let buffer_config = kindly_guard_core::EventBufferConfig {
-                buffer_size_mb: config.buffer_size_mb,
-                max_endpoints: config.max_endpoints,
-            };
-            return Ok(Some(
-                kindly_guard_core::create_atomic_event_buffer(buffer_config)
-                    .context("Failed to create enhanced event buffer")?,
-            ));
+            // Use the enhanced implementation
+            // Configuration for enhanced buffer
+            let buffer_size_mb = config.buffer_size_mb;
+            let max_endpoints = config.max_endpoints;
+            
+            // Create enhanced buffer through factory
+            return Ok(Some(Box::new(
+                enhanced_impl::create_enhanced_event_buffer(
+                    buffer_size_mb,
+                    max_endpoints,
+                )?,
+            )));
         }
     }
 

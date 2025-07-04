@@ -20,7 +20,7 @@ use crate::resilience::circuit_breaker::{
 use crate::resilience::retry::{DefaultRetryPolicy, RetryBuilder, RetryConfig};
 use crate::traits::{
     CircuitBreakerError, CircuitBreakerTrait, CircuitBreakerWrapper, CircuitState, CircuitStats,
-    DynCircuitBreaker, DynRetryStrategy, ErrorCategory, ErrorType, HealthCheckMetadata,
+    DynCircuitBreaker, DynRetryStrategy, HealthCheckMetadata,
     HealthCheckResult, HealthCheckTrait, HealthCheckType, HealthReport, HealthStatus,
     RecoveryContext, RecoveryState, RecoveryStats, RecoveryStrategyTrait, ResilienceFactory,
     RetryContext, RetryDecision, RetryStats, RetryStrategyTrait, RetryStrategyWrapper,
@@ -150,35 +150,6 @@ impl StandardRetryStrategy {
             true
         } else {
             false
-        }
-    }
-
-    fn categorize_error(error: &anyhow::Error) -> ErrorCategory {
-        let error_str = error.to_string().to_lowercase();
-
-        let (is_retryable, error_type) = if error_str.contains("timeout") {
-            (true, ErrorType::Timeout)
-        } else if error_str.contains("connection") || error_str.contains("network") {
-            (true, ErrorType::Network)
-        } else if error_str.contains("rate limit") || error_str.contains("429") {
-            (true, ErrorType::RateLimit)
-        } else if error_str.contains("unauthorized") || error_str.contains("401") {
-            (false, ErrorType::Authentication)
-        } else if error_str.contains("500")
-            || error_str.contains("502")
-            || error_str.contains("503")
-            || error_str.contains("504")
-        {
-            (true, ErrorType::ServerError)
-        } else if error_str.contains("400") || error_str.contains("404") {
-            (false, ErrorType::ClientError)
-        } else {
-            (true, ErrorType::Unknown) // Retry unknown errors by default
-        };
-
-        ErrorCategory {
-            is_retryable,
-            error_type,
         }
     }
 }

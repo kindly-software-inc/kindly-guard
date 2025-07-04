@@ -341,9 +341,11 @@ impl Default for BufferConfig {
 
 /// Transport manager for handling multiple transports
 pub struct TransportManager {
+    #[allow(dead_code)]
     config: TransportConfig,
     transports: Vec<Box<dyn Transport>>,
     connections: Arc<tokio::sync::RwLock<Vec<Box<dyn TransportConnection>>>>,
+    #[allow(dead_code)]
     message_handler: Arc<dyn MessageHandler>,
 }
 

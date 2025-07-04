@@ -142,7 +142,7 @@ fn throughput_benchmarks(c: &mut Criterion) {
         group.throughput(Throughput::Bytes(*size as u64));
         group.bench_function(format!("clean_text_{}", size), |b| {
             b.iter(|| {
-                let threats = scanner.scan_text(black_box(&clean_text));
+                let threats = scanner.scan_text(black_box(&clean_text)).unwrap_or_default();
                 black_box(threats);
             })
         });
@@ -150,7 +150,7 @@ fn throughput_benchmarks(c: &mut Criterion) {
         let unicode_text = generate_unicode_threats(*size);
         group.bench_function(format!("unicode_threats_{}", size), |b| {
             b.iter(|| {
-                let threats = scanner.scan_text(black_box(&unicode_text));
+                let threats = scanner.scan_text(black_box(&unicode_text)).unwrap_or_default();
                 black_box(threats);
             })
         });
@@ -158,7 +158,7 @@ fn throughput_benchmarks(c: &mut Criterion) {
         let injection_text = generate_injection_patterns(*size);
         group.bench_function(format!("injection_patterns_{}", size), |b| {
             b.iter(|| {
-                let threats = scanner.scan_text(black_box(&injection_text));
+                let threats = scanner.scan_text(black_box(&injection_text)).unwrap_or_default();
                 black_box(threats);
             })
         });
@@ -166,7 +166,7 @@ fn throughput_benchmarks(c: &mut Criterion) {
         let xss_text = generate_xss_content(*size);
         group.bench_function(format!("xss_content_{}", size), |b| {
             b.iter(|| {
-                let threats = scanner.scan_text(black_box(&xss_text));
+                let threats = scanner.scan_text(black_box(&xss_text)).unwrap_or_default();
                 black_box(threats);
             })
         });
@@ -180,7 +180,7 @@ fn throughput_benchmarks(c: &mut Criterion) {
         
         group.bench_function(format!("json_clean_{}", size), |b| {
             b.iter(|| {
-                let threats = scanner.scan_json(black_box(&json_data));
+                let threats = scanner.scan_json(black_box(&json_data)).unwrap_or_default();
                 black_box(threats);
             })
         });
@@ -199,7 +199,7 @@ fn latency_benchmarks(c: &mut Criterion) {
     group.bench_function("detect_invisible_unicode", |b| {
         let text = "Hello\u{200B}World";
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(text));
+            let threats = scanner.scan_text(black_box(text)).unwrap();
             assert!(!threats.is_empty());
             assert!(threats.iter().any(|t| matches!(t.threat_type, ThreatType::UnicodeInvisible)));
             black_box(threats);
@@ -209,7 +209,7 @@ fn latency_benchmarks(c: &mut Criterion) {
     group.bench_function("detect_bidi_override", |b| {
         let text = "file\u{202E}txt.exe";
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(text));
+            let threats = scanner.scan_text(black_box(text)).unwrap();
             assert!(!threats.is_empty());
             assert!(threats.iter().any(|t| matches!(t.threat_type, ThreatType::UnicodeBiDi)));
             black_box(threats);
@@ -219,7 +219,7 @@ fn latency_benchmarks(c: &mut Criterion) {
     group.bench_function("detect_sql_injection", |b| {
         let text = "'; DROP TABLE users; --";
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(text));
+            let threats = scanner.scan_text(black_box(text)).unwrap();
             assert!(!threats.is_empty());
             assert!(threats.iter().any(|t| matches!(t.threat_type, ThreatType::SqlInjection)));
             black_box(threats);
@@ -229,9 +229,9 @@ fn latency_benchmarks(c: &mut Criterion) {
     group.bench_function("detect_xss_script", |b| {
         let text = "<script>alert('xss')</script>";
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(text));
+            let threats = scanner.scan_text(black_box(text)).unwrap();
             assert!(!threats.is_empty());
-            assert!(threats.iter().any(|t| matches!(t.threat_type, ThreatType::XssScript)));
+            assert!(threats.iter().any(|t| matches!(t.threat_type, ThreatType::CrossSiteScripting)));
             black_box(threats);
         })
     });
@@ -239,7 +239,7 @@ fn latency_benchmarks(c: &mut Criterion) {
     group.bench_function("detect_path_traversal", |b| {
         let text = "../../../etc/passwd";
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(text));
+            let threats = scanner.scan_text(black_box(text)).unwrap();
             assert!(!threats.is_empty());
             assert!(threats.iter().any(|t| matches!(t.threat_type, ThreatType::PathTraversal)));
             black_box(threats);
@@ -250,7 +250,7 @@ fn latency_benchmarks(c: &mut Criterion) {
     group.bench_function("detect_json_threats", |b| {
         let json_data = generate_json_threats();
         b.iter(|| {
-            let threats = scanner.scan_json(black_box(&json_data));
+            let threats = scanner.scan_json(black_box(&json_data)).unwrap();
             assert!(!threats.is_empty());
             black_box(threats);
         })
@@ -260,7 +260,7 @@ fn latency_benchmarks(c: &mut Criterion) {
     group.bench_function("no_threats_baseline", |b| {
         let text = "This is completely safe text with no threats whatsoever.";
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(text));
+            let threats = scanner.scan_text(black_box(text)).unwrap();
             assert!(threats.is_empty());
             black_box(threats);
         })
@@ -286,7 +286,7 @@ fn mixed_content_benchmarks(c: &mut Criterion) {
         });
         
         b.iter(|| {
-            let threats = scanner.scan_json(black_box(&form_data));
+            let threats = scanner.scan_json(black_box(&form_data)).unwrap_or_default();
             black_box(threats);
         })
     });
@@ -303,7 +303,7 @@ fn mixed_content_benchmarks(c: &mut Criterion) {
         });
         
         b.iter(|| {
-            let threats = scanner.scan_json(black_box(&api_request));
+            let threats = scanner.scan_json(black_box(&api_request)).unwrap();
             assert!(!threats.is_empty());
             black_box(threats);
         })
@@ -327,7 +327,7 @@ Here's a [link](https://example.com) to our website.
         "#;
         
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(markdown));
+            let threats = scanner.scan_text(black_box(markdown)).unwrap_or_default();
             black_box(threats);
         })
     });
@@ -347,7 +347,7 @@ function processUserInput(input) {
         "#;
         
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(code));
+            let threats = scanner.scan_text(black_box(code)).unwrap_or_default();
             black_box(threats);
         })
     });

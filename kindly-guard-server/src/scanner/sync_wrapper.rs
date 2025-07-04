@@ -26,6 +26,7 @@ use std::sync::Arc;
 /// internally, providing a synchronous API for testing and other use cases.
 pub struct SyncSecurityScanner {
     scanner: Arc<SecurityScanner>,
+    #[allow(dead_code)] // Runtime kept for potential async operations
     runtime: tokio::runtime::Runtime,
 }
 

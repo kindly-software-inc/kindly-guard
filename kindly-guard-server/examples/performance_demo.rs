@@ -25,16 +25,15 @@ use crossterm::{
 use kindly_guard_server::scanner::{SecurityScanner, ThreatType};
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Alignment, Constraint, Direction, Layout, Rect},
+    layout::{Alignment, Constraint, Direction, Layout},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Gauge, Paragraph, Sparkline},
+    widgets::{Block, Borders, Paragraph, Sparkline},
     Frame, Terminal,
 };
 use std::{
     collections::VecDeque,
     io,
-    path::Path,
     sync::{
         atomic::{AtomicBool, AtomicU64, AtomicUsize, Ordering},
         Arc,
@@ -207,7 +206,7 @@ async fn scanner_loop(
             
             if let Ok(content) = fs::read_to_string(file_path).await {
                 let start = Instant::now();
-                let threats = scanner.scan_text(&content);
+                let threats = scanner.scan_text(&content).unwrap_or_default();
                 let duration = start.elapsed();
                 
                 metrics.record_scan(content.len(), duration, threats.len());
@@ -221,8 +220,7 @@ async fn scanner_loop(
                         ThreatType::SqlInjection => "SQL Injection",
                         ThreatType::CommandInjection => "Command Injection",
                         ThreatType::PathTraversal => "Path Traversal",
-                        ThreatType::XssScript => "XSS Script",
-                        ThreatType::XssEventHandler => "XSS Event",
+                        ThreatType::CrossSiteScripting => "XSS",
                         ThreatType::PromptInjection => "Prompt Injection",
                         _ => "Other",
                     };
@@ -246,7 +244,7 @@ async fn scanner_loop(
 }
 
 /// Draw the UI
-async fn draw_ui(frame: &mut Frame, metrics: &PerformanceMetrics) {
+async fn draw_ui(frame: &mut Frame<'_>, metrics: &PerformanceMetrics) {
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([

@@ -132,6 +132,8 @@ struct ToggleResponse {
 
 #[derive(Debug, Deserialize)]
 struct CommandQuery {
+    #[allow(dead_code)]
     cmd: String,
+    #[allow(dead_code)]
     args: Option<String>,
 }

@@ -113,6 +113,7 @@ impl CommandRateLimiter {
 /// Resource usage monitor
 pub struct ResourceMonitor {
     max_memory_mb: usize,
+    #[allow(dead_code)] // CPU monitoring planned for future release
     max_cpu_percent: f32,
 }
 

@@ -1,6 +1,6 @@
 use kindly_guard_server::{
     config::Config,
-    server::KindlyGuardServer,
+    server::McpServer,
     protocol::types::{McpRequest, McpResponse, ToolInfo},
 };
 use serde_json::{json, Value};
@@ -8,9 +8,9 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// Helper to create a test server
-async fn create_test_server() -> Arc<KindlyGuardServer> {
+async fn create_test_server() -> Arc<McpServer> {
     let config = Config::default();
-    let server = KindlyGuardServer::new(config).await
+    let server = McpServer::new(config).await
         .expect("Failed to create server");
     Arc::new(server)
 }

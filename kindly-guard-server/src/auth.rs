@@ -600,6 +600,7 @@ struct JwtHeader {
     alg: Option<String>,
 
     #[serde(default)]
+    #[allow(dead_code)] // JWT type field, kept for standard compliance
     typ: Option<String>,
 }
 
@@ -610,6 +611,7 @@ struct TokenClaims {
     iss: Option<String>,
 
     #[serde(default)]
+    #[allow(dead_code)] // JWT standard claim, kept for compliance
     sub: Option<String>,
 
     #[serde(default)]
@@ -619,6 +621,7 @@ struct TokenClaims {
     exp: Option<u64>,
 
     #[serde(default)]
+    #[allow(dead_code)] // JWT issued-at claim, kept for compliance
     iat: Option<u64>,
 
     #[serde(default)]

@@ -269,6 +269,7 @@ impl CorrelationEngine for StandardCorrelationEngine {
 
 /// Standard rate limiter using token bucket
 pub struct StandardRateLimiter {
+    #[allow(dead_code)] // Storage integration for persistence planned
     storage: Arc<dyn StorageProvider>,
     buckets: RwLock<HashMap<RateLimitKey, TokenBucket>>,
     requests_allowed: AtomicU64,
@@ -353,9 +354,9 @@ impl RateLimiter for StandardRateLimiter {
 }
 
 /// Standard component factory
-pub struct StandardComponentFactory;
+pub struct StandardFactory;
 
-impl SecurityComponentFactory for StandardComponentFactory {
+impl SecurityComponentFactory for StandardFactory {
     fn create_event_processor(
         &self,
         _config: &crate::config::Config,
@@ -390,7 +391,7 @@ impl SecurityComponentFactory for StandardComponentFactory {
 
     fn create_security_scanner(
         &self,
-        config: &crate::config::Config,
+        _config: &crate::config::Config,
     ) -> Result<Arc<dyn SecurityScannerTrait>> {
         // For now, return a simple wrapper around the existing scanner
         // TODO: Properly refactor SecurityScanner to implement trait

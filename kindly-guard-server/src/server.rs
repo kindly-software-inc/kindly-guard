@@ -45,10 +45,14 @@ use crate::versioning::{add_version_metadata, ApiRegistry};
 
 /// Session information
 struct SessionInfo {
+    #[allow(dead_code)]
     id: String,
     client_info: Option<ClientInfo>,
+    #[allow(dead_code)]
     created_at: std::time::Instant,
+    #[allow(dead_code)]
     threats_blocked: u64,
+    #[allow(dead_code)]
     last_activity: std::time::Instant,
 }
 

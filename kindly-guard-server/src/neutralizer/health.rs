@@ -231,6 +231,7 @@ pub struct HealthIssue {
 /// Health monitoring wrapper for neutralizers
 pub struct HealthMonitoredNeutralizer {
     inner: Arc<dyn ThreatNeutralizer>,
+    #[allow(dead_code)] // Config kept for future health monitoring features
     config: NeutralizationHealthConfig,
     health_checker: Arc<NeutralizationHealthChecker>,
     monitor_handle: Option<tokio::task::JoinHandle<()>>,

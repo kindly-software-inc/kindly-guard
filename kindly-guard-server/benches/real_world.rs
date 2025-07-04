@@ -21,13 +21,13 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughpu
 use kindly_guard_server::scanner::{SecurityScanner, Severity, ThreatType};
 use rand::{thread_rng, Rng};
 use serde_json::json;
-use std::collections::HashMap;
 use std::time::Duration;
 
 const KB: usize = 1024;
 const MB: usize = 1024 * KB;
 
 /// Represents a file in our simulated codebase
+#[derive(Clone)]
 struct CodebaseFile {
     path: String,
     content: String,
@@ -524,7 +524,7 @@ fn codebase_scanning_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let mut total_threats = 0;
                 for file in &clean_codebase {
-                    let threats = scanner.scan_text(black_box(&file.content));
+                    let threats = scanner.scan_text(black_box(&file.content)).unwrap_or_default();
                     total_threats += threats.len();
                 }
                 black_box(total_threats);
@@ -539,7 +539,7 @@ fn codebase_scanning_benchmark(c: &mut Criterion) {
             b.iter(|| {
                 let mut total_threats = 0;
                 for file in &infected_codebase {
-                    let threats = scanner.scan_text(black_box(&file.content));
+                    let threats = scanner.scan_text(black_box(&file.content)).unwrap_or_default();
                     total_threats += threats.len();
                 }
                 black_box(total_threats);
@@ -568,7 +568,7 @@ fn false_positive_analysis(c: &mut Criterion) {
         b.iter(|| {
             let mut false_positives = 0;
             for query in &queries {
-                let threats = scanner.scan_text(black_box(query));
+                let threats = scanner.scan_text(black_box(query)).unwrap_or_default();
                 // These should not be detected as SQL injection
                 if threats.iter().any(|t| matches!(t.threat_type, ThreatType::SqlInjection)) {
                     false_positives += 1;
@@ -590,9 +590,9 @@ fn false_positive_analysis(c: &mut Criterion) {
         b.iter(|| {
             let mut false_positives = 0;
             for html in &html_samples {
-                let threats = scanner.scan_text(black_box(html));
+                let threats = scanner.scan_text(black_box(html)).unwrap_or_default();
                 // These should not be detected as XSS
-                if threats.iter().any(|t| matches!(t.threat_type, ThreatType::XssScript)) {
+                if threats.iter().any(|t| matches!(t.threat_type, ThreatType::CrossSiteScripting)) {
                     false_positives += 1;
                 }
             }
@@ -613,7 +613,7 @@ fn false_positive_analysis(c: &mut Criterion) {
         b.iter(|| {
             let mut false_positives = 0;
             for name in &names {
-                let threats = scanner.scan_text(black_box(name));
+                let threats = scanner.scan_text(black_box(name)).unwrap_or_default();
                 // Legitimate Unicode names should not be flagged
                 if threats.iter().any(|t| matches!(t.threat_type, ThreatType::UnicodeHomograph)) {
                     false_positives += 1;
@@ -662,7 +662,7 @@ fn mixed_content_analysis(c: &mut Criterion) {
         b.iter(|| {
             let mut total_threats = 0;
             for payload in &payloads {
-                let threats = scanner.scan_json(black_box(payload));
+                let threats = scanner.scan_json(black_box(payload)).unwrap_or_default();
                 total_threats += threats.len();
             }
             black_box(total_threats);
@@ -680,7 +680,7 @@ fn mixed_content_analysis(c: &mut Criterion) {
         ].join("\n");
         
         b.iter(|| {
-            let threats = scanner.scan_text(black_box(&log_entries));
+            let threats = scanner.scan_text(black_box(&log_entries)).unwrap();
             // Should detect the SQL injection in the log but not flag normal logs
             assert!(!threats.is_empty());
             black_box(threats);
@@ -711,7 +711,7 @@ fn threat_detection_accuracy(c: &mut Criterion) {
             let total = test_cases.len();
             
             for (input, expected_severity) in &test_cases {
-                let threats = scanner.scan_text(black_box(input));
+                let threats = scanner.scan_text(black_box(input)).unwrap_or_default();
                 if let Some(threat) = threats.first() {
                     if threat.severity == *expected_severity {
                         correct_severities += 1;

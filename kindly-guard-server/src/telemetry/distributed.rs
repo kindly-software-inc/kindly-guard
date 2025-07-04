@@ -135,6 +135,7 @@ pub struct DistributedTracingProvider {
     sampler: Arc<dyn TracingSampler>,
 
     /// Context propagator
+    #[allow(dead_code)] // Reserved for distributed context propagation
     propagator: Arc<dyn ContextPropagator>,
 }
 

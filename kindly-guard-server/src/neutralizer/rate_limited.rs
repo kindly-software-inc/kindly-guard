@@ -123,17 +123,6 @@ impl RateLimitedNeutralizer {
         *count += 1;
         Ok(())
     }
-
-    /// Decrement concurrent operations counter
-    async fn decrement_concurrent(&self, client_id: &str) {
-        let mut ops = self.concurrent_operations.lock().await;
-        if let Some(count) = ops.get_mut(client_id) {
-            *count = count.saturating_sub(1);
-            if *count == 0 {
-                ops.remove(client_id);
-            }
-        }
-    }
 }
 
 #[async_trait]
