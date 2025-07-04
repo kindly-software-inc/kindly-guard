@@ -13,7 +13,7 @@
 
 ### npm (Recommended)
 ```bash
-npm install -g kindly-guard && kindly-guard --stdio
+npm install -g @kindlyguard/kindlyguard && kindlyguard --stdio
 ```
 
 ### Cargo
@@ -336,7 +336,7 @@ RUST_LOG=debug cargo run -- --stdio
 
 ## 📈 Roadmap
 
-### v0.9.0 (Current Release)
+### v0.9.1 (Current Release)
 - ✅ Core security scanning engine
 - ✅ MCP protocol implementation
 - ✅ OAuth 2.0 authentication

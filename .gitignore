@@ -141,3 +141,7 @@ test_*.tmp
 proprietary/
 enterprise/
 SECURITY_AUDIT_PROPRIETARY_CODE.md
+
+# Claude configuration (contains sensitive project info)
+CLAUDE.md
+claude.md

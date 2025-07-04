@@ -508,9 +508,9 @@ async fn shield_command(command: ShieldCommands) -> Result<()> {
 
 async fn shell_init_command(shell: &str) -> Result<()> {
     let script = match shell {
-        "bash" => include_str!("../../kindly-guard-server/scripts/shell-init.bash"),
-        "zsh" => include_str!("../../kindly-guard-server/scripts/shell-init.zsh"),
-        "fish" => include_str!("../../kindly-guard-server/scripts/shell-init.fish"),
+        "bash" => include_str!("../scripts/shell-init.bash"),
+        "zsh" => include_str!("../scripts/shell-init.zsh"),
+        "fish" => include_str!("../scripts/shell-init.fish"),
         _ => {
             anyhow::bail!(
                 "Unsupported shell: {}. Supported shells: bash, zsh, fish",

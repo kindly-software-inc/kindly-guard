@@ -1,6 +1,6 @@
 {
   "name": "@kindlyguard/darwin-arm64",
-  "version": "0.2.0",
+  "version": "0.9.1",
   "description": "macOS arm64 (Apple Silicon) binary for KindlyGuard",
   "repository": {
     "type": "git",

@@ -1,7 +1,7 @@
 {
   "id": "kindlyguard-shield",
   "name": "KindlyGuard Security Shield",
-  "version": "0.1.0",
+  "version": "0.9.1",
   "minVersion": "1.0.0",
   "description": "Real-time security monitoring for Claude Code with KindlyGuard",
   "author": "KindlyGuard Team",

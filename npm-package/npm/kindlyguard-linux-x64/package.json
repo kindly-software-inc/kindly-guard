@@ -1,6 +1,6 @@
 {
   "name": "@kindlyguard/linux-x64",
-  "version": "0.2.0",
+  "version": "0.9.1",
   "description": "Linux x64 binary for KindlyGuard",
   "repository": {
     "type": "git",
@@ -13,8 +13,12 @@
     "kindlyguard",
     "kindlyguard-cli"
   ],
-  "os": ["linux"],
-  "cpu": ["x64"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
   "engines": {
     "node": ">=14.0.0"
   }

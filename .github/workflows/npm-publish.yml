@@ -147,7 +147,7 @@ jobs:
         npm version "$VERSION" --no-git-tag-version
         
         # Update platform package references
-        sed -i "s/\"0.2.0\"/\"$VERSION\"/g" package.json
+        sed -i "s/\"0.9.1\"/\"$VERSION\"/g" package.json
     
     - name: Publish platform packages
       env:

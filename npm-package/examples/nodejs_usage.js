@@ -2,7 +2,7 @@
  * Example: Using KindlyGuard as an MCP server in Node.js
  */
 
-const kindlyguard = require('kindlyguard');
+const kindlyguard = require('@kindlyguard/kindlyguard');
 
 // Example 1: Start MCP server programmatically
 async function startMCPServer() {

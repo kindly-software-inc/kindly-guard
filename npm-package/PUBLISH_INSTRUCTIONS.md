@@ -67,8 +67,8 @@ To trigger automated publishing:
 
 1. **Create a new release tag**:
    ```bash
-   git tag v0.2.0
-   git push origin v0.2.0
+   git tag v0.9.1
+   git push origin v0.9.1
    ```
 
 2. The workflow will automatically:
@@ -78,14 +78,14 @@ To trigger automated publishing:
 
 ## Version Management
 
-- Current version: 0.2.0
+- Current version: 0.9.1
 - Platform packages use same version as main package
 - Follow semantic versioning (MAJOR.MINOR.PATCH)
 
 ## Package Structure
 
 ```
-kindlyguard (main package)
+@kindlyguard/kindlyguard (main package)
 ├── @kindlyguard/linux-x64
 ├── @kindlyguard/darwin-x64
 ├── @kindlyguard/darwin-arm64
@@ -137,7 +137,7 @@ To add a new platform:
 
 ## After Publishing
 
-1. Verify the package at: https://www.npmjs.com/package/kindlyguard
-2. Test installation: `npm install -g kindlyguard`
+1. Verify the package at: https://www.npmjs.com/package/@kindlyguard/kindlyguard
+2. Test installation: `npm install -g @kindlyguard/kindlyguard`
 3. Update documentation with new version
 4. Create GitHub release with changelog

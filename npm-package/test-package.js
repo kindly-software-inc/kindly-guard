@@ -93,7 +93,7 @@ if (fs.existsSync(dtsPath)) {
 testScan().then(() => {
   console.log('\n✅ All tests completed!');
   console.log('\nTo use KindlyGuard:');
-  console.log('  const kindlyguard = require(\'kindlyguard\');');
+  console.log('  const kindlyguard = require(\'@kindlyguard/kindlyguard\');');
   console.log('  kindlyguard.startServer({ stdio: true });');
 }).catch(error => {
   console.error('\n❌ Test failed:', error);

@@ -170,7 +170,7 @@ impl SecurityTestRunner {
 
     /// Run all security tests
     pub async fn run_all_tests(&mut self) -> Result<SecurityTestReport> {
-        println!("🔒 KindlyGuard Security Test Suite v0.2.0");
+        println!("🔒 KindlyGuard Security Test Suite v0.9.1");
         println!("==========================================\n");
 
         let categories = if self.config.run_all_tests {
@@ -504,7 +504,7 @@ impl SecurityTestRunner {
 
         SecurityTestReport {
             timestamp: Utc::now(),
-            version: "0.2.0".to_string(),
+            version: "0.9.1".to_string(),
             total_tests,
             passed_tests,
             failed_tests,

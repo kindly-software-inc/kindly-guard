@@ -1,0 +1,129 @@
+# Docker Compose configuration for buildx multi-platform builds
+# Use this for local development and testing of multi-platform images
+
+version: '3.8'
+
+services:
+  kindly-guard:
+    build:
+      context: .
+      dockerfile: Dockerfile.multiplatform
+      # Buildx-specific configuration
+      x-bake:
+        platforms:
+          - linux/amd64
+          - linux/arm64
+          - linux/arm/v7
+        cache-from:
+          - type=registry,ref=kindlysoftware/kindly-guard:buildcache
+        cache-to:
+          - type=registry,ref=kindlysoftware/kindly-guard:buildcache,mode=max
+      args:
+        - BUILDKIT_INLINE_CACHE=1
+        - VERSION=${VERSION:-dev}
+        - BUILD_DATE=${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        - VCS_REF=${VCS_REF:-$(git rev-parse --short HEAD)}
+    
+    image: kindly-guard:multiplatform
+    container_name: kindly-guard-server
+    hostname: kindly-guard
+    
+    # Platform specification (for runtime)
+    platform: ${DOCKER_DEFAULT_PLATFORM:-linux/amd64}
+    
+    # Security settings
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE  # Only if using TCP mode on privileged ports
+    read_only: true
+    
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 128M
+    
+    # Volumes
+    volumes:
+      - ./config/production.toml:/etc/kindly-guard/config.toml:ro
+      - kindly-guard-data:/var/lib/kindly-guard
+      - kindly-guard-logs:/var/log/kindly-guard
+      - /tmp  # Writable temp directory for runtime needs
+    
+    # Environment variables
+    environment:
+      - RUST_LOG=kindly_guard=info,warn
+      - RUST_BACKTRACE=1
+      - KINDLY_GUARD_ENV=production
+    
+    # Networking
+    networks:
+      - kindly-guard-net
+    ports:
+      - "127.0.0.1:3000:3000"  # Only expose to localhost
+    
+    # Health and lifecycle
+    restart: unless-stopped
+    stop_grace_period: 30s
+    
+    # Logging
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+        labels: "service=kindly-guard"
+
+  # Buildx builder service (for development)
+  buildx-builder:
+    image: docker/buildx-bin:latest
+    command: create --name kindly-guard-compose-builder --driver docker-container --use
+    profiles:
+      - buildx-setup
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  kindly-guard-data:
+    driver: local
+  kindly-guard-logs:
+    driver: local
+
+networks:
+  kindly-guard-net:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+# Extension for docker-compose with buildx bake
+x-bake:
+  default:
+    group:
+      default:
+        targets:
+          - kindly-guard
+    target:
+      kindly-guard:
+        context: .
+        dockerfile: Dockerfile.multiplatform
+        platforms:
+          - linux/amd64
+          - linux/arm64
+          - linux/arm/v7
+        tags:
+          - kindly-guard:multiplatform
+          - kindly-guard:latest
+        cache-from:
+          - type=gha
+          - type=local,src=/tmp/.buildx-cache
+        cache-to:
+          - type=gha,mode=max
+          - type=local,dest=/tmp/.buildx-cache-new,mode=max

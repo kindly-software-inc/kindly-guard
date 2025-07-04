@@ -1,15 +1,28 @@
 [package]
 name = "kindlyguard"
-version = "0.0.1"
+version = "0.9.1"
 authors = ["samduchaine"]
 edition = "2021"
-description = "Security-focused MCP server for AI protection - Coming soon!"
+description = "Security-focused MCP server for AI protection - unified package providing both server and CLI functionality"
 license = "Apache-2.0"
 repository = "https://github.com/samduchaine/kindly-guard"
 homepage = "https://github.com/samduchaine/kindly-guard"
 documentation = "https://docs.rs/kindlyguard"
 readme = "README.md"
-keywords = ["security", "mcp", "ai", "protection"]
-categories = ["network-programming", "web-programming"]
+keywords = ["security", "mcp", "ai", "protection", "unicode"]
+categories = ["network-programming", "web-programming", "command-line-utilities"]
 
 [dependencies]
+# When publishing to crates.io, remove the 'path' attributes
+# For local development, these will use the workspace versions
+kindly-guard-server = { version = "0.9.1", path = "../../kindly-guard-server", optional = false }
+
+# Note: The CLI is a binary-only crate and cannot be used as a library dependency
+# Users should install both crates separately:
+# - cargo install kindlyguard (for the library)
+# - cargo install kindly-guard-cli (for the CLI tool)
+#
+# Publishing order:
+# 1. kindly-guard-server
+# 2. kindly-guard-cli  
+# 3. kindlyguard

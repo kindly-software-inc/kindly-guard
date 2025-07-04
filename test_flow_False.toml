@@ -2,7 +2,7 @@
 # KindlyGuard Flow Test Configuration
 [server]
 name = "kindly-guard-flow-test"
-version = "0.2.0"
+version = "0.9.1"
 
 [scanner]
 unicode_detection = true

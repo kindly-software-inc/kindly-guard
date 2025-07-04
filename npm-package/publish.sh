@@ -7,7 +7,7 @@ echo "========================================"
 echo "KindlyGuard NPM Package Publishing Guide"
 echo "========================================"
 echo ""
-echo "This script will guide you through publishing the kindlyguard placeholder package."
+echo "This script will guide you through publishing the @kindlyguard/kindlyguard package."
 echo ""
 
 # Check if user is logged in to npm
@@ -69,7 +69,7 @@ echo ""
 echo "⚠️  IMPORTANT: This will publish the package to npm publicly!"
 echo "   This action cannot be undone for this version number."
 echo ""
-read -p "Do you want to publish 'kindlyguard' version 0.0.1? (y/N): " -n 1 -r
+read -p "Do you want to publish '@kindlyguard/kindlyguard' version $(node -p "require('./package.json').version")? (y/N): " -n 1 -r
 echo ""
 
 if [[ $REPLY =~ ^[Yy]$ ]]; then
@@ -79,10 +79,10 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     
     if [ $? -eq 0 ]; then
         echo ""
-        echo "🎉 Success! The 'kindlyguard' package has been published!"
+        echo "🎉 Success! The '@kindlyguard/kindlyguard' package has been published!"
         echo ""
         echo "Next steps:"
-        echo "1. Verify the package at: https://www.npmjs.com/package/kindlyguard"
+        echo "1. Verify the package at: https://www.npmjs.com/package/@kindlyguard/kindlyguard"
         echo "2. The name is now reserved for your account"
         echo "3. When ready to publish the full version:"
         echo "   - Update to version 1.0.0 or higher"

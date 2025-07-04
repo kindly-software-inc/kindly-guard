@@ -13,13 +13,13 @@ Security-focused MCP (Model Context Protocol) server that protects AI systems ag
 ## Installation
 
 ```bash
-npm install -g kindlyguard
+npm install -g @kindlyguard/kindlyguard
 ```
 
 Or use directly with npx (no installation required):
 
 ```bash
-npx kindlyguard --stdio
+npx @kindlyguard/kindlyguard --stdio
 ```
 
 ## Quick Start
@@ -36,7 +36,7 @@ npx kindlyguard --stdio
   "mcpServers": {
     "kindlyguard": {
       "command": "npx",
-      "args": ["kindlyguard", "--stdio"],
+      "args": ["@kindlyguard/kindlyguard", "--stdio"],
       "env": {
         "RUST_LOG": "info"
       }
@@ -57,7 +57,7 @@ Add to your VS Code settings:
   "mcp.servers": {
     "kindlyguard": {
       "command": "npx",
-      "args": ["kindlyguard", "--stdio"],
+      "args": ["@kindlyguard/kindlyguard", "--stdio"],
       "env": {
         "RUST_LOG": "debug"
       }
@@ -70,28 +70,28 @@ Add to your VS Code settings:
 
 ```bash
 # Start as MCP server (for Claude Desktop integration)
-npx kindlyguard --stdio
+npx @kindlyguard/kindlyguard --stdio
 
 # Scan a file for threats
-npx kindlyguard scan suspicious.txt
+npx @kindlyguard/kindlyguard scan suspicious.txt
 
 # Scan text directly
-npx kindlyguard scan "Hello\u202Eworld"
+npx @kindlyguard/kindlyguard scan "Hello\u202Eworld"
 
 # Get JSON output
-npx kindlyguard scan --format json data.json
+npx @kindlyguard/kindlyguard scan --format json data.json
 
 # Check server status
-npx kindlyguard status
+npx @kindlyguard/kindlyguard status
 
 # View help
-npx kindlyguard --help
+npx @kindlyguard/kindlyguard --help
 ```
 
 ### Programmatic API
 
 ```javascript
-const kindlyguard = require('kindlyguard');
+const kindlyguard = require('@kindlyguard/kindlyguard');
 
 // Example 1: Start MCP server
 const server = kindlyguard.create({ stdio: true });
@@ -130,7 +130,7 @@ const customServer = kindlyguard.create({
 KindlyGuard can be configured using a TOML file. Pass the config path with `--config`:
 
 ```bash
-npx kindlyguard --stdio --config ./my-config.toml
+npx @kindlyguard/kindlyguard --stdio --config ./my-config.toml
 ```
 
 Example `kindly-guard.toml`:
@@ -179,12 +179,12 @@ See the `examples/` directory for more usage examples:
 
 1. Check if the binary is installed:
    ```bash
-   npx kindlyguard status
+   npx @kindlyguard/kindlyguard status
    ```
 
 2. Enable debug logging:
    ```bash
-   RUST_LOG=debug npx kindlyguard --stdio
+   RUST_LOG=debug npx @kindlyguard/kindlyguard --stdio
    ```
 
 3. Verify your configuration file syntax
@@ -240,11 +240,11 @@ KindlyGuard is built with Rust for maximum performance:
 
 ## License
 
-MIT
+Apache-2.0
 
 ## Links
 
 - [GitHub Repository](https://github.com/samduchaine/kindly-guard)
 - [Documentation](https://github.com/samduchaine/kindly-guard#readme)
 - [Issues](https://github.com/samduchaine/kindly-guard/issues)
-- [NPM Package](https://www.npmjs.com/package/kindlyguard)
+- [NPM Package](https://www.npmjs.com/package/@kindlyguard/kindlyguard)

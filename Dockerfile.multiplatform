@@ -1,0 +1,191 @@
+# Multi-platform Dockerfile for KindlyGuard MCP Security Server
+# Optimized for cross-platform builds with Docker buildx
+# Supports: linux/amd64, linux/arm64, linux/arm/v7, linux/386, linux/ppc64le, linux/s390x
+
+# Build stage
+FROM --platform=$BUILDPLATFORM rust:1.75-slim AS builder
+
+# Build arguments
+ARG TARGETPLATFORM
+ARG BUILDPLATFORM
+ARG VERSION
+ARG BUILD_DATE
+ARG VCS_REF
+
+# Install build dependencies and cross-compilation tools
+RUN apt-get update && apt-get install -y \
+    pkg-config \
+    libssl-dev \
+    gcc \
+    g++ \
+    libc6-dev \
+    make \
+    cmake \
+    && case "$TARGETPLATFORM" in \
+        "linux/arm64") \
+            dpkg --add-architecture arm64 && \
+            apt-get update && \
+            apt-get install -y gcc-aarch64-linux-gnu g++-aarch64-linux-gnu \
+            libssl-dev:arm64 libc6-dev:arm64 ;; \
+        "linux/arm/v7") \
+            dpkg --add-architecture armhf && \
+            apt-get update && \
+            apt-get install -y gcc-arm-linux-gnueabihf g++-arm-linux-gnueabihf \
+            libssl-dev:armhf libc6-dev:armhf ;; \
+        "linux/386") \
+            dpkg --add-architecture i386 && \
+            apt-get update && \
+            apt-get install -y gcc-i686-linux-gnu g++-i686-linux-gnu \
+            libssl-dev:i386 libc6-dev:i386 ;; \
+        "linux/ppc64le") \
+            dpkg --add-architecture ppc64el && \
+            apt-get update && \
+            apt-get install -y gcc-powerpc64le-linux-gnu g++-powerpc64le-linux-gnu \
+            libssl-dev:ppc64el libc6-dev:ppc64el ;; \
+        "linux/s390x") \
+            dpkg --add-architecture s390x && \
+            apt-get update && \
+            apt-get install -y gcc-s390x-linux-gnu g++-s390x-linux-gnu \
+            libssl-dev:s390x libc6-dev:s390x ;; \
+    esac && \
+    rm -rf /var/lib/apt/lists/*
+
+# Setup Rust target
+RUN case "$TARGETPLATFORM" in \
+        "linux/amd64") echo "x86_64-unknown-linux-gnu" > /rust_target ;; \
+        "linux/arm64") echo "aarch64-unknown-linux-gnu" > /rust_target ;; \
+        "linux/arm/v7") echo "armv7-unknown-linux-gnueabihf" > /rust_target ;; \
+        "linux/386") echo "i686-unknown-linux-gnu" > /rust_target ;; \
+        "linux/ppc64le") echo "powerpc64le-unknown-linux-gnu" > /rust_target ;; \
+        "linux/s390x") echo "s390x-unknown-linux-gnu" > /rust_target ;; \
+        *) echo "x86_64-unknown-linux-gnu" > /rust_target ;; \
+    esac && \
+    rustup target add $(cat /rust_target)
+
+# Setup cross-compilation environment variables
+ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+    CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc \
+    CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++ \
+    AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar \
+    CARGO_TARGET_ARMV7_UNKNOWN_LINUX_GNUEABIHF_LINKER=arm-linux-gnueabihf-gcc \
+    CC_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-gcc \
+    CXX_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-g++ \
+    AR_armv7_unknown_linux_gnueabihf=arm-linux-gnueabihf-ar \
+    CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=i686-linux-gnu-gcc \
+    CC_i686_unknown_linux_gnu=i686-linux-gnu-gcc \
+    CXX_i686_unknown_linux_gnu=i686-linux-gnu-g++ \
+    AR_i686_unknown_linux_gnu=i686-linux-gnu-ar \
+    CARGO_TARGET_POWERPC64LE_UNKNOWN_LINUX_GNU_LINKER=powerpc64le-linux-gnu-gcc \
+    CC_powerpc64le_unknown_linux_gnu=powerpc64le-linux-gnu-gcc \
+    CXX_powerpc64le_unknown_linux_gnu=powerpc64le-linux-gnu-g++ \
+    AR_powerpc64le_unknown_linux_gnu=powerpc64le-linux-gnu-ar \
+    CARGO_TARGET_S390X_UNKNOWN_LINUX_GNU_LINKER=s390x-linux-gnu-gcc \
+    CC_s390x_unknown_linux_gnu=s390x-linux-gnu-gcc \
+    CXX_s390x_unknown_linux_gnu=s390x-linux-gnu-g++ \
+    AR_s390x_unknown_linux_gnu=s390x-linux-gnu-ar
+
+# Create build user for security
+RUN useradd -m -u 1001 -s /bin/bash builduser
+
+# Set working directory
+WORKDIR /build
+
+# Copy workspace files
+COPY Cargo.toml Cargo.lock ./
+COPY kindly-guard-server/Cargo.toml ./kindly-guard-server/
+COPY kindly-guard-cli/Cargo.toml ./kindly-guard-cli/
+COPY kindly-guard-shield/Cargo.toml ./kindly-guard-shield/
+COPY crates-io-package/kindlyguard/Cargo.toml ./crates-io-package/kindlyguard/
+
+# Create stub files for dependency caching
+RUN mkdir -p kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/src crates-io-package/kindlyguard/src && \
+    echo "fn main() {}" > kindly-guard-server/src/main.rs && \
+    touch kindly-guard-server/src/lib.rs && \
+    echo "fn main() {}" > kindly-guard-cli/src/main.rs && \
+    echo "fn main() {}" > kindly-guard-shield/src/main.rs && \
+    touch crates-io-package/kindlyguard/src/lib.rs
+
+# Build dependencies only (for caching)
+RUN --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/build/target \
+    cargo build --release --target $(cat /rust_target) --package kindly-guard-server
+
+# Remove stub files
+RUN rm -rf kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/src crates-io-package/kindlyguard/src
+
+# Copy actual source code
+COPY . .
+
+# Change ownership to build user
+RUN chown -R builduser:builduser /build
+
+# Switch to build user
+USER builduser
+
+# Build the server with secure profile
+RUN --mount=type=cache,target=/usr/local/cargo/registry,uid=1001,gid=1001 \
+    --mount=type=cache,target=/build/target,uid=1001,gid=1001 \
+    cargo build --profile=secure --target $(cat /rust_target) --package kindly-guard-server && \
+    cp /build/target/$(cat /rust_target)/secure/kindly-guard /build/kindly-guard
+
+# Runtime stage
+FROM --platform=$TARGETPLATFORM debian:bookworm-slim
+
+# Runtime arguments
+ARG VERSION
+ARG BUILD_DATE
+ARG VCS_REF
+ARG TARGETPLATFORM
+
+# Labels
+LABEL org.opencontainers.image.title="KindlyGuard" \
+      org.opencontainers.image.description="Security-focused MCP server for managing sensitive operations" \
+      org.opencontainers.image.vendor="KindlySoftware" \
+      org.opencontainers.image.version="$VERSION" \
+      org.opencontainers.image.created="$BUILD_DATE" \
+      org.opencontainers.image.source="https://github.com/kindlysoftware/kindly-guard" \
+      org.opencontainers.image.revision="$VCS_REF" \
+      org.opencontainers.image.documentation="https://github.com/kindlysoftware/kindly-guard/blob/main/README.md" \
+      org.opencontainers.image.licenses="MIT" \
+      org.opencontainers.image.platform="$TARGETPLATFORM"
+
+# Install runtime dependencies and security tools
+RUN apt-get update && apt-get install -y \
+    ca-certificates \
+    libssl3 \
+    dumb-init \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create runtime user
+RUN useradd -m -u 1001 -s /bin/false kindlyguard && \
+    mkdir -p /etc/kindly-guard /var/lib/kindly-guard /var/log/kindly-guard && \
+    chown -R kindlyguard:kindlyguard /etc/kindly-guard /var/lib/kindly-guard /var/log/kindly-guard
+
+# Copy binary from builder
+COPY --from=builder --chown=kindlyguard:kindlyguard /build/kindly-guard /usr/local/bin/kindly-guard
+
+# Add version file
+RUN echo "$VERSION" > /etc/kindly-guard/version && \
+    echo "Platform: $TARGETPLATFORM" >> /etc/kindly-guard/version && \
+    echo "Build Date: $BUILD_DATE" >> /etc/kindly-guard/version && \
+    echo "VCS Ref: $VCS_REF" >> /etc/kindly-guard/version && \
+    chown kindlyguard:kindlyguard /etc/kindly-guard/version
+
+# Set up configuration directory
+WORKDIR /etc/kindly-guard
+
+# Switch to non-root user
+USER kindlyguard
+
+# Expose MCP server port (stdio mode doesn't need ports, but included for TCP mode)
+EXPOSE 3000
+
+# Health check for container orchestration
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD ["/usr/local/bin/kindly-guard", "health"] || exit 1
+
+# Use dumb-init to handle signals properly
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# Default to stdio mode for MCP compatibility
+CMD ["/usr/local/bin/kindly-guard", "--config", "/etc/kindly-guard/config.toml", "--stdio"]

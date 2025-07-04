@@ -351,7 +351,7 @@ console.log(`Failed: ${failed}`);
 if (failed > 0) {
     console.log('\nAPI Usage Examples:');
     console.log('```javascript');
-    console.log('const kindlyguard = require("kindlyguard");');
+    console.log('const kindlyguard = require("@kindlyguard/kindlyguard");');
     console.log('');
     console.log('// Simple scan');
     console.log('const result = await kindlyguard.scan("text to scan");');

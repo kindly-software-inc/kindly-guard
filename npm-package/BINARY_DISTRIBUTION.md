@@ -4,7 +4,7 @@ This document explains how KindlyGuard distributes native binaries through npm, 
 
 ## Architecture
 
-### Main Package (`kindlyguard`)
+### Main Package (`@kindlyguard/kindlyguard`)
 - Contains Node.js wrapper code and CLI scripts
 - Has optional dependencies on platform-specific packages
 - Automatically downloads the correct binary during `postinstall`
@@ -43,7 +43,7 @@ npm-package/
 
 ## Installation Flow
 
-1. User runs `npm install kindlyguard`
+1. User runs `npm install @kindlyguard/kindlyguard`
 2. npm installs the main package and attempts to install the optional platform dependency
 3. `postinstall.js` runs and:
    - Detects the current platform

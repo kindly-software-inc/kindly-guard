@@ -10,7 +10,7 @@ The Model Context Protocol (MCP) is a standard protocol that allows AI assistant
 
 ```bash
 # No installation needed - just run:
-npx kindlyguard --stdio
+npx @kindlyguard/kindlyguard --stdio
 ```
 
 ## Integration Methods
@@ -41,7 +41,7 @@ Add this configuration:
   "mcpServers": {
     "kindlyguard": {
       "command": "npx",
-      "args": ["kindlyguard", "--stdio"],
+      "args": ["@kindlyguard/kindlyguard", "--stdio"],
       "env": {
         "RUST_LOG": "info"
       }
@@ -59,7 +59,7 @@ For VS Code with MCP extension support:
   "mcp.servers": {
     "kindlyguard": {
       "command": "npx",
-      "args": ["kindlyguard", "--stdio"],
+      "args": ["@kindlyguard/kindlyguard", "--stdio"],
       "env": {
         "RUST_LOG": "debug"
       },
@@ -79,7 +79,7 @@ For VS Code with MCP extension support:
 const { spawn } = require('child_process');
 
 // Start KindlyGuard MCP server
-const server = spawn('npx', ['kindlyguard', '--stdio'], {
+const server = spawn('npx', ['@kindlyguard/kindlyguard', '--stdio'], {
   stdio: ['pipe', 'pipe', 'inherit']
 });
 
@@ -106,7 +106,7 @@ server.stdout.on('data', (data) => {
 ### 4. Using the NPM Package
 
 ```javascript
-const kindlyguard = require('kindlyguard');
+const kindlyguard = require('@kindlyguard/kindlyguard');
 
 // Create and start MCP server
 const server = kindlyguard.create({ stdio: true });
@@ -220,12 +220,12 @@ retry_max_attempts = 3
 
 2. Enable debug logging:
    ```bash
-   RUST_LOG=debug npx kindlyguard --stdio
+   RUST_LOG=debug npx @kindlyguard/kindlyguard --stdio
    ```
 
 3. Test binary directly:
    ```bash
-   npx kindlyguard status
+   npx @kindlyguard/kindlyguard status
    ```
 
 ### Claude Desktop not connecting
@@ -271,7 +271,7 @@ Ensure JSON/XML data doesn't contain malicious patterns.
 
 - GitHub Issues: https://github.com/samduchaine/kindly-guard/issues
 - Documentation: https://github.com/samduchaine/kindly-guard#readme
-- NPM Package: https://www.npmjs.com/package/kindlyguard
+- NPM Package: https://www.npmjs.com/package/@kindlyguard/kindlyguard
 
 ## Version Compatibility
 

@@ -1,6 +1,6 @@
 {
-  "name": "kindlyguard",
-  "version": "0.2.0",
+  "name": "@kindlyguard/kindlyguard",
+  "version": "0.9.1",
   "description": "Security-focused MCP server protecting against unicode attacks, injection threats, and other AI vulnerabilities",
   "main": "lib/main.js",
   "types": "lib/main.d.ts",
@@ -11,7 +11,7 @@
   "scripts": {
     "test": "node test-package.js",
     "postinstall": "node lib/postinstall.js",
-    "prepublishOnly": "echo \"Publishing KindlyGuard v0.2.0...\"",
+    "prepublishOnly": "echo \"Publishing KindlyGuard v0.9.1...\"",
     "build-platform-packages": "node scripts/build-platform-packages.js",
     "publish-all": "./publish-all.sh"
   },
@@ -57,9 +57,9 @@
     "tar": "^6.2.0"
   },
   "optionalDependencies": {
-    "@kindlyguard/linux-x64": "0.2.0",
-    "@kindlyguard/darwin-x64": "0.2.0",
-    "@kindlyguard/darwin-arm64": "0.2.0",
-    "@kindlyguard/win32-x64": "0.2.0"
+    "@kindlyguard/linux-x64": "0.9.1",
+    "@kindlyguard/darwin-x64": "0.9.1",
+    "@kindlyguard/darwin-arm64": "0.9.1",
+    "@kindlyguard/win32-x64": "0.9.1"
   }
 }

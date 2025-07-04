@@ -2,7 +2,8 @@
   "name": "claude-code-kindlyguard",
   "displayName": "KindlyGuard Security Shield",
   "description": "Real-time security monitoring for Claude Code",
-  "version": "0.1.0",
+  "version": "0.9.1",
+  "license": "Apache-2.0",
   "main": "./out/extension.js",
   "engines": {
     "claude-code": "^1.0.0"
