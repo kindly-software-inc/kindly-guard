@@ -1,9 +1,21 @@
 [package]
-name = "kindly-guard-shield"
+name = "kindly-guard-cli"
 version = "0.9.7"
 edition = "2021"
 license = "Apache-2.0"
+description = "Command-line interface for KindlyGuard security scanning"
+authors = ["Kindly Software Inc <support@kindlysoftware.com>"]
+keywords = ["security", "unicode", "scanner", "cli"]
+categories = ["command-line-utilities", "security"]
+
+[[bin]]
+name = "kindly-guard-cli"
+path = "src/main.rs"
 
 [dependencies]
-# This is just a placeholder for the Tauri app
-# The actual app is in src-tauri/
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive"] }
+colored = "2.1"
+indicatif = "0.17"
+walkdir = "2"
+kindly-guard-server = { path = "../kindly-guard-server", version = "0.9.7" }
