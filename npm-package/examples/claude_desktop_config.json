@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "kindlyguard": {
+      "command": "npx",
+      "args": ["kindlyguard", "--stdio"],
+      "env": {
+        "RUST_LOG": "info"
+      }
+    }
+  }
+}

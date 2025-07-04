@@ -1,0 +1,34 @@
+{
+  "id": "kindlyguard-shield",
+  "name": "KindlyGuard Security Shield",
+  "version": "0.1.0",
+  "minVersion": "1.0.0",
+  "description": "Real-time security monitoring for Claude Code with KindlyGuard",
+  "author": "KindlyGuard Team",
+  "icon": "shield.png",
+  "categories": ["Security", "MCP", "Monitoring"],
+  "main": "./out/extension.js",
+  "capabilities": {
+    "websocket": true,
+    "notifications": true,
+    "floatingWidgets": true,
+    "commands": true
+  },
+  "permissions": [
+    "network.localhost",
+    "ui.notifications",
+    "ui.widgets",
+    "commands.register"
+  ],
+  "configuration": {
+    "defaults": {
+      "autoConnect": true,
+      "notificationLevel": "threats",
+      "shieldPort": 9955
+    }
+  },
+  "activation": {
+    "events": ["onStartupFinished"],
+    "priority": "normal"
+  }
+}

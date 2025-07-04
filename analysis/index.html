@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard Analysis Dashboard</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px 20px;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 2.5em;
+            font-weight: 600;
+        }
+        .header p {
+            margin: 10px 0 0 0;
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+            padding: 30px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 12px rgba(0,0,0,0.15);
+        }
+        .card h2 {
+            margin: 0 0 15px 0;
+            color: #333;
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .card p {
+            color: #666;
+            line-height: 1.6;
+            margin: 0 0 20px 0;
+        }
+        .card a {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            text-decoration: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        .card a:hover {
+            background: #5a67d8;
+        }
+        .icon {
+            font-size: 1.5em;
+        }
+        .summary {
+            background: #f8f9ff;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 30px;
+            border: 1px solid #e1e5ff;
+        }
+        .summary h2 {
+            color: #333;
+            margin: 0 0 15px 0;
+        }
+        .summary ul {
+            margin: 0;
+            padding-left: 20px;
+            color: #666;
+            line-height: 1.8;
+        }
+        .tech-stack {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .tech-badge {
+            background: #e1e5ff;
+            color: #667eea;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            font-weight: 500;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ KindlyGuard Analysis Dashboard</h1>
+        <p>Comprehensive analysis of the KindlyGuard security framework</p>
+    </div>
+    
+    <div class="container">
+        <div class="summary">
+            <h2>📊 Project Overview</h2>
+            <p>KindlyGuard is a sophisticated security-focused Model Context Protocol (MCP) server designed to protect AI model interactions from various threats. This analysis provides insights into:</p>
+            <ul>
+                <li>Module structure and dependencies</li>
+                <li>Critical file importance rankings</li>
+                <li>Security architecture and execution paths</li>
+                <li>Integration ecosystem and deployment options</li>
+            </ul>
+            <div class="tech-stack">
+                <span class="tech-badge">Rust</span>
+                <span class="tech-badge">TypeScript</span>
+                <span class="tech-badge">Tauri</span>
+                <span class="tech-badge">WebSocket</span>
+                <span class="tech-badge">MCP Protocol</span>
+                <span class="tech-badge">Tokio</span>
+            </div>
+        </div>
+        
+        <div class="grid">
+            <div class="card">
+                <h2><span class="icon">📋</span> Analysis Report</h2>
+                <p>Comprehensive analysis report covering architecture, critical components, security features, and recommendations for the KindlyGuard project.</p>
+                <a href="kindlyguard_analysis_report.md">View Report (Markdown)</a>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">🔗</span> Dependency Graph</h2>
+                <p>Visual representation of module dependencies showing how different components of KindlyGuard interact with each other.</p>
+                <a href="dependency_graph.html">View Interactive Diagram</a>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">📂</span> Module Structure</h2>
+                <p>Detailed internal structure visualization showing the organization of security components, transport layers, and core modules.</p>
+                <a href="module_structure.html">View Interactive Diagram</a>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">⚡</span> Critical Paths</h2>
+                <p>Analysis of critical execution paths including security threat detection, protocol handling, and enhanced feature activation.</p>
+                <a href="critical_paths.html">View Interactive Diagram</a>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">📊</span> File Importance</h2>
+                <p>Ranking of files by their importance to the system, helping identify critical components and potential optimization targets.</p>
+                <a href="file_importance_ranking.md">View Rankings</a>
+            </div>
+            
+            <div class="card">
+                <h2><span class="icon">🔍</span> Raw Data</h2>
+                <p>Access the raw Mermaid diagram definitions used to generate the visualizations for further customization.</p>
+                <a href="dependency_graph.mermaid">Dependency</a> | 
+                <a href="module_structure.mermaid">Structure</a> | 
+                <a href="critical_paths.mermaid">Paths</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

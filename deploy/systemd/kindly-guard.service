@@ -1,0 +1,64 @@
+[Unit]
+Description=KindlyGuard MCP Security Server
+Documentation=https://github.com/samduchaine/kindly-guard
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=kindlyguard
+Group=kindlyguard
+WorkingDirectory=/var/lib/kindly-guard
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/kindly-guard /var/log/kindly-guard
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+PrivateMounts=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectHostname=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+SystemCallArchitectures=native
+
+# Resource limits
+LimitNOFILE=65536
+LimitNPROC=512
+MemoryLimit=512M
+CPUQuota=200%
+TasksMax=100
+
+# Environment
+Environment="RUST_LOG=kindly_guard=info,warn"
+Environment="RUST_BACKTRACE=1"
+EnvironmentFile=-/etc/kindly-guard/environment
+
+# Execution
+ExecStartPre=/usr/local/bin/kindly-guard config validate --config /etc/kindly-guard/config.toml
+ExecStart=/usr/local/bin/kindly-guard server --config /etc/kindly-guard/config.toml
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=5s
+TimeoutStopSec=30s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kindly-guard
+
+[Install]
+WantedBy=multi-user.target

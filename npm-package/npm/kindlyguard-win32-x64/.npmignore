@@ -1,0 +1,7 @@
+# Exclude everything except binaries and essential files
+*
+!kindlyguard
+!kindlyguard-cli
+!package.json
+!README.md
+!LICENSE

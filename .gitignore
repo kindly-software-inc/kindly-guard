@@ -1,0 +1,143 @@
+# Rust build artifacts
+/target/
+**/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+# Remove Cargo.lock from gitignore if creating an executable
+# Cargo.lock
+
+# Backup files
+*.bak
+*.swp
+*.swo
+*~
+
+# IDE files
+.idea/
+.vscode/
+*.iml
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs and databases
+*.log
+*.sqlite
+*.sqlite3
+*.db
+
+# Test and benchmark outputs
+*.profraw
+*.profdata
+test_output.log
+full_test_output.log
+
+# Coverage reports
+coverage/
+lcov.info
+*.gcov
+*.gcda
+*.gcno
+
+# Documentation build
+/doc/
+/docs/build/
+
+# Node modules (for npm package)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Python (for any Python scripts)
+__pycache__/
+*.py[cod]
+*$py.class
+.Python
+venv/
+env/
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Build scripts artifacts
+/dist/
+/build/
+/out/
+
+# Security and credentials
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.p12
+*.pfx
+secrets/
+
+# Benchmark results
+/benches/target/
+/criterion/
+
+# Fuzzing
+/fuzz/artifacts/
+/fuzz/corpus/
+
+# Property test regressions
+**/*.proptest-regressions
+
+# Cache directories
+.cache/
+.pytest_cache/
+
+# Package files
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Binary releases
+/release/
+/releases/
+/bin/
+
+# Local configuration overrides
+local.toml
+override.toml
+*.local.toml
+
+# Generated files
+/generated/
+*.generated.*
+
+# Tauri
+/kindly-guard-shield/src-tauri/target/
+/kindly-guard-shield/dist/
+
+# Analysis outputs (temporary)
+/analysis/*.log
+FileScopeMCP-tree.json
+
+# Session files
+SESSION_*.md
+session_*.md
+
+# Temporary test files
+test_*.tmp
+*.test.tmp
+
+# Proprietary code directory (should never be committed)
+# Private enterprise directory (if accidentally added)
+proprietary/
+enterprise/
+SECURITY_AUDIT_PROPRIETARY_CODE.md

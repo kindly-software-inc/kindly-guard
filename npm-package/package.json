@@ -1,0 +1,65 @@
+{
+  "name": "kindlyguard",
+  "version": "0.2.0",
+  "description": "Security-focused MCP server protecting against unicode attacks, injection threats, and other AI vulnerabilities",
+  "main": "lib/main.js",
+  "types": "lib/main.d.ts",
+  "bin": {
+    "kindlyguard": "./bin/kindlyguard",
+    "kindlyguard-cli": "./bin/kindlyguard-cli"
+  },
+  "scripts": {
+    "test": "node test-package.js",
+    "postinstall": "node lib/postinstall.js",
+    "prepublishOnly": "echo \"Publishing KindlyGuard v0.2.0...\"",
+    "build-platform-packages": "node scripts/build-platform-packages.js",
+    "publish-all": "./publish-all.sh"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samduchaine/kindly-guard.git"
+  },
+  "keywords": [
+    "security",
+    "mcp",
+    "mcp-server",
+    "ai",
+    "protection",
+    "model-context-protocol",
+    "ai-security",
+    "threat-detection",
+    "unicode-security",
+    "injection-protection",
+    "claude",
+    "claude-desktop",
+    "llm-security"
+  ],
+  "author": "samduchaine",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/samduchaine/kindly-guard/issues"
+  },
+  "homepage": "https://github.com/samduchaine/kindly-guard#readme",
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "os": [
+    "darwin",
+    "linux",
+    "win32"
+  ],
+  "cpu": [
+    "x64",
+    "arm64"
+  ],
+  "dependencies": {
+    "node-fetch": "^2.7.0",
+    "tar": "^6.2.0"
+  },
+  "optionalDependencies": {
+    "@kindlyguard/linux-x64": "0.2.0",
+    "@kindlyguard/darwin-x64": "0.2.0",
+    "@kindlyguard/darwin-arm64": "0.2.0",
+    "@kindlyguard/win32-x64": "0.2.0"
+  }
+}

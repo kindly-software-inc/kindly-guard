@@ -1,0 +1,78 @@
+{
+  "name": "Injection Attack Samples",
+  "description": "Various code and command injection threats",
+  "threats": [
+    {
+      "type": "sql_injection",
+      "name": "Classic SQL Injection",
+      "payload": "' OR '1'='1' --",
+      "description": "Bypasses authentication by making condition always true"
+    },
+    {
+      "type": "sql_injection",
+      "name": "Union-based SQL Injection",
+      "payload": "1' UNION SELECT username, password FROM users--",
+      "description": "Extracts data from other tables"
+    },
+    {
+      "type": "xss",
+      "name": "Basic XSS",
+      "payload": "<script>alert('XSS')</script>",
+      "description": "Executes JavaScript in victim's browser"
+    },
+    {
+      "type": "xss",
+      "name": "Event Handler XSS",
+      "payload": "<img src=x onerror=\"alert('XSS')\">",
+      "description": "Triggers JavaScript via event handler"
+    },
+    {
+      "type": "xss",
+      "name": "Encoded XSS",
+      "payload": "&#60;script&#62;alert('XSS')&#60;/script&#62;",
+      "description": "HTML entity encoded XSS attempt"
+    },
+    {
+      "type": "command_injection",
+      "name": "Shell Command Injection",
+      "payload": "; rm -rf /",
+      "description": "Attempts to execute dangerous shell command"
+    },
+    {
+      "type": "path_traversal",
+      "name": "Directory Traversal",
+      "payload": "../../../etc/passwd",
+      "description": "Attempts to access files outside intended directory"
+    },
+    {
+      "type": "ldap_injection",
+      "name": "LDAP Injection",
+      "payload": "*)(uid=*))(|(uid=*",
+      "description": "Modifies LDAP query to bypass authentication"
+    },
+    {
+      "type": "xml_injection",
+      "name": "XXE Attack",
+      "payload": "<!DOCTYPE foo [<!ENTITY xxe SYSTEM \"file:///etc/passwd\">]><foo>&xxe;</foo>",
+      "description": "XML External Entity attack to read files"
+    },
+    {
+      "type": "template_injection",
+      "name": "Server-Side Template Injection",
+      "payload": "{{7*7}}",
+      "description": "Tests for template injection vulnerability"
+    },
+    {
+      "type": "nosql_injection",
+      "name": "NoSQL Injection",
+      "payload": "{\"$ne\": null}",
+      "description": "MongoDB query injection"
+    },
+    {
+      "type": "header_injection",
+      "name": "HTTP Header Injection",
+      "payload": "test\\r\\nX-Injected-Header: malicious",
+      "description": "Injects additional HTTP headers"
+    }
+  ]
+}

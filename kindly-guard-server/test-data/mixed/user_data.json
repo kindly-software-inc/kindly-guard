@@ -1,0 +1,50 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "username": "john_doe",
+      "email": "john@example.com",
+      "bio": "Software developer interested in security"
+    },
+    {
+      "id": 2,
+      "username": "admin'; DROP TABLE users; --",
+      "email": "hacker@evil.com",
+      "bio": "I love SQL"
+    },
+    {
+      "id": 3,
+      "username": "jane_smith",
+      "email": "jane@example.com", 
+      "bio": "Check my website at google.com"
+    },
+    {
+      "id": 4,
+      "username": "unicode_fan",
+      "email": "test@test.com",
+      "bio": "Visit pаypal.com for payments"
+    },
+    {
+      "id": 5,
+      "username": "script_kiddie",
+      "email": "sk@example.com",
+      "bio": "<script>alert('XSS')</script>"
+    },
+    {
+      "id": 6,
+      "username": "legitimate_user",
+      "email": "legit@example.com",
+      "bio": "I enjoy programming and hiking"
+    }
+  ],
+  "posts": [
+    {
+      "title": "Normal Post",
+      "content": "This is a completely normal blog post about technology."
+    },
+    {
+      "title": "Hidden Command",
+      "content": "Great tips! Just run this: ; rm -rf /"
+    }
+  ]
+}

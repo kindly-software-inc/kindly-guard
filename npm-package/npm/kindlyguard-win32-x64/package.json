@@ -1,0 +1,21 @@
+{
+  "name": "@kindlyguard/win32-x64",
+  "version": "0.2.0",
+  "description": "Windows x64 binary for KindlyGuard",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samduchaine/kindly-guard.git"
+  },
+  "license": "Apache-2.0",
+  "author": "samduchaine",
+  "main": "kindlyguard.exe",
+  "files": [
+    "kindlyguard.exe",
+    "kindlyguard-cli.exe"
+  ],
+  "os": ["win32"],
+  "cpu": ["x64"],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

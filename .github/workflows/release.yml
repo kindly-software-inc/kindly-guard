@@ -1,0 +1,161 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., 0.2.0)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ steps.get_version.outputs.version }}
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Get version
+      id: get_version
+      run: |
+        if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+          echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+        fi
+    
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: v${{ steps.get_version.outputs.version }}
+        release_name: KindlyGuard v${{ steps.get_version.outputs.version }}
+        draft: true
+        prerelease: false
+        body: |
+          ## Changes in this release
+          
+          ### Features
+          - 
+          
+          ### Bug Fixes
+          - 
+          
+          ### Security
+          - 
+          
+          ## Installation
+          
+          See the [installation guide](https://github.com/${{ github.repository }}/blob/main/README.md#installation) for details.
+
+  build-binaries:
+    name: Build Binaries
+    needs: create-release
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          # Linux
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            suffix: ''
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-musl
+            suffix: ''
+          # Windows
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            suffix: '.exe'
+          # macOS
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            suffix: ''
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            suffix: ''
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        targets: ${{ matrix.target }}
+    
+    - name: Install dependencies (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y musl-tools
+    
+    - name: Build binary
+      run: |
+        cargo build --release --target ${{ matrix.target }} --bin kindly-guard-server
+        cargo build --release --target ${{ matrix.target }} --bin kindly-guard-cli
+    
+    - name: Strip binaries (Linux/macOS)
+      if: matrix.os != 'windows-latest'
+      run: |
+        strip target/${{ matrix.target }}/release/kindly-guard-server
+        strip target/${{ matrix.target }}/release/kindly-guard-cli
+    
+    - name: Package binaries
+      run: |
+        mkdir -p dist
+        cp target/${{ matrix.target }}/release/kindly-guard-server${{ matrix.suffix }} dist/
+        cp target/${{ matrix.target }}/release/kindly-guard-cli${{ matrix.suffix }} dist/
+        cp README.md LICENSE dist/
+        cd dist
+        tar czf ../kindlyguard-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.tar.gz *
+    
+    - name: Upload Release Asset
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ needs.create-release.outputs.upload_url }}
+        asset_path: ./kindlyguard-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.tar.gz
+        asset_name: kindlyguard-${{ needs.create-release.outputs.version }}-${{ matrix.target }}.tar.gz
+        asset_content_type: application/gzip
+
+  publish-crates:
+    name: Publish to crates.io
+    needs: [create-release, build-binaries]
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Login to crates.io
+      run: cargo login ${{ secrets.CARGO_REGISTRY_TOKEN }}
+    
+    - name: Publish kindly-guard-server
+      run: |
+        cd kindly-guard-server
+        cargo publish --allow-dirty
+      continue-on-error: true
+    
+    - name: Publish kindly-guard-cli
+      run: |
+        cd kindly-guard-cli
+        # Wait for server to be available
+        sleep 30
+        cargo publish --allow-dirty
+      continue-on-error: true

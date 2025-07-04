@@ -1,0 +1,86 @@
+name: Security Audit
+
+on:
+  schedule:
+    # Run at 2 AM UTC every Monday
+    - cron: '0 2 * * 1'
+  push:
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  workflow_dispatch:
+
+jobs:
+  security_audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install cargo-audit
+      run: cargo install cargo-audit
+    
+    - name: Run security audit
+      run: cargo audit
+    
+    - name: Check for known vulnerabilities
+      run: |
+        cargo audit --deny warnings
+    
+    - name: Upload audit results
+      uses: actions/upload-artifact@v3
+      if: failure()
+      with:
+        name: audit-results
+        path: |
+          Cargo.lock
+          audit.txt
+        retention-days: 90
+
+  dependency_check:
+    name: Dependency License Check
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install cargo-deny
+      run: cargo install cargo-deny
+    
+    - name: Check dependencies
+      run: cargo deny check
+    
+    - name: Check licenses
+      run: cargo deny check licenses
+
+  supply_chain:
+    name: Supply Chain Security
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+    
+    - name: Install cargo-vet
+      run: cargo install cargo-vet
+    
+    - name: Run supply chain audit
+      run: cargo vet
+      continue-on-error: true # cargo-vet may fail on first run
+    
+    - name: Generate SBOM
+      run: |
+        cargo tree --all-features > sbom.txt
+        echo "## Software Bill of Materials" >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+        head -50 sbom.txt >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY

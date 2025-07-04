@@ -1,0 +1,75 @@
+[package]
+name = "kindly-guard-shield"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+
+[lib]
+name = "kindly_guard_shield_lib"
+crate-type = ["lib", "cdylib", "staticlib"]
+
+[[example]]
+name = "shm_demo"
+path = "examples/shm_demo.rs"
+
+[[example]]
+name = "binary_client"
+path = "examples/binary_client.rs"
+
+[dependencies]
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tauri = { version = "2.0", features = ["tray-icon", "image-ico", "image-png", "protocol-asset"] }
+tauri-plugin-shell = "2.0"
+tokio = { version = "1", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+thiserror = "1.0"
+dashmap = "6.0"
+parking_lot = "0.12"
+sha2 = "0.10"
+constant_time_eq = "0.3"
+base64 = "0.22"
+
+# Websocket for Claude Code integration
+tokio-tungstenite = "0.24"
+futures-util = "0.3"
+
+# Rate limiting
+governor = "0.6"
+nonzero_ext = "0.3"
+
+# System tray icons
+image = "0.25"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# Configuration
+toml = "0.8"
+anyhow = "1.0"
+async-trait = "0.1"
+
+# Shared memory for low-latency IPC
+memmap2 = "0.9"
+crossbeam = "0.8"
+libc = "0.2"
+dirs = "5.0"
+
+# Binary protocol dependencies
+byteorder = "1.5"
+
+[features]
+default = []
+enhanced = []
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "protocol_benchmark"
+harness = false

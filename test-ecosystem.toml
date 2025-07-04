@@ -1,0 +1,29 @@
+# Test configuration for ecosystem integration
+[scanner]
+unicode_detection = true
+injection_detection = true
+path_traversal_detection = true
+xss_detection = true
+max_scan_depth = 20
+enhanced_mode = false
+enable_event_buffer = false
+
+[shield]
+display_enabled = true
+update_interval_ms = 1000
+show_timestamp = true
+show_stats = true
+
+[server]
+host = "127.0.0.1"
+port = 8080
+
+[auth]
+enabled = false
+trusted_issuers = []
+
+[rate_limit]
+enabled = false
+
+[signing]
+enabled = false

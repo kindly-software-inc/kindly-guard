@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "kindly-guard": {
+      "command": "/home/samuel/kindly-guard/target/release/kindly-guard",
+      "args": ["--stdio"],
+      "env": {
+        "RUST_LOG": "info"
+      },
+      "description": "KindlyGuard - Security-focused MCP server protecting against unicode attacks and injection threats"
+    }
+  }
+}

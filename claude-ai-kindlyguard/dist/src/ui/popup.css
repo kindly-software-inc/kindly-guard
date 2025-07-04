@@ -1,0 +1,268 @@
+/* Popup styles for KindlyGuard extension */
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    width: 320px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    color: #1F2937;
+    background: #FFFFFF;
+}
+
+.popup-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 480px;
+}
+
+/* Header */
+.popup-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: linear-gradient(135deg, #6B46C1 0%, #7C3AED 100%);
+    color: white;
+}
+
+.logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+}
+
+.logo svg {
+    width: 24px;
+    height: 24px;
+}
+
+.popup-header h1 {
+    flex: 1;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.version {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Content */
+.popup-content {
+    flex: 1;
+    padding: 16px;
+}
+
+/* Status Section */
+.status-section {
+    background: #F9FAFB;
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 16px;
+}
+
+.status-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+}
+
+.status-label {
+    color: #6B7280;
+    font-size: 13px;
+}
+
+.status-value {
+    font-weight: 600;
+    color: #10B981;
+}
+
+.status-value.disconnected {
+    color: #EF4444;
+}
+
+/* Stats Section */
+.stats-section {
+    margin-bottom: 16px;
+}
+
+.stats-section h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #374151;
+}
+
+.stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+}
+
+.stat-item {
+    text-align: center;
+    padding: 12px;
+    background: #F3F4F6;
+    border-radius: 8px;
+}
+
+.stat-value {
+    display: block;
+    font-size: 24px;
+    font-weight: 700;
+    color: #1F2937;
+}
+
+.stat-label {
+    display: block;
+    font-size: 11px;
+    color: #6B7280;
+    margin-top: 4px;
+}
+
+/* Settings Section */
+.settings-section {
+    margin-bottom: 16px;
+}
+
+.settings-section h2 {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 12px;
+    color: #374151;
+}
+
+.toggle-setting {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 0;
+    cursor: pointer;
+}
+
+.toggle-setting input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+}
+
+.toggle-setting span {
+    color: #4B5563;
+}
+
+/* Actions Section */
+.actions-section {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.action-btn {
+    flex: 1;
+    padding: 10px 16px;
+    background: #7C3AED;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.action-btn:hover {
+    background: #6B46C1;
+}
+
+.action-btn.secondary {
+    background: #E5E7EB;
+    color: #374151;
+}
+
+.action-btn.secondary:hover {
+    background: #D1D5DB;
+}
+
+/* Footer */
+.popup-footer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-top: 1px solid #E5E7EB;
+    font-size: 12px;
+}
+
+.popup-footer a {
+    color: #6B7280;
+    text-decoration: none;
+    transition: color 0.2s;
+}
+
+.popup-footer a:hover {
+    color: #7C3AED;
+}
+
+.separator {
+    color: #D1D5DB;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+    body {
+        background: #1F2937;
+        color: #F9FAFB;
+    }
+    
+    .status-section {
+        background: #111827;
+    }
+    
+    .status-label {
+        color: #9CA3AF;
+    }
+    
+    .stats-section h2,
+    .settings-section h2 {
+        color: #D1D5DB;
+    }
+    
+    .stat-item {
+        background: #374151;
+    }
+    
+    .stat-value {
+        color: #F9FAFB;
+    }
+    
+    .toggle-setting span {
+        color: #D1D5DB;
+    }
+    
+    .action-btn.secondary {
+        background: #4B5563;
+        color: #F9FAFB;
+    }
+    
+    .action-btn.secondary:hover {
+        background: #6B7280;
+    }
+    
+    .popup-footer {
+        border-top-color: #374151;
+    }
+    
+    .popup-footer a {
+        color: #9CA3AF;
+    }
+}

@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard Shield Widget</title>
+    <link rel="stylesheet" href="../css/widget.css">
+    <link rel="stylesheet" href="../animations/shield-pulse.css">
+</head>
+<body>
+    <!-- Compact Floating Shield Widget -->
+    <div id="kindly-shield-widget" class="shield-widget">
+        <!-- Collapsed State (default) -->
+        <div class="widget-collapsed">
+            <div class="shield-mini-container">
+                <img src="../svg/shield-standard.svg" alt="Shield" class="shield-icon shield-standard" id="shield-icon">
+                <div class="threat-counter" id="threat-counter">0</div>
+            </div>
+        </div>
+        
+        <!-- Expanded State (on hover/click) -->
+        <div class="widget-expanded">
+            <!-- Header -->
+            <div class="widget-header">
+                <div class="shield-container">
+                    <img src="../svg/shield-standard.svg" alt="Shield" class="shield-icon-large" id="shield-icon-large">
+                    <div class="protection-ring"></div>
+                    <div class="energy-particles">
+                        <div class="energy-particle"></div>
+                        <div class="energy-particle"></div>
+                        <div class="energy-particle"></div>
+                        <div class="energy-particle"></div>
+                    </div>
+                </div>
+                <div class="shield-info">
+                    <h3 class="shield-title">KindlyGuard</h3>
+                    <div class="shield-status-text" id="status-text">
+                        <span class="status-indicator active"></span>
+                        Protected
+                    </div>
+                </div>
+                <button class="widget-close" aria-label="Minimize">&times;</button>
+            </div>
+            
+            <!-- Stats Section -->
+            <div class="widget-stats">
+                <div class="stat-item">
+                    <div class="stat-value" id="threats-blocked">0</div>
+                    <div class="stat-label">Threats Blocked</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value" id="uptime">0s</div>
+                    <div class="stat-label">Uptime</div>
+                </div>
+                <div class="stat-item enhanced-only">
+                    <div class="stat-value" id="scan-rate">0/s</div>
+                    <div class="stat-label">Scan Rate</div>
+                </div>
+            </div>
+            
+            <!-- Threat Feed Ticker -->
+            <div class="threat-feed">
+                <div class="feed-header">
+                    <span class="feed-title">Recent Threats</span>
+                    <span class="feed-indicator"></span>
+                </div>
+                <div class="threat-ticker" id="threat-ticker">
+                    <div class="ticker-content">
+                        <!-- Threats will be dynamically added here -->
+                        <div class="no-threats">No recent threats detected</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Performance Metrics (Enhanced Mode) -->
+            <div class="performance-metrics enhanced-only" id="performance-metrics">
+                <div class="metrics-header">Enhanced Analytics</div>
+                <div class="metric-bars">
+                    <div class="metric-bar">
+                        <div class="metric-label">Pattern Recognition</div>
+                        <div class="metric-progress">
+                            <div class="progress-fill pattern-recognition" style="width: 85%;"></div>
+                        </div>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-label">Threat Prediction</div>
+                        <div class="metric-progress">
+                            <div class="progress-fill threat-prediction" style="width: 92%;"></div>
+                        </div>
+                    </div>
+                    <div class="metric-bar">
+                        <div class="metric-label">System Load</div>
+                        <div class="metric-progress">
+                            <div class="progress-fill system-load" style="width: 23%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Footer Actions -->
+            <div class="widget-footer">
+                <button class="action-button" id="open-dashboard">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 2a6 6 0 100 12A6 6 0 008 2zm0 1a5 5 0 110 10A5 5 0 018 3zm0 2a3 3 0 100 6 3 3 0 000-6zm0 1a2 2 0 110 4 2 2 0 010-4z"/>
+                    </svg>
+                    Dashboard
+                </button>
+                <button class="action-button enhanced-only" id="toggle-mode">
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                        <path d="M8 1l2 3h3l-2.5 2L12 9l-4-2.5L4 9l1.5-3L3 4h3l2-3z"/>
+                    </svg>
+                    Enhanced
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Widget JavaScript -->
+    <script src="../js/widget.js"></script>
+</body>
+</html>

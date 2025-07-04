@@ -1,0 +1,528 @@
+/* Threat Visualization Styles */
+
+:root {
+    /* Threat Severity Colors */
+    --threat-critical: #E74C3C;
+    --threat-high: #E67E22;
+    --threat-medium: #F39C12;
+    --threat-low: #F1C40F;
+    --threat-safe: #27AE60;
+    
+    /* Enhanced Mode Colors */
+    --neural-input: #3498DB;
+    --neural-hidden: #9B59B6;
+    --neural-output-safe: #27AE60;
+    --neural-output-threat: #E74C3C;
+    --neural-connection: rgba(155, 89, 182, 0.3);
+    --neural-active: #E8B4FF;
+    
+    /* UI Colors */
+    --viz-bg: #0a0a0a;
+    --viz-surface: #1a1a1a;
+    --viz-border: #2a2a2a;
+    --viz-text: #ffffff;
+    --viz-text-secondary: #888888;
+    
+    /* Grid and Layout */
+    --grid-color: rgba(255, 255, 255, 0.05);
+    --radar-color: rgba(74, 144, 226, 0.3);
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+    background: var(--viz-bg);
+    color: var(--viz-text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.threat-viz-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 20px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+/* Threat Map */
+.threat-map {
+    grid-column: span 2;
+    position: relative;
+    background: var(--viz-surface);
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    overflow: hidden;
+    height: 400px;
+}
+
+#threat-canvas {
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, transparent 0%, var(--viz-bg) 100%);
+}
+
+.threat-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+/* Radar Animation */
+.threat-radar {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 300px;
+    height: 300px;
+}
+
+.radar-sweep {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    background: conic-gradient(
+        from 0deg,
+        transparent 0deg,
+        var(--radar-color) 30deg,
+        transparent 60deg
+    );
+    animation: radar-rotate 4s linear infinite;
+}
+
+@keyframes radar-rotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.radar-dots {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+}
+
+.threat-dot {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    animation: threat-pulse 2s ease-in-out infinite;
+}
+
+.threat-dot.critical {
+    background: var(--threat-critical);
+    box-shadow: 0 0 20px var(--threat-critical);
+}
+
+.threat-dot.high {
+    background: var(--threat-high);
+    box-shadow: 0 0 15px var(--threat-high);
+}
+
+.threat-dot.medium {
+    background: var(--threat-medium);
+    box-shadow: 0 0 10px var(--threat-medium);
+}
+
+@keyframes threat-pulse {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 0.8;
+    }
+    50% {
+        transform: scale(1.5);
+        opacity: 1;
+    }
+}
+
+/* Threat Distribution Chart */
+.threat-distribution {
+    background: var(--viz-surface);
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.threat-distribution h3 {
+    margin: 0 0 20px 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.distribution-chart {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 150px;
+    gap: 10px;
+}
+
+.chart-bar {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.bar-fill {
+    width: 100%;
+    background: linear-gradient(to top, var(--neural-hidden), var(--neural-active));
+    border-radius: 4px 4px 0 0;
+    transition: height 1s ease-out;
+    position: relative;
+}
+
+.chart-bar.unicode .bar-fill {
+    background: linear-gradient(to top, #8B4513, #D2691E);
+}
+
+.chart-bar.injection .bar-fill {
+    background: linear-gradient(to top, #4B0082, #8A2BE2);
+}
+
+.chart-bar.xss .bar-fill {
+    background: linear-gradient(to top, #DC143C, #FF6347);
+}
+
+.chart-bar.traversal .bar-fill {
+    background: linear-gradient(to top, #191970, #4169E1);
+}
+
+.chart-bar.other .bar-fill {
+    background: linear-gradient(to top, #2F4F4F, #708090);
+}
+
+.bar-label {
+    margin-top: 8px;
+    font-size: 11px;
+    color: var(--viz-text-secondary);
+}
+
+.bar-value {
+    position: absolute;
+    top: -20px;
+    font-size: 12px;
+    font-weight: 500;
+}
+
+/* Threat Stream */
+.threat-stream {
+    background: var(--viz-surface);
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    padding: 20px;
+    max-height: 300px;
+}
+
+.threat-stream h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.stream-container {
+    height: 220px;
+    overflow-y: auto;
+    overflow-x: hidden;
+}
+
+.threat-item {
+    padding: 10px;
+    margin-bottom: 8px;
+    background: rgba(255, 255, 255, 0.02);
+    border-left: 3px solid var(--threat-medium);
+    border-radius: 4px;
+    font-size: 13px;
+    animation: slide-in 0.3s ease-out;
+}
+
+@keyframes slide-in {
+    from {
+        transform: translateX(-100%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+.threat-item.critical {
+    border-left-color: var(--threat-critical);
+    background: rgba(231, 76, 60, 0.1);
+}
+
+.threat-item .timestamp {
+    font-size: 11px;
+    color: var(--viz-text-secondary);
+}
+
+.threat-item .threat-type {
+    font-weight: 500;
+    margin-right: 8px;
+}
+
+/* Neural Network Visualization */
+.neural-network-viz {
+    background: var(--viz-surface);
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.neural-network-viz h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.neuron {
+    fill: var(--neural-input);
+    stroke: none;
+    filter: drop-shadow(0 0 10px currentColor);
+    animation: neuron-pulse 3s ease-in-out infinite;
+}
+
+.neuron.input {
+    fill: var(--neural-input);
+}
+
+.neuron.hidden {
+    fill: var(--neural-hidden);
+    animation-delay: 0.5s;
+}
+
+.neuron.output.safe {
+    fill: var(--neural-output-safe);
+    animation-delay: 1s;
+}
+
+.neuron.output.threat {
+    fill: var(--neural-output-threat);
+    animation-delay: 1s;
+}
+
+@keyframes neuron-pulse {
+    0%, 100% {
+        opacity: 0.6;
+        r: 8;
+    }
+    50% {
+        opacity: 1;
+        r: 10;
+    }
+}
+
+.neural-connection {
+    stroke: var(--neural-connection);
+    stroke-width: 2;
+    fill: none;
+    animation: connection-flow 2s linear infinite;
+}
+
+@keyframes connection-flow {
+    0% {
+        stroke-dasharray: 0 100;
+    }
+    100% {
+        stroke-dasharray: 100 0;
+    }
+}
+
+/* Prediction Timeline */
+.prediction-timeline {
+    background: var(--viz-surface);
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.prediction-timeline h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.timeline-container {
+    position: relative;
+    height: 100px;
+}
+
+.timeline-axis {
+    position: absolute;
+    bottom: 20px;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: var(--viz-border);
+}
+
+.prediction-bar {
+    position: absolute;
+    bottom: 20px;
+    height: 40px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.prediction-bar.low {
+    background: var(--threat-low);
+}
+
+.prediction-bar.medium {
+    background: var(--threat-medium);
+}
+
+.prediction-bar.high {
+    background: var(--threat-high);
+}
+
+.prediction-bar.critical {
+    background: var(--threat-critical);
+}
+
+.prediction-bar:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.prediction-tooltip {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    margin-bottom: 5px;
+}
+
+.prediction-bar:hover .prediction-tooltip {
+    display: block;
+}
+
+/* Threat Heatmap */
+.threat-heatmap {
+    grid-column: span 2;
+    background: var(--viz-surface);
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.threat-heatmap h3 {
+    margin: 0 0 15px 0;
+    font-size: 16px;
+    font-weight: 500;
+}
+
+.heatmap-grid {
+    display: grid;
+    grid-template-columns: repeat(20, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: 2px;
+    height: 200px;
+}
+
+.heatmap-cell {
+    background: var(--threat-safe);
+    border-radius: 2px;
+    transition: all 0.3s ease;
+}
+
+.heatmap-cell.intensity-1 {
+    background: var(--threat-low);
+}
+
+.heatmap-cell.intensity-2 {
+    background: var(--threat-medium);
+}
+
+.heatmap-cell.intensity-3 {
+    background: var(--threat-high);
+}
+
+.heatmap-cell.intensity-4 {
+    background: var(--threat-critical);
+}
+
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 15px;
+    gap: 10px;
+}
+
+.legend-gradient {
+    width: 200px;
+    height: 10px;
+    background: linear-gradient(
+        to right,
+        var(--threat-safe),
+        var(--threat-low),
+        var(--threat-medium),
+        var(--threat-high),
+        var(--threat-critical)
+    );
+    border-radius: 5px;
+}
+
+.legend-label {
+    font-size: 12px;
+    color: var(--viz-text-secondary);
+}
+
+/* 3D Threat Landscape */
+.threat-landscape {
+    background: var(--viz-surface);
+    border: 1px solid var(--viz-border);
+    border-radius: 8px;
+    padding: 20px;
+}
+
+.landscape-3d {
+    height: 200px;
+    position: relative;
+    perspective: 800px;
+}
+
+.terrain-grid {
+    width: 100%;
+    height: 100%;
+    transform-style: preserve-3d;
+    transform: rotateX(45deg) rotateZ(45deg);
+    background: linear-gradient(45deg, transparent 48%, var(--grid-color) 50%, transparent 52%),
+                linear-gradient(-45deg, transparent 48%, var(--grid-color) 50%, transparent 52%);
+    background-size: 20px 20px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .threat-viz-container {
+        grid-template-columns: 1fr;
+    }
+    
+    .threat-map,
+    .threat-heatmap {
+        grid-column: span 1;
+    }
+}

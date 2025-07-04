@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KindlyGuard - Security MCP Server</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0a0a0a;
+            color: #ffffff;
+            overflow-x: hidden;
+        }
+
+        .slide {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .slide-content {
+            max-width: 1200px;
+            width: 100%;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 3rem;
+            margin-bottom: 2rem;
+            color: #e2e8f0;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: #94a3b8;
+            margin-bottom: 3rem;
+        }
+
+        .shield {
+            width: 200px;
+            height: 240px;
+            margin: 2rem auto;
+            position: relative;
+        }
+
+        .shield-blue {
+            background: linear-gradient(135deg, #3b82f6, #2563eb);
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            box-shadow: 0 0 60px rgba(59, 130, 246, 0.5);
+        }
+
+        .shield-purple {
+            background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+            clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+            box-shadow: 0 0 60px rgba(139, 92, 246, 0.5);
+            animation: glow 2s ease-in-out infinite;
+        }
+
+        @keyframes glow {
+            0%, 100% { box-shadow: 0 0 60px rgba(139, 92, 246, 0.5); }
+            50% { box-shadow: 0 0 100px rgba(139, 92, 246, 0.8); }
+        }
+
+        .threat-examples {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .threat-card {
+            background: #1e293b;
+            padding: 2rem;
+            border-radius: 1rem;
+            border: 1px solid #334155;
+            transition: transform 0.3s;
+        }
+
+        .threat-card:hover {
+            transform: translateY(-5px);
+            border-color: #ef4444;
+        }
+
+        .threat-type {
+            color: #ef4444;
+            font-weight: bold;
+            margin-bottom: 1rem;
+        }
+
+        .code {
+            background: #0f172a;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            font-family: 'Courier New', monospace;
+            margin: 1rem 0;
+            overflow-x: auto;
+        }
+
+        .features {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 3rem;
+            margin: 3rem 0;
+            text-align: left;
+        }
+
+        .feature {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+        }
+
+        .performance-chart {
+            display: flex;
+            justify-content: space-around;
+            align-items: flex-end;
+            height: 300px;
+            margin: 3rem 0;
+        }
+
+        .bar {
+            width: 150px;
+            background: linear-gradient(to top, #3b82f6, #60a5fa);
+            border-radius: 0.5rem 0.5rem 0 0;
+            position: relative;
+            transition: all 0.3s;
+        }
+
+        .bar:hover {
+            transform: scaleY(1.05);
+        }
+
+        .bar-label {
+            position: absolute;
+            bottom: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+        }
+
+        .bar-value {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-weight: bold;
+        }
+
+        .cta-buttons {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            margin-top: 3rem;
+        }
+
+        .btn {
+            padding: 1rem 3rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+        }
+
+        .btn-secondary {
+            border: 2px solid #64748b;
+            color: #e2e8f0;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        .demo-terminal {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin: 2rem auto;
+            max-width: 800px;
+            font-family: 'Courier New', monospace;
+            text-align: left;
+        }
+
+        .terminal-line {
+            margin: 0.5rem 0;
+        }
+
+        .terminal-prompt {
+            color: #10b981;
+        }
+
+        .terminal-output {
+            color: #94a3b8;
+        }
+
+        .terminal-error {
+            color: #ef4444;
+        }
+
+        .terminal-success {
+            color: #10b981;
+        }
+    </style>
+</head>
+<body>
+    <!-- Slide 1: Title -->
+    <div class="slide">
+        <div class="slide-content">
+            <div class="shield shield-blue"></div>
+            <h1>KindlyGuard</h1>
+            <p class="subtitle">Advanced Security MCP Server</p>
+            <p style="font-size: 1.2rem; color: #64748b;">Protecting AI interactions from hidden threats</p>
+        </div>
+    </div>
+
+    <!-- Slide 2: The Problem -->
+    <div class="slide">
+        <div class="slide-content">
+            <h2>The Hidden Threats</h2>
+            <div class="threat-examples">
+                <div class="threat-card">
+                    <div class="threat-type">UNICODE ATTACK</div>
+                    <div class="code">Important‮document.pdf</div>
+                    <p>Appears as: Importantfdp.tnemucod</p>
+                </div>
+                <div class="threat-card">
+                    <div class="threat-type">SQL INJECTION</div>
+                    <div class="code">' OR '1'='1' --</div>
+                    <p>Bypasses authentication</p>
+                </div>
+                <div class="threat-card">
+                    <div class="threat-type">XSS ATTACK</div>
+                    <div class="code">&lt;script&gt;alert('XSS')&lt;/script&gt;</div>
+                    <p>Executes malicious code</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 3: Solution -->
+    <div class="slide">
+        <div class="slide-content">
+            <h2>Complete Protection</h2>
+            <div class="features">
+                <div class="feature">
+                    <span class="feature-icon">🔍</span>
+                    <div>
+                        <h3>Real-time Detection</h3>
+                        <p>Scans all input for hidden threats instantly</p>
+                    </div>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🛡️</span>
+                    <div>
+                        <h3>Automatic Neutralization</h3>
+                        <p>Removes threats while preserving safe content</p>
+                    </div>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">⚡</span>
+                    <div>
+                        <h3>High Performance</h3>
+                        <p>Microsecond-level scanning speed</p>
+                    </div>
+                </div>
+                <div class="feature">
+                    <span class="feature-icon">🤖</span>
+                    <div>
+                        <h3>AI Integration</h3>
+                        <p>Seamless protection for Claude and other AI systems</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Slide 4: Performance -->
+    <div class="slide">
+        <div class="slide-content">
+            <h2>Blazing Fast Performance</h2>
+            <div class="performance-chart">
+                <div class="bar" style="height: 200px; background: linear-gradient(to top, #3b82f6, #60a5fa);">
+                    <div class="bar-value">100μs</div>
+                    <div class="bar-label">Standard Mode</div>
+                </div>
+                <div class="bar" style="height: 20px; background: linear-gradient(to top, #8b5cf6, #a78bfa);">
+                    <div class="bar-value">10μs</div>
+                    <div class="bar-label">Enhanced Mode</div>
+                </div>
+            </div>
+            <p style="font-size: 1.5rem; margin-top: 2rem;">
+                <span style="color: #8b5cf6; font-weight: bold;">10x faster</span> 
+                threat detection with Enhanced Mode
+            </p>
+        </div>
+    </div>
+
+    <!-- Slide 5: Demo -->
+    <div class="slide">
+        <div class="slide-content">
+            <h2>See It In Action</h2>
+            <div class="demo-terminal">
+                <div class="terminal-line">
+                    <span class="terminal-prompt">$</span> kindly-guard serve
+                </div>
+                <div class="terminal-line terminal-output">
+                    [INFO] KindlyGuard v0.2.0 starting...
+                </div>
+                <div class="terminal-line terminal-output">
+                    [INFO] Security scanner initialized
+                </div>
+                <div class="terminal-line terminal-output">
+                    [INFO] MCP server listening on stdio
+                </div>
+                <div class="terminal-line" style="margin-top: 1rem;">
+                    <span class="terminal-prompt">$</span> echo '{"text": "admin\u200Bpassword"}' | kindly-guard scan -
+                </div>
+                <div class="terminal-line terminal-error">
+                    [WARN] Threat detected: Zero-width character at position 5
+                </div>
+                <div class="terminal-line terminal-success">
+                    [INFO] Threat neutralized successfully
+                </div>
+            </div>
+            <div class="shield shield-purple" style="width: 100px; height: 120px;"></div>
+        </div>
+    </div>
+
+    <!-- Slide 6: Get Started -->
+    <div class="slide">
+        <div class="slide-content">
+            <h2>Get Started Today</h2>
+            <div class="code" style="max-width: 600px; margin: 2rem auto;">
+                <div>$ cargo install kindly-guard</div>
+                <div>$ kindly-guard serve</div>
+            </div>
+            <div class="cta-buttons">
+                <a href="https://github.com/yourusername/kindly-guard" class="btn btn-primary">
+                    View on GitHub
+                </a>
+                <a href="#" class="btn btn-secondary">
+                    Documentation
+                </a>
+            </div>
+            <p style="margin-top: 3rem; color: #64748b;">
+                Protect your AI. Secure your future. 🛡️
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Simple slide navigation
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' && currentSlide < slides.length - 1) {
+                currentSlide++;
+                slides[currentSlide].scrollIntoView({ behavior: 'smooth' });
+            } else if (e.key === 'ArrowLeft' && currentSlide > 0) {
+                currentSlide--;
+                slides[currentSlide].scrollIntoView({ behavior: 'smooth' });
+            }
+        });
+
+        // Add slide indicators
+        const nav = document.createElement('div');
+        nav.style.position = 'fixed';
+        nav.style.bottom = '20px';
+        nav.style.left = '50%';
+        nav.style.transform = 'translateX(-50%)';
+        nav.style.display = 'flex';
+        nav.style.gap = '10px';
+
+        slides.forEach((_, i) => {
+            const dot = document.createElement('div');
+            dot.style.width = '10px';
+            dot.style.height = '10px';
+            dot.style.borderRadius = '50%';
+            dot.style.background = i === 0 ? '#3b82f6' : '#334155';
+            dot.style.cursor = 'pointer';
+            dot.onclick = () => {
+                currentSlide = i;
+                slides[i].scrollIntoView({ behavior: 'smooth' });
+                updateDots();
+            };
+            nav.appendChild(dot);
+        });
+
+        document.body.appendChild(nav);
+
+        function updateDots() {
+            nav.children[...nav.children].forEach((dot, i) => {
+                dot.style.background = i === currentSlide ? '#3b82f6' : '#334155';
+            });
+        }
+
+        // Update dots on scroll
+        window.addEventListener('scroll', () => {
+            const scrollPos = window.scrollY;
+            slides.forEach((slide, i) => {
+                const slideTop = slide.offsetTop;
+                const slideBottom = slideTop + slide.offsetHeight;
+                if (scrollPos >= slideTop - 100 && scrollPos < slideBottom - 100) {
+                    currentSlide = i;
+                    updateDots();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
