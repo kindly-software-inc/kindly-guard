@@ -328,8 +328,13 @@ async fn run_security_tests(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::s
     // Run specific security test suites
     let mut args = vec!["test"];
     
-    // Add security test features
-    args.extend(&["--features", "security-tests"]);
+    // Add package filter if specified
+    if let Some(package) = &cmd.package {
+        args.extend(&["-p", package]);
+    }
+    
+    // Include all features to ensure all tests can run
+    args.push("--all-features");
     
     // Run tests that match security patterns
     args.extend(&["--", "security", "threat", "vulnerability"]);
@@ -444,10 +449,14 @@ async fn run_nextest_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> R
     // Add integration test filter if needed
     if integration {
         nextest_args.filter = Some("test(integration)".to_string());
+    } else {
+        // For unit tests, exclude examples by adding --lib and --bins
+        nextest_args.extra_args.push("--lib".to_string());
+        nextest_args.extra_args.push("--bins".to_string());
     }
     
-    // Add extra args
-    nextest_args.extra_args = cmd.args.clone();
+    // Add extra args from command
+    nextest_args.extra_args.extend(cmd.args.clone());
     
     // Run tests
     crate::utils::nextest::run_tests(nextest_args).await?;
@@ -614,6 +623,10 @@ async fn run_nextest_tests_with_output(cmd: &TestCmd, _ctx: &Context, integratio
 
     if integration {
         args.extend(&["--test", "integration"]);
+    } else {
+        // For unit tests, exclude examples
+        args.push("--lib");
+        args.push("--bins");
     }
 
     args.push("--all-features");

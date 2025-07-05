@@ -18,7 +18,7 @@ license = false
 eula = false
 
 [[bin]]
-name = "kindlyguard"
+name = "kindlyguard-cli"
 path = "src/main.rs"
 
 [dependencies]
@@ -43,3 +43,8 @@ futures-util = "0.3"
 flate2 = "1.0"
 tar = "0.4"
 zip = "2.2"
+
+[dev-dependencies]
+assert_cmd = "2.0"
+predicates = "3.1"
+tempfile = "3.14"

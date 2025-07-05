@@ -129,6 +129,8 @@ async fn run_tests(ctx: &Context, test_args: &[String], ci_os: &Option<String>) 
     // Use cargo xtask test with nextest for 3x faster execution
     let mut args = vec!["xtask", "test", "--nextest", "--nextest-profile", "ci"];
     
+    ctx.debug(&format!("Running test command: cargo {}", args.join(" ")));
+    
     // Add OS-specific test configuration
     if let Some(os) = ci_os {
         match os.as_str() {

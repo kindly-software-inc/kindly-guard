@@ -65,7 +65,7 @@ fn test_command_injection_prevention_semicolon() {
         .write_stdin(b"safe input\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("test; rm -rf /"));
+        .stdout(predicates::str::contains("test; rm -rf /"));
 }
 
 #[test]
@@ -80,7 +80,7 @@ fn test_command_injection_prevention_backticks() {
         .write_stdin(b"safe input\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("test`whoami`"));
+        .stdout(predicates::str::contains("test`whoami`"));
 }
 
 #[test]
@@ -95,7 +95,7 @@ fn test_command_injection_prevention_dollar_parens() {
         .write_stdin(b"safe input\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("test$(cat /etc/passwd)"));
+        .stdout(predicates::str::contains("test$(cat /etc/passwd)"));
 }
 
 #[test]
@@ -112,8 +112,8 @@ fn test_environment_variable_security() {
         .env("PATH", std::env::var("PATH").unwrap()) // Only pass PATH
         .assert()
         .success()
-        .stdout(predicate::str::contains("PATH="))
-        .stdout(predicate::str::contains("MALICIOUS_VAR").not());
+        .stdout(predicates::str::contains("PATH="))
+        .stdout(predicates::str::contains("MALICIOUS_VAR").not());
 
     std::env::remove_var("MALICIOUS_VAR");
 }
@@ -128,7 +128,7 @@ fn test_environment_injection_prevention() {
         .env("PATH", "/usr/bin:/bin:$(rm -rf /)")
         .assert()
         .success()
-        .stdout(predicate::str::contains("$(rm -rf /)"));
+        .stdout(predicates::str::contains("$(rm -rf /)"));
 }
 
 #[test]
@@ -172,9 +172,9 @@ fn test_input_stream_unicode_injection() {
         .write_stdin("Hello\u{202E}World\n".as_bytes()) // Right-to-left override
         .assert()
         .success()
-        .stderr(predicate::str::contains("THREAT DETECTED"))
-        .stderr(predicate::str::contains("Input blocked"))
-        .stdout(predicate::str::contains("\u{202E}").not());
+        .stderr(predicates::str::contains("THREAT DETECTED"))
+        .stderr(predicates::str::contains("Input blocked"))
+        .stdout(predicates::str::contains("\u{202E}").not());
 }
 
 #[test]
@@ -188,8 +188,8 @@ fn test_input_stream_sql_injection() {
         .write_stdin(b"'; DROP TABLE users; --\n")
         .assert()
         .success()
-        .stderr(predicate::str::contains("THREAT DETECTED"))
-        .stderr(predicate::str::contains("Input blocked"));
+        .stderr(predicates::str::contains("THREAT DETECTED"))
+        .stderr(predicates::str::contains("Input blocked"));
 }
 
 #[test]
@@ -203,8 +203,8 @@ fn test_input_stream_command_injection() {
         .write_stdin(b"test`whoami`\n")
         .assert()
         .success()
-        .stderr(predicate::str::contains("THREAT DETECTED"))
-        .stderr(predicate::str::contains("Input blocked"));
+        .stderr(predicates::str::contains("THREAT DETECTED"))
+        .stderr(predicates::str::contains("Input blocked"));
 }
 
 #[test]
@@ -218,8 +218,8 @@ fn test_input_stream_xss_injection() {
         .write_stdin(b"<script>alert('xss')</script>\n")
         .assert()
         .success()
-        .stderr(predicate::str::contains("THREAT DETECTED"))
-        .stderr(predicate::str::contains("Input blocked"));
+        .stderr(predicates::str::contains("THREAT DETECTED"))
+        .stderr(predicates::str::contains("Input blocked"));
 }
 
 #[test]
@@ -231,8 +231,8 @@ fn test_output_stream_passthrough() {
         .arg(mock_cli.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains("Clean output"))
-        .stderr(predicate::str::contains("Error output"));
+        .stdout(predicates::str::contains("Clean output"))
+        .stderr(predicates::str::contains("Error output"));
 }
 
 #[test]
@@ -248,9 +248,9 @@ fn test_blocking_mode_blocks_threats() {
         .write_stdin(b"more safe input\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("11")) // Only first line
-        .stderr(predicate::str::contains("THREAT DETECTED"))
-        .stderr(predicate::str::contains("Input blocked"));
+        .stdout(predicates::str::contains("11")) // Only first line
+        .stderr(predicates::str::contains("THREAT DETECTED"))
+        .stderr(predicates::str::contains("Input blocked"));
 }
 
 #[test]
@@ -263,9 +263,9 @@ fn test_warning_mode_allows_threats() {
         .write_stdin(b"'; DROP TABLE; --\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("'; DROP TABLE; --"))
-        .stderr(predicate::str::contains("THREAT DETECTED"))
-        .stderr(predicate::str::contains("Proceeding with caution"));
+        .stdout(predicates::str::contains("'; DROP TABLE; --"))
+        .stderr(predicates::str::contains("THREAT DETECTED"))
+        .stderr(predicates::str::contains("Proceeding with caution"));
 }
 
 #[test]
@@ -286,8 +286,8 @@ fn test_stdin_eof_handling() {
         .write_stdin(b"test input\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("test input"))
-        .stdout(predicate::str::contains("After EOF"));
+        .stdout(predicates::str::contains("test input"))
+        .stdout(predicates::str::contains("After EOF"));
 }
 
 #[test]
@@ -301,7 +301,7 @@ fn test_large_input_handling() {
         .write_stdin(large_input)
         .assert()
         .success()
-        .stdout(predicate::str::contains("1048576"));
+        .stdout(predicates::str::contains("1048576"));
 }
 
 #[test]
@@ -315,7 +315,7 @@ fn test_binary_data_handling() {
         .write_stdin(binary_data)
         .assert()
         .success()
-        .stdout(predicate::str::contains("000102fffefd"));
+        .stdout(predicates::str::contains("000102fffefd"));
 }
 
 #[test]
@@ -336,12 +336,12 @@ fn test_concurrent_io_handling() {
         .write_stdin(b"line1\nline2\nline3\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("OUT: line1"))
-        .stdout(predicate::str::contains("OUT: line2"))
-        .stdout(predicate::str::contains("OUT: line3"))
-        .stderr(predicate::str::contains("ERR: line1"))
-        .stderr(predicate::str::contains("ERR: line2"))
-        .stderr(predicate::str::contains("ERR: line3"));
+        .stdout(predicates::str::contains("OUT: line1"))
+        .stdout(predicates::str::contains("OUT: line2"))
+        .stdout(predicates::str::contains("OUT: line3"))
+        .stderr(predicates::str::contains("ERR: line1"))
+        .stderr(predicates::str::contains("ERR: line2"))
+        .stderr(predicates::str::contains("ERR: line3"));
 }
 
 #[test]
@@ -361,8 +361,8 @@ fn test_ai_cli_integration_gemini_style() {
         .write_stdin(b"Generate code\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Gemini CLI"))
-        .stdout(predicate::str::contains("Response: Generate code"));
+        .stdout(predicates::str::contains("Gemini CLI"))
+        .stdout(predicates::str::contains("Response: Generate code"));
 }
 
 #[test]
@@ -383,9 +383,9 @@ fn test_ai_cli_integration_codex_style() {
         .write_stdin(b"Write a function\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Codex CLI"))
-        .stdout(predicate::str::contains("Write a function"))
-        .stdout(predicate::str::contains("Generated"));
+        .stdout(predicates::str::contains("Codex CLI"))
+        .stdout(predicates::str::contains("Write a function"))
+        .stdout(predicates::str::contains("Generated"));
 }
 
 #[test]
@@ -405,8 +405,8 @@ fn test_interactive_prompt_handling() {
         .write_stdin(b"testuser\ntestpass\n")
         .assert()
         .success()
-        .stdout(predicate::str::contains("Username:"))
-        .stdout(predicate::str::contains("Logged in as testuser"));
+        .stdout(predicates::str::contains("Username:"))
+        .stdout(predicates::str::contains("Logged in as testuser"));
 }
 
 #[test]
@@ -420,8 +420,8 @@ fn test_path_traversal_prevention() {
         .write_stdin(b"../../etc/passwd\n")
         .assert()
         .success()
-        .stderr(predicate::str::contains("THREAT DETECTED"))
-        .stderr(predicate::str::contains("Input blocked"));
+        .stderr(predicates::str::contains("THREAT DETECTED"))
+        .stderr(predicates::str::contains("Input blocked"));
 }
 
 #[test]
@@ -435,7 +435,7 @@ fn test_null_byte_injection() {
         .write_stdin(b"test\0injection\n")
         .assert()
         .success()
-        .stderr(predicate::str::contains("THREAT DETECTED"));
+        .stderr(predicates::str::contains("THREAT DETECTED"));
 }
 
 #[test]
@@ -449,7 +449,7 @@ fn test_ansi_escape_injection() {
         .write_stdin(b"\x1b[31mRED\x1b[0m\x1b]0;TITLE\x07\n")
         .assert()
         .success()
-        .stderr(predicate::str::contains("THREAT DETECTED"));
+        .stderr(predicates::str::contains("THREAT DETECTED"));
 }
 
 #[test]
@@ -466,7 +466,7 @@ fn test_resource_exhaustion_prevention() {
         .write_stdin(infinite_input)
         .assert()
         .success()
-        .stdout(predicate::str::contains("a").count(1000));
+        .stdout(predicates::str::contains("a").count(1000));
 }
 
 #[test]
@@ -481,7 +481,7 @@ fn test_server_connection_failure() {
         .write_stdin(b"test\n")
         .assert()
         .success() // Should still work without server
-        .stdout(predicate::str::contains("Hello"));
+        .stdout(predicates::str::contains("Hello"));
 }
 
 #[test]
@@ -504,7 +504,7 @@ fn test_command_not_found() {
         .arg("/nonexistent/command")
         .assert()
         .failure()
-        .stderr(predicate::str::contains("Failed to start command"));
+        .stderr(predicates::str::contains("Failed to start command"));
 }
 
 #[test]
@@ -541,7 +541,7 @@ fn test_symlink_resolution() {
         .arg(&link_path)
         .assert()
         .success()
-        .stdout(predicate::str::contains("Real file"));
+        .stdout(predicates::str::contains("Real file"));
 
     // Cleanup
     std::fs::remove_file(link_path).ok();
@@ -558,7 +558,7 @@ fn test_working_directory_isolation() {
         .current_dir(temp_dir.path())
         .assert()
         .success()
-        .stdout(predicate::str::contains(temp_dir.path().to_str().unwrap()));
+        .stdout(predicates::str::contains(temp_dir.path().to_str().unwrap()));
 }
 
 #[test]
@@ -572,6 +572,6 @@ fn test_multiple_threat_detection() {
         .write_stdin("'; DROP TABLE; -- <script>alert('xss')</script> \u{202E}\n".as_bytes())
         .assert()
         .success()
-        .stderr(predicate::str::contains("THREAT DETECTED"))
-        .stderr(predicate::str::contains("Input blocked"));
+        .stderr(predicates::str::contains("THREAT DETECTED"))
+        .stderr(predicates::str::contains("Input blocked"));
 }
