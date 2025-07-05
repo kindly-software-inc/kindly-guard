@@ -145,6 +145,17 @@ pub mod install {
 
     #[derive(Subcommand)]
     enum InstallSubcommands {
+        /// Install KindlyGuard MCP server
+        #[command(visible_alias = "kindlyguard")]
+        KindlyGuard {
+            /// Installation method (auto-detected if not specified)
+            #[arg(short, long)]
+            method: Option<String>,
+            
+            /// Version to install (latest if not specified)
+            #[arg(short, long)]
+            version: Option<String>,
+        },
         /// Install all recommended tools
         All,
         /// Install MCP servers
@@ -160,6 +171,9 @@ pub mod install {
     impl Execute for InstallCommand {
         async fn execute(&self) -> Result<()> {
             match &self.command {
+                InstallSubcommands::KindlyGuard { method, version } => {
+                    install_kindlyguard(method.as_deref(), version.as_deref()).await
+                }
                 InstallSubcommands::All => install_all().await,
                 InstallSubcommands::McpServers { server } => {
                     install_mcp_servers(server.as_deref()).await
@@ -169,8 +183,129 @@ pub mod install {
         }
     }
 
+    async fn install_kindlyguard(method: Option<&str>, version: Option<&str>) -> Result<()> {
+        use crate::platform::Platform;
+        use colored::*;
+        
+        let platform = Platform::detect();
+        let version_str = version.unwrap_or("latest");
+        
+        // Auto-detect best installation method if not specified
+        let install_method = if let Some(m) = method {
+            m.to_string()
+        } else {
+            match platform {
+                Platform::MacOS => {
+                    if command_exists("brew") {
+                        "homebrew".to_string()
+                    } else {
+                        "npm".to_string()
+                    }
+                }
+                Platform::Linux => "npm".to_string(),
+                Platform::Windows => "npm".to_string(),
+                _ => "npm".to_string(),
+            }
+        };
+        
+        println!("\n{}", "KindlyGuard Installation".bold().blue());
+        println!("Platform: {}", platform.to_string().green());
+        println!("Method: {}", install_method.green());
+        println!("Version: {}\n", version_str.green());
+        
+        match install_method.as_str() {
+            "homebrew" | "brew" => {
+                println!("{}", "Installing via Homebrew...".yellow());
+                println!("\nRun these commands:");
+                println!("  {} {}", "$".dimmed(), "brew tap kindly-software-inc/tap".bright_white());
+                println!("  {} {}", "$".dimmed(), "brew install kindlyguard".bright_white());
+                
+                if version != Some("latest") && version.is_some() {
+                    println!("\n{}: Homebrew installs the latest version by default.", "Note".yellow());
+                    println!("To install a specific version, use npm instead.");
+                }
+                
+                // Check if tap exists
+                if command_exists("brew") {
+                    let output = std::process::Command::new("brew")
+                        .args(["tap"])
+                        .output()?;
+                    
+                    let taps = String::from_utf8_lossy(&output.stdout);
+                    if !taps.contains("kindly-software-inc/tap") {
+                        println!("\n{}: The Homebrew tap hasn't been added yet.", "Info".cyan());
+                        println!("After running the tap command, you can install with:");
+                        println!("  {} {}", "$".dimmed(), "brew install kindlyguard".bright_white());
+                    }
+                }
+            }
+            "npm" => {
+                println!("{}", "Installing via npm...".yellow());
+                let package = if let Some(v) = version {
+                    format!("kindly-guard-server@{}", v)
+                } else {
+                    "kindly-guard-server".to_string()
+                };
+                
+                println!("\nRun this command:");
+                println!("  {} npm install -g {}", "$".dimmed(), package.bright_white());
+                
+                if !command_exists("npm") {
+                    println!("\n{}: npm is not installed. Install Node.js first:", "Error".red());
+                    println!("  {}", "https://nodejs.org/".blue().underline());
+                }
+            }
+            "cargo" => {
+                println!("{}", "Installing via Cargo...".yellow());
+                let package = if let Some(v) = version {
+                    format!("kindlyguard@{}", v)
+                } else {
+                    "kindlyguard".to_string()
+                };
+                
+                println!("\nRun this command:");
+                println!("  {} cargo install {}", "$".dimmed(), package.bright_white());
+                
+                if !command_exists("cargo") {
+                    println!("\n{}: Cargo is not installed. Install Rust first:", "Error".red());
+                    println!("  {}", "https://rustup.rs/".blue().underline());
+                }
+            }
+            "binary" => {
+                println!("{}", "Downloading binary release...".yellow());
+                println!("\nVisit the releases page:");
+                println!("  {}", "https://github.com/kindly-software-inc/kindly-guard/releases".blue().underline());
+                
+                match platform {
+                    Platform::MacOS => {
+                        println!("\nDownload: kindly-guard-server-{}-apple-darwin.tar.gz", 
+                            if cfg!(target_arch = "aarch64") { "aarch64" } else { "x86_64" });
+                    }
+                    Platform::Linux => {
+                        println!("\nDownload: kindly-guard-server-x86_64-unknown-linux-gnu.tar.gz");
+                    }
+                    Platform::Windows => {
+                        println!("\nDownload: kindly-guard-server-x86_64-pc-windows-msvc.zip");
+                        println!("Or use the MSI installer: kindly-guard-server-x86_64-pc-windows-msvc.msi");
+                    }
+                    _ => {}
+                }
+            }
+            _ => {
+                anyhow::bail!("Unknown installation method: {}", install_method);
+            }
+        }
+        
+        println!("\n{}", "After installation:".bold());
+        println!("  Run {} to start the MCP server", "kindlyguard --stdio".bright_white());
+        println!("  Run {} for help\n", "kindlyguard --help".bright_white());
+        
+        Ok(())
+    }
+
     async fn install_all() -> Result<()> {
         tracing::info!("Installing all recommended tools...");
+        install_kindlyguard(None, None).await?;
         install_mcp_servers(None).await?;
         install_dev_deps().await?;
         Ok(())

@@ -38,14 +38,24 @@ Once set up, users can install KindlyGuard via Homebrew:
 brew tap kindly-software-inc/tap
 
 # Install the MCP server
-brew install kindly-guard-server
+brew install kindlyguard
 
 # Install development tools
 brew install kindly-tools
 
 # Update to latest version
-brew upgrade kindly-guard-server
+brew upgrade kindlyguard
 ```
+
+### Formula Alias Setup
+
+To allow `brew install kindlyguard` instead of `brew install kindly-guard-server`, create an alias in your tap repository:
+
+1. In the `homebrew-tap` repository, create a file named `Aliases/kindlyguard`
+2. Add a single line: `../Formula/kindly-guard-server.rb`
+3. Commit and push
+
+This creates an alias so users can use the shorter, cleaner name.
 
 ## Benefits
 
