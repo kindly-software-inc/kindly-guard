@@ -12,6 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Platform testing ongoing
 - Release artifacts preparation
 
+## [0.10.1] - 2025-07-05
+
+### Fixed
+- Added missing `dist = true` metadata to enable cargo-dist builds
+- Fixed CLI binary name to 'kindlyguard' for consistency
+- Cargo-dist now properly builds release artifacts for all platforms
+
 ## [0.10.0] - 2025-01-05
 
 ### Added
