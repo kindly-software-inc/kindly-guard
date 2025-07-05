@@ -10,7 +10,7 @@ documentation.workspace = true
 readme = "README.md"
 keywords = ["security", "mcp", "ai-security", "threat-detection", "unicode"]
 categories = ["command-line-utilities", "network-programming"]
-description = "Security-focused MCP server protecting AI model interactions from threats"
+description = "KindlyGuard MCP server - Enterprise-grade security for AI model interactions"
 
 [package.metadata.dist]
 dist = true
@@ -26,7 +26,7 @@ name = "kindly_guard_server"
 path = "src/lib.rs"
 
 [[bin]]
-name = "kindlyguard-server"
+name = "kindlyguard"
 path = "src/main.rs"
 
 [dependencies]

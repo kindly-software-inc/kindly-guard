@@ -12,6 +12,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Platform testing ongoing
 - Release artifacts preparation
 
+## [0.10.3] - 2025-07-05
+
+### Changed
+- Simplified distribution to only include MCP server (as 'kindlyguard') and development tools
+- Excluded CLI from public distribution (kept for internal use only)
+- MCP server binary is now the primary 'kindlyguard' executable
+
+### Fixed
+- Regenerated WiX configurations for streamlined distribution
+
 ## [0.10.2] - 2025-07-05
 
 ### Fixed

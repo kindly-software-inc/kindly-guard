@@ -69,7 +69,7 @@
 
         <Package Id='*'
             Keywords='Installer'
-            Description='Security-focused MCP server protecting AI model interactions from threats'
+            Description='KindlyGuard MCP server - Enterprise-grade security for AI model interactions'
             Manufacturer='samduchaine'
             InstallerVersion='450'
             Languages='1033'
@@ -123,9 +123,9 @@
                         <Component Id='binary0' Guid='*'>
                             <File
                                 Id='exe0'
-                                Name='kindlyguard-server.exe'
+                                Name='kindlyguard.exe'
                                 DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\kindlyguard-server.exe'
+                                Source='$(var.CargoTargetBinDir)\kindlyguard.exe'
                                 KeyPath='yes'/>
                         </Component>
                     </Directory>
