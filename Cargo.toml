@@ -5,6 +5,8 @@ members = [
     "kindly-guard-cli",
     "kindly-guard-shield",
     "crates-io-package/kindlyguard",
+    "xtask",
+    "kindly-tools",
 ]
 exclude = [
     "target",

@@ -23,6 +23,7 @@ use walkdir::WalkDir;
 
 use kindly_guard_server::{Config as ServerConfig, ScannerConfig, SecurityScanner, Threat};
 
+mod commands;
 mod output;
 use output::{print_scan_results, OutputFormat};
 
@@ -104,6 +105,29 @@ enum Commands {
         #[arg(short, long)]
         block: bool,
     },
+
+    /// Install KindlyGuard binaries
+    Install {
+        /// Version to install (defaults to latest)
+        #[arg(short, long)]
+        version: Option<String>,
+
+        /// Installation directory (defaults to system-specific location)
+        #[arg(short, long)]
+        dir: Option<String>,
+
+        /// Components to install (defaults to all)
+        #[arg(short, long)]
+        components: Option<Vec<String>>,
+
+        /// Force overwrite existing binaries
+        #[arg(short, long)]
+        force: bool,
+
+        /// Skip checksum verification
+        #[arg(long)]
+        no_verify: bool,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -159,6 +183,17 @@ async fn main() -> Result<()> {
             server,
             block,
         } => wrap_command(command, server, block).await,
+        Commands::Install {
+            version,
+            dir,
+            components,
+            force,
+            no_verify,
+        } => {
+            use std::path::PathBuf;
+            let install_dir = dir.map(PathBuf::from);
+            commands::install::run(version, install_dir, components, force, no_verify).await
+        }
     }
 }
 

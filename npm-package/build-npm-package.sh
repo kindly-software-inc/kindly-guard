@@ -24,7 +24,7 @@ print_error() {
 }
 
 # Check if we're in the right directory
-if [ ! -f "../Cargo.toml" ] && [ ! -d "../kindly-guard-server" ]; then
+if [ ! -f "../Cargo.toml" ] && [ ! -d "../kindlyguard-server" ]; then
     print_error "Please run this script from the npm-package directory"
     exit 1
 fi
@@ -63,21 +63,21 @@ if [ "$PLATFORM_NAME" = "win32" ]; then
 fi
 
 # Check if binaries exist
-if [ ! -f "../target/release/kindly-guard${BINARY_EXT}" ]; then
-    print_error "Binary not found: ../target/release/kindly-guard${BINARY_EXT}"
+if [ ! -f "../target/release/kindlyguard${BINARY_EXT}" ]; then
+    print_error "Binary not found: ../target/release/kindlyguard${BINARY_EXT}"
     print_info "Please run 'cargo build --release' first"
     exit 1
 fi
 
-if [ ! -f "../target/release/kindly-guard-cli${BINARY_EXT}" ]; then
-    print_error "Binary not found: ../target/release/kindly-guard-cli${BINARY_EXT}"
+if [ ! -f "../target/release/kindlyguard-cli${BINARY_EXT}" ]; then
+    print_error "Binary not found: ../target/release/kindlyguard-cli${BINARY_EXT}"
     print_info "Please run 'cargo build --release' first"
     exit 1
 fi
 
 # Copy binaries
-cp "../target/release/kindly-guard${BINARY_EXT}" "$PACKAGE_DIR/kindlyguard${BINARY_EXT}"
-cp "../target/release/kindly-guard-cli${BINARY_EXT}" "$PACKAGE_DIR/kindlyguard-cli${BINARY_EXT}"
+cp "../target/release/kindlyguard${BINARY_EXT}" "$PACKAGE_DIR/kindlyguard${BINARY_EXT}"
+cp "../target/release/kindlyguard-cli${BINARY_EXT}" "$PACKAGE_DIR/kindlyguard-cli${BINARY_EXT}"
 
 print_status "Binaries copied"
 

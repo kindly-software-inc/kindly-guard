@@ -1,0 +1,514 @@
+# Cargo Make configuration for KindlyGuard
+# This complements the xtask system by providing task orchestration and workflows
+
+[config]
+skip_core_tasks = false
+default_to_workspace = true
+min_version = "0.37.0"
+
+[env]
+RUST_LOG = "kindly_guard=debug"
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+CARGO_TARGET_DIR = "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/target"
+DOCKER_BUILDKIT = "1"
+
+# Security environment
+RUSTFLAGS = "-D warnings -C overflow-checks=on"
+CARGO_PROFILE_RELEASE_LTO = "fat"
+CARGO_PROFILE_RELEASE_CODEGEN_UNITS = "1"
+CARGO_PROFILE_RELEASE_PANIC = "abort"
+
+[env.development]
+RUST_BACKTRACE = "1"
+RUST_LOG = "kindly_guard=trace"
+
+[env.production]
+RUST_LOG = "kindly_guard=info"
+CARGO_PROFILE_RELEASE_STRIP = "symbols"
+
+# ==============================================================================
+# MAIN WORKFLOWS
+# ==============================================================================
+
+[tasks.default]
+description = "Show available tasks"
+script = '''
+echo "KindlyGuard Development Tasks"
+echo "============================="
+echo ""
+echo "Main Workflows:"
+echo "  cargo make ci         - Run full CI pipeline"
+echo "  cargo make dev        - Development workflow (build, test, lint)"
+echo "  cargo make release    - Create a new release"
+echo "  cargo make security   - Run security checks"
+echo ""
+echo "Building:"
+echo "  cargo make build      - Build all targets"
+echo "  cargo make build-all  - Build for all platforms"
+echo "  cargo make docker     - Build Docker images"
+echo ""
+echo "Testing:"
+echo "  cargo make test       - Run all tests"
+echo "  cargo make test-unit  - Run unit tests only"
+echo "  cargo make bench      - Run benchmarks"
+echo ""
+echo "Publishing:"
+echo "  cargo make publish    - Publish to all registries"
+echo "  cargo make docs       - Generate and serve documentation"
+echo ""
+echo "Utilities:"
+echo "  cargo make clean      - Clean build artifacts"
+echo "  cargo make update     - Update dependencies"
+echo "  cargo make audit      - Security audit"
+echo ""
+echo "Run 'cargo make --list' for all available tasks"
+'''
+
+# ==============================================================================
+# CI WORKFLOW
+# ==============================================================================
+
+[tasks.ci]
+description = "Run full CI pipeline"
+dependencies = [
+    "format-check",
+    "lint",
+    "build",
+    "test",
+    "security",
+    "docs-check"
+]
+
+[tasks.ci-minimal]
+description = "Run minimal CI checks (for pre-commit)"
+dependencies = [
+    "format-check",
+    "lint-fast",
+    "test-unit"
+]
+
+# ==============================================================================
+# DEVELOPMENT WORKFLOW
+# ==============================================================================
+
+[tasks.dev]
+description = "Development workflow - build, test, and lint"
+dependencies = [
+    "format",
+    "build-dev",
+    "test-unit",
+    "lint"
+]
+
+[tasks.dev-watch]
+description = "Watch for changes and run dev workflow"
+watch = { postpone = true, watch = ["./src", "./Cargo.toml"] }
+dependencies = ["dev"]
+
+# ==============================================================================
+# BUILD TASKS
+# ==============================================================================
+
+[tasks.build]
+description = "Build all workspace members in release mode"
+command = "cargo"
+args = ["xtask", "build", "--release"]
+
+[tasks.build-dev]
+description = "Build all workspace members in debug mode"
+command = "cargo"
+args = ["xtask", "build"]
+
+[tasks.build-all]
+description = "Build for all supported platforms"
+command = "cargo"
+args = ["xtask", "build", "--all-platforms"]
+
+[tasks.build-secure]
+description = "Build with security profile"
+env = { CARGO_PROFILE = "secure" }
+command = "cargo"
+args = ["build", "--profile=secure", "--workspace"]
+
+# ==============================================================================
+# TEST TASKS
+# ==============================================================================
+
+[tasks.test]
+description = "Run all tests"
+command = "cargo"
+args = ["xtask", "test", "--all"]
+
+[tasks.test-unit]
+description = "Run unit tests only"
+command = "cargo"
+args = ["xtask", "test", "--unit"]
+
+[tasks.test-integration]
+description = "Run integration tests"
+command = "cargo"
+args = ["xtask", "test", "--integration"]
+
+[tasks.test-doc]
+description = "Run doctests"
+command = "cargo"
+args = ["test", "--doc", "--workspace"]
+
+[tasks.bench]
+description = "Run benchmarks"
+command = "cargo"
+args = ["xtask", "bench"]
+
+[tasks.test-coverage]
+description = "Run tests with coverage"
+install_crate = "cargo-tarpaulin"
+command = "cargo"
+args = ["tarpaulin", "--workspace", "--out", "Html", "--output-dir", "target/coverage"]
+
+# ==============================================================================
+# SECURITY TASKS
+# ==============================================================================
+
+[tasks.security]
+description = "Run all security checks"
+dependencies = [
+    "audit",
+    "check-unsafe",
+    "security-scan",
+    "deny-check"
+]
+
+[tasks.audit]
+description = "Run cargo audit"
+command = "cargo"
+args = ["xtask", "check", "--security"]
+
+[tasks.check-unsafe]
+description = "Check for unsafe code"
+install_crate = "cargo-geiger"
+command = "cargo"
+args = ["geiger", "--workspace"]
+
+[tasks.security-scan]
+description = "Run security scanner on codebase"
+command = "cargo"
+args = ["run", "--bin", "kindly-guard-cli", "--", "scan", "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/src"]
+
+[tasks.deny-check]
+description = "Check dependencies with cargo-deny"
+install_crate = "cargo-deny"
+command = "cargo"
+args = ["deny", "check"]
+
+# ==============================================================================
+# LINT & FORMAT TASKS
+# ==============================================================================
+
+[tasks.format]
+description = "Format code"
+command = "cargo"
+args = ["xtask", "fmt"]
+
+[tasks.format-check]
+description = "Check code formatting"
+command = "cargo"
+args = ["xtask", "fmt", "--check"]
+
+[tasks.lint]
+description = "Run clippy with all lints"
+command = "cargo"
+args = ["xtask", "lint"]
+
+[tasks.lint-fast]
+description = "Run clippy with default lints (faster)"
+command = "cargo"
+args = ["clippy", "--workspace", "--all-targets", "--", "-D", "warnings"]
+
+# ==============================================================================
+# DOCKER TASKS
+# ==============================================================================
+
+[tasks.docker]
+description = "Build Docker images"
+command = "cargo"
+args = ["xtask", "docker", "build"]
+
+[tasks.docker-push]
+description = "Push Docker images"
+command = "cargo"
+args = ["xtask", "docker", "push"]
+
+[tasks.docker-run]
+description = "Run Docker container"
+command = "docker"
+args = ["run", "-it", "--rm", "kindlyguard/server:latest"]
+
+[tasks.docker-compose-up]
+description = "Start services with docker-compose"
+command = "docker-compose"
+args = ["up", "-d"]
+
+[tasks.docker-compose-down]
+description = "Stop services with docker-compose"
+command = "docker-compose"
+args = ["down"]
+
+# ==============================================================================
+# RELEASE TASKS
+# ==============================================================================
+
+[tasks.release]
+description = "Create a new release"
+dependencies = [
+    "ci",
+    "changelog"
+]
+command = "cargo"
+args = ["xtask", "release"]
+
+[tasks.release-dry-run]
+description = "Dry run of release process"
+command = "cargo"
+args = ["xtask", "release", "--dry-run"]
+
+[tasks.changelog]
+description = "Generate changelog"
+command = "cargo"
+args = ["xtask", "changelog"]
+
+[tasks.version-bump]
+description = "Bump version"
+script = '''
+echo "Current version: $(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')"
+echo "Enter new version:"
+read NEW_VERSION
+cargo xtask version --set $NEW_VERSION
+'''
+
+# ==============================================================================
+# PUBLISH TASKS
+# ==============================================================================
+
+[tasks.publish]
+description = "Publish to all registries"
+dependencies = ["ci"]
+command = "cargo"
+args = ["xtask", "publish", "--all"]
+
+[tasks.publish-crates]
+description = "Publish to crates.io"
+command = "cargo"
+args = ["xtask", "publish", "--crates"]
+
+[tasks.publish-npm]
+description = "Publish to npm"
+command = "cargo"
+args = ["xtask", "publish", "--npm"]
+
+[tasks.publish-docker]
+description = "Publish Docker images"
+dependencies = ["docker", "docker-push"]
+
+# ==============================================================================
+# DOCUMENTATION TASKS
+# ==============================================================================
+
+[tasks.docs]
+description = "Generate and serve documentation"
+command = "cargo"
+args = ["xtask", "docs", "--serve"]
+
+[tasks.docs-check]
+description = "Check documentation"
+command = "cargo"
+args = ["doc", "--workspace", "--no-deps", "--document-private-items"]
+
+[tasks.docs-coverage]
+description = "Check documentation coverage"
+env = { RUSTDOCFLAGS = "-D missing_docs" }
+command = "cargo"
+args = ["doc", "--workspace", "--no-deps"]
+
+# ==============================================================================
+# UTILITY TASKS
+# ==============================================================================
+
+[tasks.clean]
+description = "Clean build artifacts"
+command = "cargo"
+args = ["clean"]
+
+[tasks.clean-all]
+description = "Deep clean including caches"
+script = '''
+cargo clean
+rm -rf target/
+rm -rf node_modules/
+rm -rf .cache/
+rm -rf dist/
+find . -name "*.log" -type f -delete
+echo "Deep clean completed"
+'''
+
+[tasks.update]
+description = "Update dependencies"
+command = "cargo"
+args = ["update", "--workspace"]
+
+[tasks.outdated]
+description = "Check for outdated dependencies"
+install_crate = "cargo-outdated"
+command = "cargo"
+args = ["outdated", "--workspace", "--root-deps-only"]
+
+[tasks.tree]
+description = "Show dependency tree"
+command = "cargo"
+args = ["tree", "--workspace"]
+
+[tasks.bloat]
+description = "Analyze binary size"
+install_crate = "cargo-bloat"
+command = "cargo"
+args = ["bloat", "--release", "--crates"]
+
+# ==============================================================================
+# DEVELOPMENT SERVER TASKS
+# ==============================================================================
+
+[tasks.run]
+description = "Run KindlyGuard server"
+command = "cargo"
+args = ["run", "--bin", "kindly-guard-server", "--", "--stdio"]
+
+[tasks.run-debug]
+description = "Run server with debug logging"
+env = { RUST_LOG = "kindly_guard=debug" }
+command = "cargo"
+args = ["run", "--bin", "kindly-guard-server", "--", "--stdio"]
+
+[tasks.run-trace]
+description = "Run server with trace logging"
+env = { RUST_LOG = "kindly_guard=trace" }
+command = "cargo"
+args = ["run", "--bin", "kindly-guard-server", "--", "--stdio"]
+
+[tasks.monitor]
+description = "Run KindlyGuard monitor"
+command = "cargo"
+args = ["run", "--bin", "kindly-guard-cli", "--", "monitor", "--detailed"]
+
+# ==============================================================================
+# GIT HOOKS
+# ==============================================================================
+
+[tasks.install-hooks]
+description = "Install git hooks"
+script = '''
+#!/bin/bash
+echo "Installing git hooks..."
+cargo xtask hooks install
+echo "Git hooks installed!"
+'''
+
+[tasks.pre-commit]
+description = "Run pre-commit checks"
+dependencies = ["ci-minimal"]
+
+# ==============================================================================
+# PLATFORM-SPECIFIC TASKS
+# ==============================================================================
+
+[tasks.build-linux]
+description = "Build for Linux"
+condition = { platforms = ["linux", "mac"] }
+command = "cargo"
+args = ["xtask", "build", "--target", "x86_64-unknown-linux-gnu"]
+
+[tasks.build-windows]
+description = "Build for Windows"
+condition = { platforms = ["linux", "mac"] }
+command = "cargo"
+args = ["xtask", "build", "--target", "x86_64-pc-windows-gnu"]
+
+[tasks.build-macos]
+description = "Build for macOS"
+condition = { platforms = ["mac"] }
+command = "cargo"
+args = ["xtask", "build", "--target", "x86_64-apple-darwin"]
+
+# ==============================================================================
+# WORKSPACE MEMBER TASKS
+# ==============================================================================
+
+[tasks.test-server]
+description = "Test server crate only"
+command = "cargo"
+args = ["test", "-p", "kindly-guard-server"]
+
+[tasks.test-cli]
+description = "Test CLI crate only"
+command = "cargo"
+args = ["test", "-p", "kindly-guard-cli"]
+
+[tasks.test-shield]
+description = "Test shield crate only"
+command = "cargo"
+args = ["test", "-p", "kindly-guard-shield"]
+
+# ==============================================================================
+# ALIASES
+# ==============================================================================
+
+[tasks.t]
+alias = "test"
+
+[tasks.b]
+alias = "build"
+
+[tasks.r]
+alias = "run"
+
+[tasks.c]
+alias = "check"
+
+[tasks.fmt]
+alias = "format"
+
+[tasks.d]
+alias = "docs"
+
+# ==============================================================================
+# COMPOSITE WORKFLOWS
+# ==============================================================================
+
+[tasks.prepare-release]
+description = "Prepare for release (update deps, audit, test)"
+dependencies = [
+    "update",
+    "outdated",
+    "security",
+    "test",
+    "docs-check"
+]
+
+[tasks.daily]
+description = "Daily development workflow"
+dependencies = [
+    "update",
+    "format",
+    "build-dev",
+    "test-unit",
+    "lint-fast"
+]
+
+[tasks.weekly]
+description = "Weekly maintenance tasks"
+dependencies = [
+    "update",
+    "outdated",
+    "security",
+    "test",
+    "bench",
+    "bloat"
+]

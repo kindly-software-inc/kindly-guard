@@ -1,0 +1,18 @@
+# Kindly Guard Configuration
+mode = "standard"
+log_level = "info"
+
+[rate_limit]
+window_secs = 60
+max_requests = 100
+
+[scanner]
+max_input_size = 1048576  # 1MB
+patterns_file = ""
+
+[metrics]
+enabled = true
+export_interval_secs = 60
+
+[auth]
+require_auth = false

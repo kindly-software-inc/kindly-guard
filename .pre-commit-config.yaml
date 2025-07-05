@@ -2,6 +2,28 @@
 # These hooks catch security issues before they enter the repository
 
 repos:
+  # Rust environment check - ensures build environment is healthy
+  - repo: local
+    hooks:
+      - id: rust-doctor
+        name: Check Rust environment health
+        entry: cargo xtask doctor --component rust
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        description: "Validates Rust toolchain and environment setup"
+
+  # KindlyGuard tools check - runs project-specific security and quality checks
+  - repo: local
+    hooks:
+      - id: kindly-guard-tools
+        name: Run KindlyGuard security and quality tools
+        entry: scripts/pre-commit-rust-tools.sh
+        language: system
+        pass_filenames: false
+        stages: [commit]
+        description: "Runs kindly-tools security scan and xtask project health checks"
+
   # Rust formatting - prevents unicode hiding attacks
   - repo: local
     hooks:
@@ -23,6 +45,17 @@ repos:
         types: [rust]
         pass_filenames: false
         description: "Catches common security vulnerabilities and code quality issues"
+
+  # Quick test run with nextest
+  - repo: local
+    hooks:
+      - id: nextest-quick
+        name: Run quick tests with nextest
+        entry: cargo xtask test --nextest --quick
+        language: system
+        pass_filenames: false
+        stages: [push]
+        description: "Runs fast subset of tests to catch obvious regressions"
 
   # Check for unsafe without SAFETY comment
   - repo: local
@@ -118,6 +151,17 @@ repos:
         language: system
         pass_filenames: false
         description: "Ensures all Rust files have proper license headers"
+
+  # Cache validation - ensures build cache integrity
+  - repo: local
+    hooks:
+      - id: cache-validation
+        name: Validate build cache statistics
+        entry: cargo xtask cache stats
+        language: system
+        pass_filenames: false
+        stages: [push]
+        description: "Checks cache health and reports statistics"
 
 # Configuration
 default_stages: [commit]

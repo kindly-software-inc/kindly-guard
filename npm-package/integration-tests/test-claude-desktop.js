@@ -15,7 +15,7 @@ console.log('Claude Desktop Integration Test\n');
 // Test configuration
 const testConfig = {
     mcpServers: {
-        "kindly-guard": {
+        "kindlyguard": {
             command: "npx",
             args: ["kindlyguard", "--stdio"]
         }
@@ -52,9 +52,9 @@ async function testAsync(name, fn) {
 // Test 1: Configuration structure
 test('Configuration structure is valid', () => {
     assert(testConfig.mcpServers, 'mcpServers key should exist');
-    assert(testConfig.mcpServers['kindly-guard'], 'kindly-guard server should be configured');
+    assert(testConfig.mcpServers['kindlyguard'], 'kindlyguard server should be configured');
     
-    const serverConfig = testConfig.mcpServers['kindly-guard'];
+    const serverConfig = testConfig.mcpServers['kindlyguard'];
     assert.strictEqual(serverConfig.command, 'npx', 'Command should be npx');
     assert(Array.isArray(serverConfig.args), 'Args should be an array');
     assert.strictEqual(serverConfig.args[0], 'kindlyguard', 'First arg should be kindlyguard');
@@ -284,7 +284,7 @@ testAsync('Write sample configuration file', async () => {
     
     const sampleConfig = {
         mcpServers: {
-            "kindly-guard": {
+            "kindlyguard": {
                 command: "npx",
                 args: ["kindlyguard", "--stdio"]
             }

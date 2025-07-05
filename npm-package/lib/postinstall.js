@@ -404,7 +404,7 @@ async function main() {
     console.log('   Add this to your Claude Desktop config:\n');
     console.log(JSON.stringify({
       mcpServers: {
-        "kindly-guard": {
+        "kindlyguard": {
           command: "npx",
           args: ["kindlyguard", "--stdio"]
         }
