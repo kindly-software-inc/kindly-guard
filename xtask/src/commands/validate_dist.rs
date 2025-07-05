@@ -9,7 +9,7 @@ use colored::Colorize;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::utils::{self, Context};
+use crate::utils::Context;
 use crate::utils::cargo::workspace_root;
 
 /// Command arguments for validate-dist
@@ -156,10 +156,25 @@ fn validate_package(package: &Package, workspace_root: &Path, ctx: &Context) -> 
         }
         
         // Check if package has dist metadata
-        if let Some(metadata) = &package.metadata {
-            if !metadata.get("dist").is_some() && !metadata.get("wix").is_some() {
+        match &package.metadata {
+            Value::Object(metadata) => {
+                if metadata.get("dist").is_none() && metadata.get("wix").is_none() {
+                    warnings.push(format!(
+                        "Package '{}' has binaries but no dist or wix metadata",
+                        package.name
+                    ));
+                }
+            }
+            Value::Null => {
                 warnings.push(format!(
-                    "Package '{}' has binaries but no dist or wix metadata",
+                    "Package '{}' has binaries but no metadata section",
+                    package.name
+                ));
+            }
+            _ => {
+                // metadata is not an object or null, which is unexpected
+                warnings.push(format!(
+                    "Package '{}' has unexpected metadata type",
                     package.name
                 ));
             }
@@ -211,7 +226,7 @@ fn is_valid_binary_name(binary_name: &str, package_name: &str) -> bool {
 }
 
 /// Runs cargo dist plan and validates the output
-fn validate_dist_plan(workspace_root: &Path, ctx: &Context) -> Result<ValidationResult> {
+fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<ValidationResult> {
     let mut issues = Vec::new();
     let mut warnings = Vec::new();
     
@@ -316,7 +331,7 @@ fn is_cargo_dist_installed() -> Result<bool> {
 }
 
 /// Prints the validation results in a formatted way
-fn print_validation_results(results: &[ValidationResult], detailed: bool, ctx: &Context) {
+fn print_validation_results(results: &[ValidationResult], detailed: bool, _ctx: &Context) {
     for result in results {
         println!("\n📦 {}", result.package_name.cyan().bold());
         

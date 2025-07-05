@@ -1,7 +1,7 @@
 use anyhow::{Context as _, Result};
 use clap::Args;
 use colored::*;
-use dialoguer::{theme::ColorfulTheme, Confirm, Select, MultiSelect};
+use dialoguer::{theme::ColorfulTheme, Confirm, Select};
 use semver::Version;
 use std::collections::HashMap;
 

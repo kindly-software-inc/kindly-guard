@@ -1,7 +1,7 @@
 use anyhow::Result;
 use clap::Args;
 use colored::*;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::Duration;
 use chrono::Utc;
 use serde_json;
@@ -287,7 +287,7 @@ async fn run_unit_tests(cmd: &TestCmd, ctx: &Context, flaky_manager: std::sync::
     Ok(result)
 }
 
-async fn run_integration_tests(cmd: &TestCmd, ctx: &Context, flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
+async fn run_integration_tests(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
     let spinner = spinner("Running integration tests");
     
     let start = std::time::Instant::now();
@@ -320,7 +320,7 @@ async fn run_integration_tests(cmd: &TestCmd, ctx: &Context, flaky_manager: std:
     })
 }
 
-async fn run_security_tests(cmd: &TestCmd, ctx: &Context, flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
+async fn run_security_tests(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
     let spinner = spinner("Running security tests");
     
     let start = std::time::Instant::now();
@@ -354,7 +354,7 @@ async fn run_security_tests(cmd: &TestCmd, ctx: &Context, flaky_manager: std::sy
     })
 }
 
-async fn run_benchmarks(cmd: &TestCmd, ctx: &Context, flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
+async fn run_benchmarks(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
     let spinner = spinner("Running benchmarks");
     
     let start = std::time::Instant::now();
@@ -566,7 +566,7 @@ struct TestEvent {
 }
 
 // Run cargo test with captured output
-async fn run_cargo_tests_with_output(cmd: &TestCmd, ctx: &Context, integration: bool) -> Result<String> {
+async fn run_cargo_tests_with_output(cmd: &TestCmd, _ctx: &Context, integration: bool) -> Result<String> {
     let mut args = vec!["test"];
     
     if let Some(package) = &cmd.package {
@@ -605,7 +605,7 @@ async fn run_cargo_tests_with_output(cmd: &TestCmd, ctx: &Context, integration: 
 }
 
 // Run nextest with captured output
-async fn run_nextest_tests_with_output(cmd: &TestCmd, ctx: &Context, integration: bool) -> Result<String> {
+async fn run_nextest_tests_with_output(cmd: &TestCmd, _ctx: &Context, integration: bool) -> Result<String> {
     let mut args = vec!["nextest", "run"];
     
     if let Some(package) = &cmd.package {

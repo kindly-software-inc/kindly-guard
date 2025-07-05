@@ -11,8 +11,6 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use which::which;
 
-use crate::utils::{cargo, process};
-
 /// Nextest profile configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NextestProfile {

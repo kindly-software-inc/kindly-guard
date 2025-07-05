@@ -1,10 +1,44 @@
 //! Cargo-related utilities
 
-use anyhow::Result;
+use anyhow::{Context as AnyhowContext, Result};
+use std::path::{Path, PathBuf};
 use std::process::Command;
 use tracing::debug;
 
 use crate::utils::Context;
+
+/// Find the workspace root directory by looking for Cargo.toml with [workspace]
+pub fn workspace_root() -> Result<PathBuf> {
+    let current_dir = std::env::current_dir()
+        .with_context(|| "Failed to get current directory")?;
+    
+    let mut dir = current_dir.as_path();
+    
+    loop {
+        let cargo_toml = dir.join("Cargo.toml");
+        
+        if cargo_toml.exists() {
+            // Read the file and check if it contains [workspace]
+            let contents = std::fs::read_to_string(&cargo_toml)
+                .with_context(|| format!("Failed to read {:?}", cargo_toml))?;
+            
+            if contents.contains("[workspace]") {
+                debug!("Found workspace root at: {:?}", dir);
+                return Ok(dir.to_path_buf());
+            }
+        }
+        
+        // Move up one directory
+        match dir.parent() {
+            Some(parent) => dir = parent,
+            None => {
+                return Err(anyhow::anyhow!(
+                    "Could not find workspace root (no Cargo.toml with [workspace] found)"
+                ));
+            }
+        }
+    }
+}
 
 /// Run cargo with the given arguments
 pub fn run_cargo(ctx: &Context, args: &[&str]) -> Result<()> {

@@ -8,7 +8,7 @@ use std::{
     collections::{HashMap, VecDeque},
     path::{Path, PathBuf},
     sync::Arc,
-    time::{Duration, SystemTime},
+    time::Duration,
 };
 
 use anyhow::{Context as _, Result};
@@ -19,7 +19,7 @@ use tokio::{
     io::{AsyncReadExt, AsyncWriteExt},
     sync::RwLock,
 };
-use tracing::{debug, info, warn};
+use tracing::warn;
 
 use crate::utils::Context;
 
@@ -417,7 +417,7 @@ impl FlakyTestManager {
     }
 
     /// Generate flakiness report
-    pub async fn generate_report(&self, ctx: &Context) -> Result<FlakinessReport> {
+    pub async fn generate_report(&self, _ctx: &Context) -> Result<FlakinessReport> {
         let stats = self.stats.read().await;
         let executions = self.executions.read().await;
 
