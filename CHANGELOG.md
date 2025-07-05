@@ -12,6 +12,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Platform testing ongoing
 - Release artifacts preparation
 
+## [0.10.2] - 2025-07-05
+
+### Fixed
+- Resolved WiX installer configuration with outdated binary names
+- Fixed binary name conflict between CLI and server (server now uses 'kindlyguard-server')
+- Excluded Tauri app and xtask from cargo-dist to prevent build conflicts
+- Regenerated all WiX installer definitions with correct binary paths
+- Added validate-dist command to catch configuration issues early
+
 ## [0.10.1] - 2025-07-05
 
 ### Fixed
