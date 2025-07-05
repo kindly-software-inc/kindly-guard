@@ -13,7 +13,11 @@ pub mod git;
 pub mod nextest;
 pub mod npm;
 pub mod process;
+pub mod tools;
 pub mod version;
+
+// Re-exports for convenience
+pub use tools::{ensure_tool_installed, is_tool_installed, is_ci_environment, ToolInstallConfig};
 
 #[derive(Clone, Debug)]
 pub struct Context {

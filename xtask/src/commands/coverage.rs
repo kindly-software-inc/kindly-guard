@@ -5,7 +5,8 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
-use crate::utils::{Context, ensure_command_exists, spinner, workspace_root};
+use crate::utils::{Context, spinner, workspace_root};
+use crate::utils::tools::ensure_tool_installed;
 
 #[derive(Args)]
 pub struct CoverageCmd {
@@ -67,14 +68,20 @@ pub struct CoverageCmd {
 }
 
 pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
-    // Ensure cargo-llvm-cov is installed
-    ensure_command_exists("cargo-llvm-cov")
-        .context("cargo-llvm-cov is required for coverage generation. Install with: cargo install cargo-llvm-cov")?;
+    // Ensure cargo-llvm-cov is installed (auto-installs in CI)
+    match ensure_tool_installed(&ctx, "cargo-llvm-cov", None)
+        .context("Failed to ensure cargo-llvm-cov is available")? {
+        true => ctx.debug("cargo-llvm-cov is available"),
+        false => anyhow::bail!("cargo-llvm-cov is required for coverage generation"),
+    }
 
-    // If using nextest, ensure it's installed
+    // If using nextest, ensure it's installed (auto-installs in CI)
     if cmd.nextest {
-        ensure_command_exists("cargo-nextest")
-            .context("cargo-nextest is required when --nextest is specified. Install with: cargo install cargo-nextest")?;
+        match ensure_tool_installed(&ctx, "cargo-nextest", None)
+            .context("Failed to ensure cargo-nextest is available")? {
+            true => ctx.debug("cargo-nextest is available"),
+            false => anyhow::bail!("cargo-nextest is required when --nextest is specified"),
+        }
     }
 
     let workspace_dir = workspace_root()?;

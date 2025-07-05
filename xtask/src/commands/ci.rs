@@ -1,6 +1,5 @@
 use anyhow::Result;
 use clap::Args;
-use colored::*;
 use std::env;
 
 use crate::utils::Context;
