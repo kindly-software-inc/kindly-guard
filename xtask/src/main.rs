@@ -7,7 +7,7 @@ mod interactive;
 mod test;
 mod utils;
 
-use commands::{build, cache, doctor, package, publish, release, security, test as test_cmd, validate_dist, version};
+use commands::{build, cache, ci, coverage, doctor, package, publish, release, security, test as test_cmd, validate_dist, version};
 
 #[derive(Parser)]
 #[command(name = "xtask")]
@@ -41,6 +41,12 @@ enum Commands {
     
     /// Build the project for multiple platforms
     Build(build::BuildCmd),
+    
+    /// Run CI pipeline locally
+    Ci(ci::CiCmd),
+    
+    /// Generate code coverage reports
+    Coverage(coverage::CoverageCmd),
     
     /// Manage build cache
     Cache(cache::CacheCmd),
@@ -97,6 +103,8 @@ async fn main() -> Result<()> {
     match cli.command.unwrap() {
         Commands::Release(cmd) => release::run(cmd, ctx).await,
         Commands::Build(cmd) => build::run(cmd, ctx).await,
+        Commands::Ci(cmd) => ci::run(cmd, ctx).await,
+        Commands::Coverage(cmd) => coverage::run(cmd, ctx).await,
         Commands::Cache(cmd) => cache::run(cmd, ctx).await,
         Commands::Test(cmd) => test_cmd::run(cmd, ctx).await,
         Commands::Security(cmd) => security::run(cmd, ctx).await,

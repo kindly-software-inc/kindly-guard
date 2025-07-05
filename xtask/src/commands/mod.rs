@@ -1,5 +1,7 @@
 pub mod build;
 pub mod cache;
+pub mod ci;
+pub mod coverage;
 pub mod doctor;
 pub mod package;
 pub mod publish;
