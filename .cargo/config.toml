@@ -119,8 +119,8 @@ test-all = [
     "--all-targets",
 ]
 
-# Security audit
-audit = "audit --deny warnings"
+# Security audit (removed to avoid conflict with cargo-audit binary)
+# audit = "audit --deny warnings"
 
 # Generate docs with private items (for internal review)
 doc-internal = "doc --no-deps --document-private-items"
@@ -155,8 +155,8 @@ coverage = [
 # Expand macros for security review
 expand = "expand --theme=GitHub --tests"
 
-# Check minimum supported Rust version
-msrv = "msrv --min 1.80.0"
+# Check minimum supported Rust version (removed to avoid conflict with cargo-msrv binary)
+# msrv = "msrv --min 1.80.0"
 
 # Profile-guided optimization build
 pgo-build = [
