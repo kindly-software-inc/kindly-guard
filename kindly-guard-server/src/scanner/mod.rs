@@ -552,9 +552,9 @@ impl SecurityScanner {
 
         // Create scanners with optional enhancement
         #[cfg(feature = "enhanced")]
-        let mut unicode_scanner = UnicodeScanner::new();
+        let mut unicode_scanner = UnicodeScanner::with_config(config.allow_text_control_chars);
         #[cfg(not(feature = "enhanced"))]
-        let unicode_scanner = UnicodeScanner::new();
+        let unicode_scanner = UnicodeScanner::with_config(config.allow_text_control_chars);
         
         #[cfg(feature = "enhanced")]
         let mut injection_scanner = InjectionScanner::new(&patterns)?;

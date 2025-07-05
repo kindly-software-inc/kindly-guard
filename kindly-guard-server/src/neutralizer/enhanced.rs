@@ -389,6 +389,7 @@ impl ThreatNeutralizer for EnhancedNeutralizer {
             crypto_detection: true, // Enable crypto detection for security
             max_content_size: 5_242_880, // 5MB default
             max_input_size: None,
+            allow_text_control_chars: false,
         };
         let scanner = crate::SecurityScanner::new(scanner_config)?;
 

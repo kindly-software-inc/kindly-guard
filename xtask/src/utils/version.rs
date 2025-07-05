@@ -28,11 +28,6 @@ pub fn get_version_locations() -> Vec<VersionLocation> {
             replacement: r#"version = "{}""#.to_string(),
         },
         VersionLocation {
-            file: "kindly-guard-cli/Cargo.toml".to_string(),
-            pattern: Regex::new(r#"version = "[0-9]+\.[0-9]+\.[0-9]+""#).unwrap(),
-            replacement: r#"version = "{}""#.to_string(),
-        },
-        VersionLocation {
             file: "kindly-guard-shield/Cargo.toml".to_string(),
             pattern: Regex::new(r#"version = "[0-9]+\.[0-9]+\.[0-9]+""#).unwrap(),
             replacement: r#"version = "{}""#.to_string(),

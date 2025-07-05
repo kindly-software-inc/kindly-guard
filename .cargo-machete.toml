@@ -15,6 +15,3 @@ ignored = [
 # Per-crate ignores (if needed)
 # [kindly-guard-server]
 # ignored = ["some-crate"]
-
-# [kindly-guard-cli]  
-# ignored = ["another-crate"]

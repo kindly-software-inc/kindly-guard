@@ -8,6 +8,9 @@ use kindly_tools::{
     dev::DevCommand,
     install::InstallCommand,
     mcp::McpCommand,
+    monitor::MonitorCommand,
+    shield::ShieldCommand,
+    wrap::WrapCommand,
     Execute,
 };
 
@@ -29,6 +32,32 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Scan files or directories for security threats
+    Scan {
+        /// Path to scan (file or directory)
+        path: String,
+
+        /// Output format (json, table, brief)
+        #[arg(short, long, default_value = "table")]
+        format: String,
+
+        /// Recursively scan directories
+        #[arg(short, long)]
+        recursive: bool,
+
+        /// File extensions to include (e.g., json,txt,md)
+        #[arg(short, long)]
+        extensions: Option<String>,
+
+        /// Maximum file size in MB
+        #[arg(long, default_value = "10")]
+        max_size_mb: u64,
+
+        /// Configuration file to use
+        #[arg(short, long)]
+        config: Option<String>,
+    },
+
     /// Install tools and dependencies
     Install(InstallCommand),
 
@@ -37,6 +66,15 @@ enum Commands {
 
     /// Development utilities
     Dev(DevCommand),
+
+    /// Wrap any AI CLI command with KindlyGuard protection
+    Wrap(WrapCommand),
+
+    /// Monitor KindlyGuard server status in real-time
+    Monitor(MonitorCommand),
+
+    /// Security shield commands for protecting AI interactions
+    Shield(ShieldCommand),
 }
 
 #[tokio::main]
@@ -56,8 +94,22 @@ async fn main() -> Result<()> {
         .init();
 
     match cli.command {
+        Commands::Scan {
+            path,
+            format,
+            recursive,
+            extensions,
+            max_size_mb,
+            config,
+        } => {
+            use kindly_tools::commands::scan;
+            scan::execute(path, format, recursive, extensions, max_size_mb, config).await
+        }
         Commands::Install(cmd) => cmd.execute().await,
         Commands::Mcp(cmd) => cmd.execute().await,
         Commands::Dev(cmd) => cmd.execute().await,
+        Commands::Wrap(cmd) => cmd.execute().await,
+        Commands::Monitor(cmd) => cmd.execute().await,
+        Commands::Shield(cmd) => cmd.execute().await,
     }
 }

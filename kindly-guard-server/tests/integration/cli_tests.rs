@@ -6,7 +6,7 @@ use tempfile::NamedTempFile;
 /// Helper to run CLI commands
 fn run_cli_command(args: &[&str]) -> std::process::Output {
     Command::new("cargo")
-        .args(&["run", "--manifest-path", "../kindly-guard-cli/Cargo.toml", "--"])
+        .args(&["run", "--manifest-path", "../kindly-tools/Cargo.toml", "--"])
         .args(args)
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()
@@ -273,7 +273,7 @@ fn test_env_var_config() {
     std::env::set_var("KINDLY_GUARD_LOG_LEVEL", "debug");
     
     let output = Command::new("cargo")
-        .args(&["run", "--bin", "kindly-guard-cli", "--", "config", "show"])
+        .args(&["run", "--bin", "kindly-tools", "--", "config", "show"])
         .env("KINDLY_GUARD_LOG_LEVEL", "debug")
         .current_dir(env!("CARGO_MANIFEST_DIR"))
         .output()

@@ -723,7 +723,7 @@ fn find_binaries(target: &str, build_type: &str) -> Result<Vec<PathBuf>> {
     let binary_names = [
         "kindly-guard",
         "kindly-guard-server",
-        "kindly-guard-cli",
+        "kindly-tools",
         "kindly-guard-shield",
     ];
 

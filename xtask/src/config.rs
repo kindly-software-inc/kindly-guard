@@ -144,11 +144,6 @@ impl Default for VersionLocations {
                     replacement: r#"version = "{VERSION}""#.to_string(),
                 },
                 VersionFile {
-                    path: "kindly-guard-cli/Cargo.toml".to_string(),
-                    pattern: r#"^version = ".*"$"#.to_string(),
-                    replacement: r#"version = "{VERSION}""#.to_string(),
-                },
-                VersionFile {
                     path: "kindly-guard-shield/Cargo.toml".to_string(),
                     pattern: r#"^version = ".*"$"#.to_string(),
                     replacement: r#"version = "{VERSION}""#.to_string(),

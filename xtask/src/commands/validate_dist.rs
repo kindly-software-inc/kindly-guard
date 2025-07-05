@@ -363,7 +363,7 @@ mod tests {
     fn test_valid_binary_names() {
         assert!(is_valid_binary_name("kindly-guard-server", "kindly-guard-server"));
         assert!(is_valid_binary_name("kindly-server", "kindly-guard-server"));
-        assert!(is_valid_binary_name("kindlyguard", "kindly-guard-cli"));
+        assert!(is_valid_binary_name("kindlytools", "kindly-tools"));
         assert!(!is_valid_binary_name("random-name", "kindly-guard-server"));
     }
 }

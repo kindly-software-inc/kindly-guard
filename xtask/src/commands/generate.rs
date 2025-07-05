@@ -181,7 +181,7 @@ async fn generate_completions(ctx: &Context) -> Result<()> {
 
     // Generate for each binary
     let binaries = vec![
-        ("kindly-guard", "kindly-guard-cli/src/main.rs"),
+        ("kindly-tools", "kindly-tools/src/main.rs"),
         ("kindly-guard-server", "kindly-guard-server/src/main.rs"),
     ];
 

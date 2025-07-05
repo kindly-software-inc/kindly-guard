@@ -902,6 +902,7 @@ impl ThreatNeutralizer for StandardNeutralizer {
             enable_event_buffer: false,
             max_content_size: 5 * 1024 * 1024, // 5MB
             max_input_size: None,
+            allow_text_control_chars: false,
         };
         let scanner = crate::SecurityScanner::new(scanner_config)?;
 
@@ -1148,6 +1149,7 @@ mod tests {
             enable_event_buffer: false,
             max_content_size: 5 * 1024 * 1024, // 5MB
             max_input_size: None,
+            allow_text_control_chars: false,
         };
         let scanner = crate::SecurityScanner::new(scanner_config).unwrap();
 
@@ -1209,6 +1211,7 @@ mod tests {
             enable_event_buffer: false,
             max_content_size: 5 * 1024 * 1024, // 5MB
             max_input_size: None,
+            allow_text_control_chars: false,
         };
         let scanner = crate::SecurityScanner::new(scanner_config).unwrap();
 
@@ -1260,6 +1263,7 @@ mod tests {
             enable_event_buffer: false,
             max_content_size: 5 * 1024 * 1024, // 5MB
             max_input_size: None,
+            allow_text_control_chars: false,
         };
         let scanner = crate::SecurityScanner::new(scanner_config).unwrap();
 
@@ -1319,6 +1323,7 @@ mod tests {
             enable_event_buffer: false,
             max_content_size: 5 * 1024 * 1024,
             max_input_size: None,
+            allow_text_control_chars: false,
         };
         let scanner = crate::SecurityScanner::new(scanner_config).unwrap();
 

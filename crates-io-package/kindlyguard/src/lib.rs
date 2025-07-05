@@ -17,7 +17,7 @@
 //!
 //! This crate provides a unified interface to the KindlyGuard server functionality.
 //! The CLI tools are available as a separate binary crate that should be installed
-//! with `cargo install kindly-guard-cli`.
+//! with `cargo install kindly-tools`.
 //!
 //! ## Features
 //!
@@ -57,11 +57,11 @@
 //!
 //! ### Using the CLI
 //!
-//! The CLI tools can be accessed through the `kindly-guard-cli` binary:
+//! The CLI tools can be accessed through the `kindly-tools` binary:
 //!
 //! ```bash
-//! kindly-guard-cli scan --path /path/to/scan
-//! kindly-guard-cli monitor --config /path/to/config.toml
+//! kindly-tools scan --path /path/to/scan
+//! kindly-tools monitor --config /path/to/config.toml
 //! ```
 //!
 //! ## Modules

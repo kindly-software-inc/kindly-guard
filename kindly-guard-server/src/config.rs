@@ -367,6 +367,15 @@ pub struct ScannerConfig {
     /// This is an alias for backwards compatibility.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub max_input_size: Option<usize>,
+
+    /// Allow common text control characters (newline, tab, carriage return)
+    ///
+    /// **Default**: false (strict mode - all control chars are dangerous)
+    /// **Security**: When true, allows \n, \r, \t in text without flagging as threats.
+    /// Useful for wrapping CLI tools that process text documents.
+    /// **Warning**: Only enable for trusted input sources like CLI wrapping.
+    #[serde(default = "default_false")]
+    pub allow_text_control_chars: bool,
 }
 
 /// Shield display configuration
@@ -526,6 +535,7 @@ impl Default for Config {
                 enable_event_buffer: default_false(),
                 max_content_size: default_max_content_size(),
                 max_input_size: None,
+                allow_text_control_chars: default_false(),
             },
             shield: ShieldConfig {
                 enabled: default_false(),
@@ -585,6 +595,7 @@ impl Default for ScannerConfig {
             enable_event_buffer: default_false(),
             max_content_size: default_max_content_size(),
             max_input_size: None,
+            allow_text_control_chars: default_false(),
         }
     }
 }

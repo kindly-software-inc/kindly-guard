@@ -93,15 +93,15 @@ WORKDIR /build
 # Copy workspace files
 COPY Cargo.toml Cargo.lock ./
 COPY kindly-guard-server/Cargo.toml ./kindly-guard-server/
-COPY kindly-guard-cli/Cargo.toml ./kindly-guard-cli/
+COPY kindly-tools/Cargo.toml ./kindly-tools/
 COPY kindly-guard-shield/Cargo.toml ./kindly-guard-shield/
 COPY crates-io-package/kindlyguard/Cargo.toml ./crates-io-package/kindlyguard/
 
 # Create stub files for dependency caching
-RUN mkdir -p kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/src crates-io-package/kindlyguard/src && \
+RUN mkdir -p kindly-guard-server/src kindly-tools/src kindly-guard-shield/src crates-io-package/kindlyguard/src && \
     echo "fn main() {}" > kindly-guard-server/src/main.rs && \
     touch kindly-guard-server/src/lib.rs && \
-    echo "fn main() {}" > kindly-guard-cli/src/main.rs && \
+    echo "fn main() {}" > kindly-tools/src/main.rs && \
     echo "fn main() {}" > kindly-guard-shield/src/main.rs && \
     touch crates-io-package/kindlyguard/src/lib.rs
 
@@ -122,7 +122,7 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     cargo build --release --target $(cat /rust_target) --package kindly-guard-server
 
 # Remove stub files
-RUN rm -rf kindly-guard-server/src kindly-guard-cli/src kindly-guard-shield/src crates-io-package/kindlyguard/src kindly-guard-server/benches
+RUN rm -rf kindly-guard-server/src kindly-tools/src kindly-guard-shield/src crates-io-package/kindlyguard/src kindly-guard-server/benches
 
 # Copy actual source code
 COPY . .

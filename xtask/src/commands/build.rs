@@ -209,7 +209,7 @@ fn find_binaries(target: &str, build_type: &str) -> Result<Vec<PathBuf>> {
     let mut binaries = vec![];
     
     // Look for known binary names
-    let binary_names = ["kindly-guard", "kindly-guard-server", "kindly-guard-cli"];
+    let binary_names = ["kindly-guard", "kindly-guard-server", "kindly-tools"];
     
     for name in &binary_names {
         let mut path = target_dir.join(name);

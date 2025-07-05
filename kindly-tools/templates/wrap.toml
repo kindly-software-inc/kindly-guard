@@ -1,0 +1,47 @@
+# KindlyGuard Wrap Configuration
+# This file configures auto-wrapping of AI CLI commands for security protection
+
+# Enable or disable auto-wrapping globally
+enabled = true
+
+# Protection mode: "warning" or "blocking"
+# - warning: Shows threats but allows execution
+# - blocking: Prevents execution when threats are detected
+mode = "warning"
+
+# Server URL for threat detection
+server = "http://localhost:8080"
+
+# Show detailed threat information
+verbose = false
+
+# Log wrapped sessions to disk
+log_sessions = false
+
+# Directory for session logs (optional)
+# log_directory = "/home/user/.kindlyguard/logs"
+
+# Commands to auto-wrap (default list)
+# These are common AI CLI tools that should be protected
+commands = [
+    "claude",
+    "openai",
+    "gemini",
+    "anthropic",
+    "gpt",
+    "ai",
+    "llm",
+    "copilot",
+    "codewhisperer",
+    "tabnine",
+    "codium",
+    "bard",
+    "perplexity"
+]
+
+# Additional custom commands to wrap
+# Add your own AI tools or any command you want to protect
+custom_commands = [
+    # "my-ai-tool",
+    # "company-llm-cli"
+]

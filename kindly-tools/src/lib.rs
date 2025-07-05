@@ -1,5 +1,8 @@
 // Modules defined inline below
 pub mod platform;
+pub mod commands;
+pub mod output;
+pub mod config;
 
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -2392,6 +2395,76 @@ require_auth = false
         Ok(pids)
     }
 } // End of mcp module
+
+/// Wrap command module for protecting AI CLIs
+pub mod wrap {
+    use super::*;
+    use clap::Args;
+
+    /// Wrap any AI CLI command with KindlyGuard protection
+    #[derive(Debug, Args)]
+    pub struct WrapCommand {
+        /// The command to wrap and protect
+        #[arg(trailing_var_arg = true, required = true)]
+        pub command: Vec<String>,
+
+        /// KindlyGuard server URL
+        #[arg(short, long, default_value = "http://localhost:8080")]
+        pub server: String,
+
+        /// Block on threat detection instead of warning
+        #[arg(short, long)]
+        pub block: bool,
+    }
+
+    impl Execute for WrapCommand {
+        async fn execute(&self) -> Result<()> {
+            crate::commands::wrap::wrap_command(
+                self.command.clone(),
+                self.server.clone(),
+                self.block,
+            )
+            .await
+        }
+    }
+}
+
+pub mod monitor {
+    use super::*;
+    use clap::Args;
+
+    /// Monitor KindlyGuard server status in real-time
+    #[derive(Debug, Args)]
+    pub struct MonitorCommand {
+        /// Server URL to monitor
+        #[arg(short, long, default_value = "http://localhost:8080")]
+        pub url: String,
+
+        /// Update interval in seconds
+        #[arg(short, long, default_value = "5")]
+        pub interval: u64,
+    }
+
+    impl Execute for MonitorCommand {
+        async fn execute(&self) -> Result<()> {
+            crate::commands::monitor::run(self.url.clone(), self.interval).await
+        }
+    }
+}
+
+pub mod shield {
+    use super::*;
+    
+    pub use crate::commands::shield::ShieldCommand;
+
+    impl Execute for ShieldCommand {
+        async fn execute(&self) -> Result<()> {
+            // Clone self to call the run method
+            let cmd = self.clone();
+            cmd.run().await
+        }
+    }
+}
 
 pub mod utils {
     use super::*;

@@ -193,7 +193,7 @@ fn collect_versions() -> Result<HashMap<String, String>> {
     let cargo_files = [
         "Cargo.toml",
         "kindly-guard-server/Cargo.toml",
-        "kindly-guard-cli/Cargo.toml",
+        "kindly-tools/Cargo.toml",
         "kindly-guard-shield/Cargo.toml",
     ];
 

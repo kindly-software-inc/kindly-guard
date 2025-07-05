@@ -146,7 +146,7 @@ async fn publish_to_crates_io(ctx: &Context) -> Result<PublishResult> {
     // Publish workspace members first
     let members = vec![
         "kindly-guard-server",
-        "kindly-guard-cli", 
+        "kindly-tools", 
         "kindly-guard-shield",
     ];
 

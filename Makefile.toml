@@ -192,7 +192,7 @@ args = ["geiger", "--workspace"]
 [tasks.security-scan]
 description = "Run security scanner on codebase"
 command = "cargo"
-args = ["run", "--bin", "kindly-guard-cli", "--", "scan", "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/src"]
+args = ["run", "--bin", "kindly-tools", "--", "scan", "${CARGO_MAKE_WORKSPACE_WORKING_DIRECTORY}/src"]
 
 [tasks.deny-check]
 description = "Check dependencies with cargo-deny"
@@ -396,7 +396,7 @@ args = ["run", "--bin", "kindly-guard-server", "--", "--stdio"]
 [tasks.monitor]
 description = "Run KindlyGuard monitor"
 command = "cargo"
-args = ["run", "--bin", "kindly-guard-cli", "--", "monitor", "--detailed"]
+args = ["run", "--bin", "kindly-tools", "--", "monitor", "--detailed"]
 
 # ==============================================================================
 # GIT HOOKS
@@ -446,10 +446,10 @@ description = "Test server crate only"
 command = "cargo"
 args = ["test", "-p", "kindly-guard-server"]
 
-[tasks.test-cli]
-description = "Test CLI crate only"
+[tasks.test-tools]
+description = "Test tools crate only"
 command = "cargo"
-args = ["test", "-p", "kindly-guard-cli"]
+args = ["test", "-p", "kindly-tools"]
 
 [tasks.test-shield]
 description = "Test shield crate only"
