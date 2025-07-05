@@ -2,7 +2,7 @@
 
 ## Executive Summary
 
-KindlyGuard is a sophisticated security-focused Model Context Protocol (MCP) server designed to protect AI model interactions from various threats. The project follows a modular Rust workspace architecture with clear separation of concerns and optional enhanced features through a private core library.
+KindlyGuard is a sophisticated security-focused Model Context Protocol (MCP) server designed to protect AI model interactions from various threats. The project follows a modular Rust workspace architecture with clear separation of concerns and comprehensive security features.
 
 ## Architecture Overview
 
@@ -15,7 +15,6 @@ kindly-guard/
 ├── kindly-guard-server/    # Main MCP server implementation
 ├── kindly-guard-cli/       # Command-line interface tool
 ├── kindly-guard-shield/    # Tauri-based desktop application
-├── kindly-guard-core/      # Private enhanced features (optional)
 ├── crates-io-package/      # Public crate for crates.io
 ├── npm-package/            # NPM distribution package
 ├── claude-ai-kindlyguard/  # Browser extension for Claude AI
@@ -34,8 +33,7 @@ kindly-guard/
 
 #### Direct Dependencies:
 - `kindly-guard-cli` → `kindly-guard-server`
-- `kindly-guard-server` ⇢ `kindly-guard-core` (optional)
-- `kindly-guard-shield` ⇢ `kindly-guard-core` (optional)
+- `kindly-guard-shield` → `kindly-guard-server`
 
 #### Integration Points:
 - NPM package wraps the Rust binaries
@@ -61,7 +59,6 @@ The security implementation is layered with multiple components:
 - **Purpose**: Mitigate detected threats
 - **Components**:
   - Standard neutralization strategies
-  - Enhanced neutralization (with core)
   - Rate-limited responses
   - Rollback capabilities
 - **Importance**: Critical (8/10)
@@ -83,13 +80,13 @@ Multiple transport mechanisms for flexibility:
 - **STDIO**: MCP standard I/O protocol
 - **Proxy**: Request forwarding and filtering
 
-### 3. Enhanced Features (Private Core)
+### 3. Advanced Features
 
-The `kindly-guard-core` provides proprietary enhancements:
+The server provides comprehensive security capabilities:
 
-- **Atomic Event Buffer**: Patent-pending high-performance event processing
-- **Binary Protocol**: Optimized binary communication format
-- **Advanced Pattern Matching**: Enhanced threat detection algorithms
+- **High-Performance Event Processing**: Optimized event handling system
+- **Binary Protocol**: Efficient binary communication format
+- **Advanced Pattern Matching**: Sophisticated threat detection algorithms
 
 ## Performance Characteristics
 
@@ -105,7 +102,7 @@ The project includes comprehensive benchmarks:
 
 - **Release Profile**: Aggressive optimizations (LTO, codegen-units=1)
 - **Secure Profile**: Balance between security and performance
-- **Optional Features**: Enhanced mode can be disabled for lighter deployments
+- **Feature Flags**: Modular features can be enabled/disabled as needed
 
 ## Security Architecture
 
@@ -181,4 +178,4 @@ Multiple layers of security:
 
 ## Conclusion
 
-KindlyGuard represents a well-architected security solution for AI model interactions. The modular design, comprehensive security features, and flexible deployment options make it suitable for both development and production environments. The optional enhanced features provide a clear upgrade path for users requiring additional performance and security capabilities.
+KindlyGuard represents a well-architected security solution for AI model interactions. The modular design, comprehensive security features, and flexible deployment options make it suitable for both development and production environments. The architecture provides scalability and extensibility for future enhancements while maintaining a strong security posture.

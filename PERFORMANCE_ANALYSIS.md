@@ -24,8 +24,8 @@ The KindlyGuard server demonstrates strong performance characteristics in its st
 
 The codebase includes a sophisticated enhanced implementation module (`src/enhanced_impl/`) with:
 
-- **AtomicBitPackedEventBuffer**: Lock-free event buffering using atomic operations
-- **HierarchicalRateLimiter**: Per-CPU token buckets with work-stealing for linear scaling up to 64+ cores
+- **Event Processing System**: Lock-free event handling using atomic operations
+- **Advanced Rate Limiting**: Optimized rate limiting with efficient resource management
 
 ### 2. Trait-Based Architecture
 
@@ -41,16 +41,16 @@ config.resilience.enhanced_mode = true;
 
 ### 3. Key Performance Features
 
-#### Hierarchical Rate Limiter (Reserved for v2.0)
-- Per-CPU token buckets eliminate contention
-- Work-stealing for load balancing
+#### Advanced Rate Limiting (Reserved for v2.0)
+- Optimized resource allocation to eliminate contention
+- Load balancing for improved throughput
 - Cache line alignment for NUMA efficiency
 - Lock-free atomic operations
-- Linear scaling to 64+ cores
+- Efficient scaling on multi-core systems
 
-#### Atomic Event Buffer
+#### Event Processing System
 - Lock-free design using atomic operations
-- Bit-packed storage for memory efficiency
+- Efficient storage for memory optimization
 - Zero-copy operations where possible
 
 ### 4. Performance Optimization Patterns
@@ -85,8 +85,8 @@ The comparative benchmarks (`comparative_benchmarks.rs`) and rate limiter compar
    - Update trait implementations
 
 3. **Performance Testing Priority**:
-   - Focus on the hierarchical rate limiter for high-concurrency scenarios
-   - Test the atomic event buffer for event processing throughput
+   - Focus on the advanced rate limiting system for high-concurrency scenarios
+   - Test the event processing system for throughput optimization
    - Measure the impact of enhanced mode on real-world workloads
 
 ## Conclusion
@@ -97,4 +97,4 @@ KindlyGuard shows a well-architected system with:
 - Advanced performance features ready but not yet enabled
 - Clear upgrade path through enhanced mode configuration
 
-The enhanced implementations (hierarchical rate limiter, atomic event buffer) represent significant engineering effort and should provide substantial performance improvements when enabled, particularly for high-concurrency scenarios on multi-core systems.
+The enhanced implementations (advanced rate limiting, event processing system) represent significant engineering effort and should provide substantial performance improvements when enabled, particularly for high-concurrency scenarios on multi-core systems.

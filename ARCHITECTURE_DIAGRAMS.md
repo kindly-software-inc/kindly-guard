@@ -155,137 +155,99 @@ sequenceDiagram
     Transport-->>Client: JSON-RPC Response
 ```
 
-## 3. Trait Hierarchy Diagram
+## 3. Component Class Diagram
 
 ```mermaid
 classDiagram
-    %% Core Traits
+    %% Core Components
     class SecurityScanner {
-        <<trait>>
+        +unicode_scanner: UnicodeScanner
+        +injection_scanner: InjectionScanner
+        +xss_scanner: XssScanner
+        +pattern_scanner: PatternScanner
         +scan_text(text: &str) Vec~Threat~
         +scan_json(json: &Value) Vec~Threat~
-    }
-    
-    class EnhancedScanner {
-        <<trait>>
-        +enhanced_scan(data: &[u8]) Vec~Threat~
         +get_metrics() ScannerMetrics
-        +preload_patterns(patterns: &[String])
     }
     
     class ThreatNeutralizer {
-        <<trait>>
+        +html_encoder: HtmlEncoder
+        +url_encoder: UrlEncoder
+        +unicode_normalizer: UnicodeNormalizer
         +neutralize(input: &str, threats: &[Threat]) NeutralizeResult
         +get_capabilities() Vec~NeutralizationCapability~
     }
     
     class StorageProvider {
-        <<trait>>
+        +events: HashMap
+        +rate_limits: HashMap
+        +snapshots: HashMap
         +store_event(event: &SecurityEvent) EventId
         +get_event(id: &EventId) Option~SecurityEvent~
         +query_events(filter: &EventFilter) Vec~SecurityEvent~
     }
     
     class RateLimiter {
-        <<trait>>
+        +buckets: HashMap
+        +config: RateLimitConfig
         +check_rate_limit(key: &RateLimitKey) RateLimitDecision
         +record_request(key: &RateLimitKey)
         +apply_penalty(client_id: &str, factor: f32)
     }
     
     class SecurityEventProcessor {
-        <<trait>>
+        +events: Vec~SecurityEvent~
+        +max_events: usize
         +process_event(event: SecurityEvent) EventHandle
         +get_stats() ProcessorStats
         +get_insights(client_id: &str) SecurityInsights
     }
     
-    class EventBufferTrait {
-        <<trait>>
-        +enqueue_event(endpoint_id: u32, data: &[u8], priority: Priority) u64
-        +get_endpoint_stats(endpoint_id: u32) EndpointStats
+    class EventBuffer {
+        +buffer: VecDeque~SecurityEvent~
+        +capacity: usize
+        +enqueue_event(event: SecurityEvent) u64
+        +dequeue_event() Option~SecurityEvent~
+        +get_stats() BufferStats
     }
     
-    %% Standard Implementations
-    class StandardScanner {
-        +unicode_scanner: UnicodeScanner
-        +injection_scanner: InjectionScanner
-        +xss_scanner: XssScanner
+    %% Sub-components
+    class UnicodeScanner {
+        +detect_homographs(text: &str) Vec~Threat~
+        +detect_bidi_override(text: &str) Vec~Threat~
+        +detect_zero_width(text: &str) Vec~Threat~
     }
     
-    class StandardNeutralizer {
-        +html_encoder: HtmlEncoder
-        +url_encoder: UrlEncoder
-        +unicode_normalizer: UnicodeNormalizer
+    class InjectionScanner {
+        +detect_sql_injection(text: &str) Vec~Threat~
+        +detect_command_injection(text: &str) Vec~Threat~
+        +detect_ldap_injection(text: &str) Vec~Threat~
     }
     
-    class InMemoryStorage {
-        +events: HashMap
-        +rate_limits: HashMap
-        +snapshots: HashMap
+    class XssScanner {
+        +detect_html_xss(text: &str) Vec~Threat~
+        +detect_js_xss(text: &str) Vec~Threat~
+        +detect_css_xss(text: &str) Vec~Threat~
     }
     
-    class StandardRateLimiter {
-        +buckets: HashMap
-        +config: RateLimitConfig
-    }
-    
-    class SimpleEventProcessor {
-        +events: Vec~SecurityEvent~
-        +max_events: usize
-    }
-    
-    %% Enhanced Implementations (Feature-gated)
-    class EnhancedScannerImpl {
-        <<feature=enhanced>>
-        +pattern_cache: PatternCache
-        +simd_scanner: SimdScanner
-        +ml_detector: MlDetector
-    }
-    
-    class EnhancedNeutralizer {
-        <<feature=enhanced>>
-        +context_aware: ContextEngine
-        +adaptive_rules: AdaptiveRules
-    }
-    
-    class EnhancedStorage {
-        <<feature=enhanced>>
-        +write_ahead_log: WAL
-        +compression: Compressor
-        +encryption: Encryptor
-    }
-    
-    class HierarchicalRateLimiter {
-        <<feature=enhanced>>
-        +global_limiter: GlobalLimiter
-        +per_client_limiter: ClientLimiter
-        +adaptive_limits: AdaptiveLimits
-    }
-    
-    class AtomicEventProcessor {
-        <<feature=enhanced>>
-        +event_buffer: AtomicEventBuffer
-        +correlation_engine: CorrelationEngine
+    class PatternScanner {
+        +patterns: Vec~Pattern~
+        +scan_patterns(text: &str) Vec~Threat~
+        +add_pattern(pattern: Pattern)
     }
     
     %% Relationships
-    StandardScanner ..|> SecurityScanner
-    StandardScanner ..|> EnhancedScanner
-    EnhancedScannerImpl ..|> EnhancedScanner
+    SecurityScanner --> UnicodeScanner
+    SecurityScanner --> InjectionScanner
+    SecurityScanner --> XssScanner
+    SecurityScanner --> PatternScanner
     
-    StandardNeutralizer ..|> ThreatNeutralizer
-    EnhancedNeutralizer ..|> ThreatNeutralizer
+    ThreatNeutralizer --> HtmlEncoder
+    ThreatNeutralizer --> UrlEncoder
+    ThreatNeutralizer --> UnicodeNormalizer
     
-    InMemoryStorage ..|> StorageProvider
-    EnhancedStorage ..|> StorageProvider
-    
-    StandardRateLimiter ..|> RateLimiter
-    HierarchicalRateLimiter ..|> RateLimiter
-    
-    SimpleEventProcessor ..|> SecurityEventProcessor
-    AtomicEventProcessor ..|> SecurityEventProcessor
-    AtomicEventProcessor --> EventBufferTrait
+    SecurityEventProcessor --> EventBuffer
+    SecurityEventProcessor --> StorageProvider
 ```
 
 ## 4. Security Flow Diagram
@@ -368,48 +330,7 @@ flowchart TD
     style ProcessRequest fill:#00ff00
 ```
 
-## 5. Component Factory Pattern
-
-```mermaid
-classDiagram
-    class ComponentSelector {
-        -factory: SecurityComponentFactory
-        +new(config: &Config) Self
-        +create_event_processor() Arc~SecurityEventProcessor~
-        +create_scanner() Arc~EnhancedScanner~
-        +create_rate_limiter() Arc~RateLimiter~
-        +is_enhanced_mode() bool
-    }
-    
-    class SecurityComponentFactory {
-        <<trait>>
-        +create_event_processor() Arc~SecurityEventProcessor~
-        +create_scanner() Arc~EnhancedScanner~
-        +create_correlation_engine() Arc~CorrelationEngine~
-        +create_rate_limiter() Arc~RateLimiter~
-    }
-    
-    class StandardComponentFactory {
-        +create_event_processor() SimpleEventProcessor
-        +create_scanner() StandardScanner
-        +create_rate_limiter() StandardRateLimiter
-    }
-    
-    class EnhancedComponentFactory {
-        <<feature=enhanced>>
-        +create_event_processor() AtomicEventProcessor
-        +create_scanner() EnhancedScannerImpl
-        +create_rate_limiter() HierarchicalRateLimiter
-    }
-    
-    ComponentSelector --> SecurityComponentFactory
-    StandardComponentFactory ..|> SecurityComponentFactory
-    EnhancedComponentFactory ..|> SecurityComponentFactory
-    
-    ComponentSelector ..> Config : uses
-```
-
-## 6. Data Flow Through Security Layers
+## 5. Data Flow Through Security Layers
 
 ```mermaid
 graph LR
@@ -468,7 +389,7 @@ graph LR
     style Rate fill:#99ccff
 ```
 
-## 7. Plugin Architecture
+## 6. Plugin Architecture
 
 ```mermaid
 graph TD
@@ -485,9 +406,9 @@ graph TD
     end
     
     subgraph "Plugin Interfaces"
-        ScanPlugin[Scanner Plugin Trait]
-        NeutPlugin[Neutralizer Plugin Trait]
-        AuthPlugin[Auth Plugin Trait]
+        ScanPlugin[Scanner Plugin Interface]
+        NeutPlugin[Neutralizer Plugin Interface]
+        AuthPlugin[Auth Plugin Interface]
     end
     
     subgraph "Security Sandbox"
@@ -515,7 +436,7 @@ graph TD
     Sandbox --> Perms
 ```
 
-## 8. Resilience Architecture
+## 7. Resilience Architecture
 
 ```mermaid
 stateDiagram-v2
@@ -550,8 +471,7 @@ stateDiagram-v2
 
 - **Security First**: All data flows through multiple security checkpoints
 - **Type Safety**: Threats are represented as typed enums, never strings
-- **Trait-Based**: Clean separation between interfaces and implementations
-- **Feature Gating**: Enhanced implementations are behind feature flags
+- **Modular Design**: Clean separation between components
 - **Plugin Support**: Extensible architecture for custom security modules
 - **Resilience**: Circuit breakers and retry logic for fault tolerance
 - **Audit Trail**: All security events are logged for compliance

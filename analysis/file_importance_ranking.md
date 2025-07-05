@@ -22,10 +22,10 @@
 - Implements Unicode, XSS, and injection attack detection
 - Critical security component
 
-### 5. **kindly-guard-core/src/atomic_event_buffer.rs** (9/10)
-- Patent-pending atomic event buffer implementation
-- Core performance optimization for high-throughput scenarios
-- Part of the enhanced/proprietary features
+### 5. **kindly-guard-server/src/resilience/mod.rs** (9/10)
+- Core resilience and fault tolerance components
+- Implements circuit breakers and retry logic
+- Essential for production reliability
 
 ## High Importance Files (7-8)
 
@@ -87,11 +87,11 @@
 1. **kindly-guard-cli** → **kindly-guard-server**
    - CLI depends on server for scanning functionality
    
-2. **kindly-guard-server** ⇢ **kindly-guard-core** (optional)
-   - Server can use enhanced features from core
+2. **kindly-guard-server** → **kindly-guard-shield**
+   - Server provides data for shield visualization
    
-3. **kindly-guard-shield** ⇢ **kindly-guard-core** (optional)
-   - Shield app can use enhanced features
+3. **kindly-guard-shield** → **kindly-guard-server**
+   - Shield app connects to server for monitoring
    
 4. **External Integrations** → **kindly-guard-server**
    - All integrations communicate with the main server
@@ -99,4 +99,4 @@
 ### Critical Paths:
 1. **Security Path**: scanner → neutralizer → audit
 2. **Protocol Path**: transport → protocol → server
-3. **Enhancement Path**: standard_impl ⇢ enhanced_impl (when core enabled)
+3. **Resilience Path**: request → circuit_breaker → retry → response

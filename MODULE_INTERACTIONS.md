@@ -15,9 +15,9 @@ This document maps the interactions between different modules within the KindlyG
 
 KindlyGuard follows a **trait-based architecture** that enables:
 - Clean separation between interfaces and implementations
-- Easy swapping between standard and enhanced implementations
+- Easy swapping between different implementations
 - Testability through mock implementations
-- Hidden proprietary technology behind trait abstractions
+- Clear abstractions for all components
 
 ### Core Principles
 1. **Trait-First Design**: All major components are defined as traits in `src/traits.rs`
@@ -80,7 +80,7 @@ pub struct TransportMessage {
 
 **Dependencies:**
 - `traits::SecurityScannerTrait` - Main interface
-- `traits::SecurityEventProcessor` - For enhanced correlation
+- `traits::SecurityEventProcessor` - For event correlation
 - `plugins::PluginManagerTrait` - For plugin-based scanning
 
 **Dependents:**
@@ -113,7 +113,7 @@ scanner/
 ```
 ThreatNeutralizer (trait)
     ├── StandardNeutralizer (base)
-    ├── EnhancedNeutralizer (base, feature-gated)
+    ├── AlternativeNeutralizer (base, feature-gated)
     └── Decorators:
         ├── ResilientNeutralizer (recovery)
         ├── RollbackNeutralizer (undo support)
@@ -139,7 +139,7 @@ transport/
 ├── http.rs       # HttpTransport
 ├── websocket.rs  # WebSocketTransport
 ├── proxy.rs      # ProxyTransport
-└── enhanced.rs   # GrpcTransport (feature-gated)
+└── grpc.rs       # GrpcTransport (feature-gated)
 ```
 
 ### 4. Storage Module (`src/storage/`)
@@ -157,7 +157,7 @@ transport/
 ```
 StorageProvider (trait)
     ├── InMemoryStorage (default)
-    ├── EnhancedStorage (feature-gated)
+    ├── SqliteStorage (feature-gated)
     └── Future: FileStorage, RocksDbStorage, etc.
 ```
 
@@ -168,7 +168,7 @@ StorageProvider (trait)
 The `ComponentManager` is the central integration point that:
 
 1. **Creates all components** based on configuration
-2. **Selects implementations** (standard vs enhanced)
+2. **Selects implementations** based on features
 3. **Wires dependencies** between components
 4. **Provides unified access** to all subsystems
 
@@ -229,14 +229,14 @@ Input Text/JSON → SecurityScanner
                 Storage Provider
 ```
 
-### 3. Enhanced Mode Flow
+### 3. Event Processing Flow
 
 ```
-When enhanced feature is enabled:
+When event processing is enabled:
 
 Request → Scanner (with EventProcessor)
              ↓
-    Event Buffer (AtomicEventBuffer)
+    Event Buffer
              ↓
     Correlation Analysis
              ↓
@@ -301,7 +301,7 @@ sequenceDiagram
     Neutralizer-->>Scanner: NeutralizeResult
 ```
 
-### 3. Enhanced Event Processing
+### 3. Event Processing
 
 ```mermaid
 sequenceDiagram
@@ -330,7 +330,7 @@ sequenceDiagram
 
 All major components use traits to enable:
 - **Standard implementations** - Open source, full functionality
-- **Enhanced implementations** - Performance optimized, feature-gated
+- **Alternative implementations** - Different approaches, feature-gated
 - **Mock implementations** - For testing
 
 ### 2. Decorator Pattern
@@ -404,7 +404,7 @@ KindlyGuard's modular architecture achieves:
 1. **Security First** - Every module includes security considerations
 2. **Extensibility** - Easy to add new scanners, neutralizers, transports
 3. **Testability** - Trait-based design enables comprehensive mocking
-4. **Performance** - Optional enhanced implementations for critical paths
+4. **Performance** - Alternative implementations for different use cases
 5. **Maintainability** - Clear boundaries and single responsibilities
 
-The trait-based architecture successfully hides implementation complexity while providing clean interfaces for all components. The use of Arc<dyn Trait> throughout enables runtime polymorphism and easy component swapping based on configuration.
+The trait-based architecture provides clean interfaces for all components while maintaining flexibility. The use of Arc<dyn Trait> throughout enables runtime polymorphism and easy component swapping based on configuration.

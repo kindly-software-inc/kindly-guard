@@ -13,36 +13,18 @@ graph TB
         Browser[Browser Extension]
     end
     
-    subgraph "MCP Server - Public Layer"
+    subgraph "MCP Server"
         Transport[Transport Layer]
         Protocol[MCP Protocol Handler]
         
-        subgraph "Trait Interfaces"
-            ScannerTrait[SecurityScanner Trait]
-            BufferTrait[EventBufferTrait]
-            MetricsTrait[MetricsProvider Trait]
-            NeutralizerTrait[Neutralizer Trait]
+        subgraph "Core Components"
+            Scanner[Security Scanner]
+            Buffer[Event Buffer]
+            Metrics[Metrics Provider]
+            Neutralizer[Neutralizer]
         end
         
-        subgraph "Factory Layer"
-            Factories[Component Factories]
-            Config[Configuration]
-        end
-    end
-    
-    subgraph "Implementation Layer"
-        subgraph "Standard (Open Source)"
-            StdScanner[Standard Scanner]
-            StdBuffer[Standard Buffer]
-            StdMetrics[Basic Metrics]
-        end
-        
-        subgraph "Future Extensions"
-            Future[Extension Points]
-            ExtScanner[Extended Scanner]
-            ExtBuffer[Extended Buffer]
-            ExtMetrics[Extended Metrics]
-        end
+        Config[Configuration]
     end
     
     CLI --> Transport
@@ -51,141 +33,78 @@ graph TB
     Browser --> Transport
     
     Transport --> Protocol
-    Protocol --> ScannerTrait
-    Protocol --> BufferTrait
-    Protocol --> MetricsTrait
+    Protocol --> Scanner
+    Protocol --> Buffer
+    Protocol --> Metrics
+    Protocol --> Neutralizer
     
-    Config --> Factories
-    Factories --> ScannerTrait
-    Factories --> BufferTrait
-    Factories --> MetricsTrait
+    Config --> Scanner
+    Config --> Buffer
+    Config --> Metrics
     
-    ScannerTrait -.-> StdScanner
-    BufferTrait -.-> StdBuffer
-    MetricsTrait -.-> StdMetrics
-    
-    style ScannerTrait fill:#e1f5e1
-    style BufferTrait fill:#e1f5e1
-    style MetricsTrait fill:#e1f5e1
-    style NeutralizerTrait fill:#e1f5e1
-    style Factories fill:#e1f5e1
+    style Scanner fill:#e1f5e1
+    style Buffer fill:#e1f5e1
+    style Metrics fill:#e1f5e1
+    style Neutralizer fill:#e1f5e1
 ```
 
-## Trait-Based Component Architecture
+## Component Architecture
 
 ### Overview
 
-KindlyGuard employs a sophisticated trait-based architecture that cleanly separates public interfaces from implementations. This design enables modular and extensible development while maintaining a single, consistent API surface.
+KindlyGuard employs a modular architecture with well-defined components that work together to provide comprehensive security scanning and threat neutralization.
 
 ### Key Design Principles
 
-1. **Interface Segregation**: All major components are defined as traits, ensuring clean contracts
-2. **Implementation Flexibility**: Multiple implementations can exist for any trait
-3. **Runtime Selection**: Factory functions choose implementations based on configuration
-4. **Dependency Inversion**: High-level modules depend on abstractions, not concrete types
+1. **Interface Segregation**: Components have clear, focused responsibilities
+2. **Modularity**: Each component can be independently tested and maintained
+3. **Configuration-Driven**: Behavior can be customized through configuration
+4. **Dependency Inversion**: Components depend on abstractions, not concrete types
 
 ### Architecture Diagram
 
 ```mermaid
 graph TB
-    subgraph "Public API Layer"
-        Traits[Trait Definitions]
-        Factory[Factory Functions]
+    subgraph "Core Components"
+        Scanner[Security Scanner]
+        Buffer[Event Buffer]
+        Metrics[Metrics Provider]
+        Neutralizer[Neutralizer]
+        Storage[Storage Layer]
+    end
+    
+    subgraph "Supporting Components"
         Config[Configuration]
+        Audit[Audit Logger]
+        Health[Health Monitor]
     end
     
-    subgraph "Implementation Layer"
-        subgraph "Open Source"
-            StdBuffer[Standard Event Buffer]
-            StdMetrics[Basic Metrics]
-            StdScanner[Standard Scanner]
-        end
-        
-        subgraph "Future Extensions"
-            ExtBuffer[Extended Event Buffer]
-            ExtMetrics[Extended Metrics]
-            ExtScanner[Extended Scanner]
-        end
-    end
+    Config --> Scanner
+    Config --> Buffer
+    Config --> Metrics
     
-    Traits --> Factory
-    Config --> Factory
-    Factory --> StdBuffer
-    Factory --> StdMetrics
-    Factory --> StdScanner
+    Scanner --> Buffer
+    Scanner --> Metrics
+    Scanner --> Audit
     
-    style Traits fill:#e1f5e1
-    style Factory fill:#e1f5e1
+    style Scanner fill:#e1f5e1
+    style Buffer fill:#e1f5e1
+    style Metrics fill:#e1f5e1
 ```
 
-### Core Traits
+### Core Components
 
-#### EventBufferTrait
-```rust
-// Public trait definition in kindly-guard
-pub trait EventBufferTrait: Send + Sync {
-    fn push(&self, event: SecurityEvent) -> Result<()>;
-    fn pop(&self) -> Option<SecurityEvent>;
-    fn flush(&self) -> Vec<SecurityEvent>;
-    fn len(&self) -> usize;
-}
-```
-
-#### MetricsProvider
-```rust
-pub trait MetricsProvider: Send + Sync {
-    fn record_event(&self, event_type: &str, value: f64);
-    fn get_histogram(&self, name: &str) -> Option<Histogram>;
-    fn export_metrics(&self) -> MetricsSnapshot;
-}
-```
-
-#### SecurityScanner
-```rust
-pub trait SecurityScanner: Send + Sync {
-    async fn scan(&self, input: &str) -> ScanResult;
-    fn capabilities(&self) -> ScannerCapabilities;
-    fn update_rules(&mut self, rules: RuleSet) -> Result<()>;
-}
-```
-
-### Factory Pattern Implementation
-
-Factory functions provide the bridge between trait definitions and concrete implementations:
+#### Event Buffer
+The event buffer manages security events with a configurable capacity:
 
 ```rust
-// Factory function that creates implementation
-pub fn create_event_buffer(config: &Config) -> Arc<dyn EventBufferTrait> {
-    // Create standard implementation
-    Arc::new(StandardEventBuffer::new(config))
-}
-```
-
-### Configuration-Based Selection
-
-The system uses a hierarchical configuration approach:
-
-```toml
-# Configuration example
-[components]
-# Component configuration
-buffer_type = "standard"
-scanner_type = "standard"
-metrics_type = "standard"
-```
-
-### Implementation Examples
-
-#### Standard Implementation (Open Source)
-```rust
-// Standard implementation in main crate
-pub struct StandardEventBuffer {
+pub struct EventBuffer {
     events: Mutex<VecDeque<SecurityEvent>>,
     capacity: usize,
 }
 
-impl EventBufferTrait for StandardEventBuffer {
-    fn push(&self, event: SecurityEvent) -> Result<()> {
+impl EventBuffer {
+    pub fn push(&self, event: SecurityEvent) -> Result<()> {
         let mut events = self.events.lock().unwrap();
         if events.len() >= self.capacity {
             events.pop_front();
@@ -193,62 +112,132 @@ impl EventBufferTrait for StandardEventBuffer {
         events.push_back(event);
         Ok(())
     }
-    // ... other methods
+    
+    pub fn pop(&self) -> Option<SecurityEvent> {
+        self.events.lock().unwrap().pop_front()
+    }
+    
+    pub fn flush(&self) -> Vec<SecurityEvent> {
+        self.events.lock().unwrap().drain(..).collect()
+    }
 }
 ```
 
+#### Metrics Provider
+Collects and exports performance metrics:
+
+```rust
+pub struct MetricsProvider {
+    counters: DashMap<String, AtomicU64>,
+    histograms: DashMap<String, Histogram>,
+}
+
+impl MetricsProvider {
+    pub fn record_event(&self, event_type: &str, value: f64) {
+        // Record metric
+    }
+    
+    pub fn export_metrics(&self) -> MetricsSnapshot {
+        // Export current metrics
+    }
+}
+```
+
+#### Security Scanner
+The core threat detection engine:
+
+```rust
+pub struct SecurityScanner {
+    unicode_scanner: UnicodeScanner,
+    injection_scanner: InjectionScanner,
+    xss_scanner: XssScanner,
+    pattern_scanner: PatternScanner,
+}
+
+impl SecurityScanner {
+    pub async fn scan(&self, input: &str) -> ScanResult {
+        // Parallel scanning across all threat detectors
+    }
+    
+    pub fn capabilities(&self) -> ScannerCapabilities {
+        // Return supported scan types
+    }
+}
+```
+
+### Configuration
+
+The system uses a hierarchical configuration approach:
+
+```toml
+# Configuration example
+[scanner]
+unicode_detection = true
+injection_detection = true
+xss_detection = true
+pattern_matching = true
+
+[buffer]
+capacity = 1000
+cleanup_interval = 300  # seconds
+
+[metrics]
+export_interval = 60  # seconds
+histogram_buckets = [0.001, 0.01, 0.1, 1.0, 10.0]
+```
 
 ### Benefits of This Architecture
 
 #### 1. Clean Separation of Concerns
-- Public APIs remain stable and well-documented
-- Implementation details are hidden behind trait boundaries
-- Changes to implementations don't affect the public interface
+- Each component has a single, well-defined responsibility
+- Clear boundaries between components
+- Easy to understand and maintain
 
-#### 2. Flexibility for Users
-- Users can extend with custom implementations
-- Configuration-driven feature selection
-- Clean plugin architecture
+#### 2. Flexibility
+- Components can be configured independently
+- Easy to add new threat detectors
+- Extensible through configuration
 
 #### 3. Maintainability and Testing
-- Each implementation can be tested independently
-- Mock implementations simplify unit testing
-- Clear boundaries reduce coupling between components
+- Each component can be tested in isolation
+- Clear interfaces make mocking straightforward
+- Reduced coupling between components
 
 #### 4. Performance Optimization
-- Implementations can use advanced techniques
-- Zero-cost abstractions through Rust's trait system
-- Runtime overhead minimized through static dispatch where possible
+- Components optimized for their specific tasks
+- Parallel scanning for better throughput
+- Efficient data structures for high performance
 
 ### Component Lifecycle
 
 ```mermaid
 sequenceDiagram
     participant App
-    participant Factory
     participant Config
-    participant Trait
-    participant StdImpl
-    participant EnhImpl
+    participant Scanner
+    participant Buffer
+    participant Metrics
     
-    App->>Factory: create_component()
-    Factory->>Config: check_configuration()
-    Config-->>Factory: component_type
+    App->>Config: load_configuration()
+    Config-->>App: Configuration
     
-    Factory->>StdImpl: new()
-    StdImpl-->>Factory: Instance
-    Factory-->>App: Arc<dyn Trait>
+    App->>Scanner: new(config)
+    App->>Buffer: new(config)
+    App->>Metrics: new(config)
     
-    App->>Trait: use_component()
+    App->>Scanner: scan(input)
+    Scanner->>Buffer: push(event)
+    Scanner->>Metrics: record_event()
+    Scanner-->>App: ScanResult
 ```
 
 ### Best Practices
 
-1. **Always define traits first** - Design the interface before implementation
-2. **Use Arc<dyn Trait>** - Enables runtime polymorphism and sharing
-3. **Provide sensible defaults** - Standard implementations should be fully functional
-4. **Document trait contracts** - Clear documentation of expected behavior
-5. **Version traits carefully** - Breaking changes require major version bumps
+1. **Configuration First** - Design with configuration in mind
+2. **Single Responsibility** - Each component does one thing well
+3. **Error Handling** - All operations return Result types
+4. **Performance Monitoring** - Built-in metrics collection
+5. **Comprehensive Testing** - Unit and integration tests for all components
 
 ## Core Components
 
@@ -282,17 +271,34 @@ scanner/
 └── traits.rs       // Scanner-specific sub-traits
 ```
 
-#### SecurityScanner Trait
+#### Security Scanner Implementation
 ```rust
-pub trait SecurityScanner: Send + Sync {
-    async fn scan(&self, input: &str) -> ScanResult;
-    fn capabilities(&self) -> ScannerCapabilities;
-    fn update_rules(&mut self, rules: RuleSet) -> Result<()>;
+pub struct SecurityScanner {
+    config: ScannerConfig,
+    unicode_scanner: UnicodeScanner,
+    injection_scanner: InjectionScanner,
+    xss_scanner: XssScanner,
+    pattern_scanner: PatternScanner,
 }
 
-// Factory function for scanner creation
-pub fn create_scanner(config: &Config) -> Arc<dyn SecurityScanner> {
-    Arc::new(StandardScanner::new(config))
+impl SecurityScanner {
+    pub fn new(config: ScannerConfig) -> Self {
+        Self {
+            config,
+            unicode_scanner: UnicodeScanner::new(),
+            injection_scanner: InjectionScanner::new(),
+            xss_scanner: XssScanner::new(),
+            pattern_scanner: PatternScanner::new(),
+        }
+    }
+    
+    pub async fn scan(&self, input: &str) -> ScanResult {
+        // Parallel scanning implementation
+    }
+    
+    pub fn capabilities(&self) -> ScannerCapabilities {
+        // Return supported scan types
+    }
 }
 ```
 
@@ -342,28 +348,49 @@ pub fn create_scanner(config: &Config) -> Arc<dyn SecurityScanner> {
   ```
 
 ### 7. Resilience Layer (`src/resilience/`)
-Fault tolerance and reliability patterns using trait-based design:
+Fault tolerance and reliability patterns:
 
 ```rust
-// CLAUDE-note-pattern: Resilience traits
-pub trait CircuitBreakerTrait {
-    fn call<F, T>(&self, f: F) -> Result<T>
+// CLAUDE-note-pattern: Resilience components
+pub struct CircuitBreaker {
+    failure_count: AtomicU32,
+    last_failure: RwLock<Option<Instant>>,
+    state: RwLock<CircuitState>,
+    config: CircuitBreakerConfig,
+}
+
+impl CircuitBreaker {
+    pub fn call<F, T>(&self, f: F) -> Result<T>
     where
-        F: FnOnce() -> Result<T>;
+        F: FnOnce() -> Result<T>,
+    {
+        // Check circuit state and execute if allowed
+    }
     
-    fn state(&self) -> CircuitState;
-    fn reset(&self);
+    pub fn state(&self) -> CircuitState {
+        *self.state.read().unwrap()
+    }
+    
+    pub fn reset(&self) {
+        self.failure_count.store(0, Ordering::Relaxed);
+        *self.state.write().unwrap() = CircuitState::Closed;
+    }
 }
 
-pub trait RetryPolicyTrait {
-    async fn execute<F, T>(&self, f: F) -> Result<T>
+pub struct RetryPolicy {
+    max_attempts: u32,
+    initial_delay: Duration,
+    max_delay: Duration,
+    jitter_factor: f64,
+}
+
+impl RetryPolicy {
+    pub async fn execute<F, T>(&self, f: F) -> Result<T>
     where
-        F: Fn() -> Future<Output = Result<T>> + Send;
-}
-
-// Factory functions for resilience components
-pub fn create_circuit_breaker(config: &Config) -> Arc<dyn CircuitBreakerTrait> {
-    Arc::new(StandardCircuitBreaker::new(config))
+        F: Fn() -> Future<Output = Result<T>> + Send,
+    {
+        // Execute with exponential backoff and jitter
+    }
 }
 ```
 
@@ -528,7 +555,7 @@ integrations:
 
 ### Key Configuration Areas:
 ```toml
-# CLAUDE-note-config: Example configuration with trait-based components
+# CLAUDE-note-config: Example configuration
 [scanner]
 timeout_ms = 1000
 max_input_size = 1048576  # 1MB
@@ -548,12 +575,10 @@ path = "./kindly.db"
 wal_mode = true
 cache_size_mb = 100
 
-# Component configuration
-[components]
-scanner_type = "standard"      # Scanner implementation
-buffer_type = "standard"       # Event buffer type
-metrics_type = "standard"      # Metrics provider
-resilience_type = "standard"   # Resilience patterns
+[resilience]
+circuit_breaker_enabled = true
+retry_enabled = true
+bulkhead_enabled = true
 ```
 
 ## Error Handling Strategy
@@ -600,30 +625,30 @@ GET /metrics        -> Prometheus format metrics
 ## Future Architecture Considerations
 
 ### Planned Enhancements:
-1. **Additional Trait Implementations**
-   - GPU-accelerated scanners
-   - Distributed event buffers
-   - Cloud-native metrics providers
+1. **Performance Optimizations**
+   - GPU-accelerated pattern matching
+   - SIMD optimizations for Unicode scanning
+   - Zero-copy parsing improvements
    
-2. **Dynamic Trait Loading**
-   - Runtime plugin system for custom implementations
-   - Hot-swapping of components without restart
-   - Third-party trait implementations
+2. **Scalability Features**
+   - Horizontal scaling support
+   - Distributed caching
+   - Load balancing capabilities
    
-3. **Trait Composition**
-   - Decorator pattern for layered functionality
-   - Middleware traits for cross-cutting concerns
-   - Trait adapters for legacy systems
+3. **Extended Security Features**
+   - Machine learning threat detection
+   - Behavioral analysis
+   - Advanced pattern recognition
 
-4. **Enhanced Factory System**
-   - A/B testing different implementations
-   - Performance-based automatic selection
-   - Feature flag integration
+4. **Integration Improvements**
+   - Additional transport protocols
+   - Plugin system for custom scanners
+   - Extended API surface
 
-5. **Trait Evolution**
-   - Versioned traits for backward compatibility
-   - Migration paths between trait versions
-   - Deprecation strategies
+5. **Operational Features**
+   - Enhanced monitoring dashboards
+   - Automated threat response
+   - Advanced configuration management
 
 ### Scalability Path:
 ```mermaid
