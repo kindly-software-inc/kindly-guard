@@ -8,6 +8,9 @@ authors = ["Kindly Software Inc <support@kindlysoftware.com>"]
 keywords = ["security", "unicode", "scanner", "cli"]
 categories = ["command-line-utilities", "security"]
 
+[package.metadata.dist]
+dist = true
+
 [package.metadata.wix]
 upgrade-guid = "53F070D6-7932-4895-A3A3-B3F059853DF8"
 path-guid = "2E03DCA5-3E79-437D-9DEE-4758BFF9C6D9"
@@ -15,7 +18,7 @@ license = false
 eula = false
 
 [[bin]]
-name = "kindly-guard-cli"
+name = "kindlyguard"
 path = "src/main.rs"
 
 [dependencies]
