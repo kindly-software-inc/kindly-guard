@@ -283,6 +283,26 @@ export RUSTFLAGS="-C link-arg=-fuse-ld=mold"
 cargo pgo build                     # If using cargo-pgo
 ```
 
+## 🛡️ KindlyGuard CLI Commands
+
+```bash
+# Scan files for threats
+kindly scan file.txt                  # Scan single file
+kindly scan *.json                    # Scan multiple files
+kindly scan --format json input.txt   # JSON output
+echo "content" | kindly scan -        # Scan from stdin
+
+# Wrap commands with security
+kindly wrap -- claude "prompt"        # Wrap AI command
+kindly wrap --dry-run -- ai "test"    # Test without executing
+kindly wrap --auto-wrap > ~/.shield   # Generate shell wrappers
+
+# Monitor security in real-time
+kindly monitor                        # Start monitor
+kindly monitor --detailed             # Detailed statistics
+kindly monitor --config prod.toml     # Custom config
+```
+
 ## 🆘 Troubleshooting
 
 ```bash

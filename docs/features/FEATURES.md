@@ -159,24 +159,29 @@ This document provides a comprehensive inventory of all implemented features in 
   - Interactive configuration
   - Hot-reload support
 
-### 8. CLI Interface
+### 8. CLI Interface (kindly-tools)
 **Status**: ✅ Fully Implemented  
-**Location**: `kindly-guard-cli/src/`  
-**Description**: Command-line interface for KindlyGuard
+**Location**: `kindly-tools/src/`  
+**Description**: Command-line interface for KindlyGuard security operations
 
 #### Sub-features:
 - **Scan Command** (`kindly scan <input>`)
   - Direct input scanning
-  - File input support
-  - JSON/Human output formats
+  - File and directory scanning
+  - Multiple output formats (human, json, yaml)
+  - Threat detection and reporting
   
-- **Server Command** (`kindly server`)
-  - Start MCP server
-  - Configuration options
+- **Wrap Command** (`kindly wrap -- <command>`)
+  - Protected command execution
+  - Automatic threat scanning of arguments
+  - Shell auto-wrap generation
+  - Configurable threat thresholds
   
-- **Config Command** (`kindly config`)
-  - View/edit configuration
-  - Validate configuration
+- **Monitor Command** (`kindly monitor`)
+  - Real-time security monitoring
+  - Interactive TUI dashboard
+  - Threat statistics and history
+  - Performance metrics display
 
 ## Storage Features
 
@@ -326,7 +331,7 @@ This document provides a comprehensive inventory of all implemented features in 
 **Description**: Optional enhanced security features
 
 #### Sub-features:
-- **Atomic Event Buffer** (when `kindly-guard-core` available)
+- **Atomic Event Buffer** (with enhanced features)
   - Lock-free event recording
   - 100M+ events/second
   
@@ -440,7 +445,7 @@ injection_detection = true
 xss_detection = true
 pattern_matching = true
 ml_detection = false  # Requires model files
-enhanced_core = false # Requires kindly-guard-core
+enhanced_core = false # Requires enhanced features
 ```
 
 ## Upcoming Features (Roadmap)

@@ -102,22 +102,22 @@ brew install kindly-guard
 ### Cargo (Rust Package Manager)
 
 ```bash
-# Install from crates.io
-cargo install kindlyguard
+# Install both components from crates.io
+cargo install kindlyguard kindly-tools
 
-# Or install specific components
-cargo install kindly-guard-server
-cargo install kindly-guard-cli
+# Or install individually
+cargo install kindlyguard        # MCP server
+cargo install kindly-tools       # CLI toolkit
 ```
 
 ### NPM (Node.js)
 
 ```bash
 # Install the CLI globally
-npm install -g @kindlyguard/cli
+npm install -g @kindlyguard/tools
 
 # Or use with npx
-npx @kindlyguard/cli scan file.json
+npx @kindlyguard/tools scan file.json
 ```
 
 ## Docker
@@ -151,7 +151,7 @@ cd kindly-guard
 cargo build --release
 
 # Install to cargo bin directory
-cargo install --path kindly-guard-cli
+cargo install --path kindly-tools
 cargo install --path kindly-guard-server
 ```
 
@@ -161,10 +161,10 @@ cargo install --path kindly-guard-server
 
 ```bash
 # Check version
-kindly-guard --version
+kindly --version
 
 # Run a test scan
-echo '{"test": "data"}' | kindly-guard scan -
+echo '{"test": "data"}' | kindly scan -
 ```
 
 ### Configuration
@@ -200,8 +200,8 @@ To use KindlyGuard as an MCP server:
 {
   "mcpServers": {
     "kindlyguard": {
-      "command": "kindly-guard",
-      "args": ["server", "--stdio"],
+      "command": "kindly-guard-server",
+      "args": ["--stdio"],
       "env": {}
     }
   }
@@ -248,7 +248,7 @@ To use KindlyGuard as an MCP server:
 
 ```bash
 # Linux/macOS
-sudo rm -f /usr/local/bin/kindly-guard /usr/local/bin/kindly-guard-cli
+sudo rm -f /usr/local/bin/kindly /usr/local/bin/kindly-guard-server
 
 # Windows (PowerShell as Admin)
 Remove-Item -Path "$env:LOCALAPPDATA\Programs\KindlyGuard" -Recurse -Force

@@ -23,9 +23,9 @@ cargo install kindly-tools
 kindly install kindlyguard
 
 # Or install specific components
-kindly install kindlyguard-cli    # CLI only
-kindly install kindlyguard-server  # Server only
-kindly install kindlyguard-shield  # Desktop UI
+kindly install kindlyguard        # MCP server binary
+kindly install kindly-tools       # CLI tools (scan, wrap, monitor)
+kindly install kindlyguard-shield # Desktop UI
 ```
 
 ### Quick Install Scripts
@@ -56,7 +56,11 @@ brew install samduchaine/tap/kindly-guard
 
 ### Cargo
 ```bash
-cargo install kindlyguard-cli && kindlyguard-cli --stdio
+# Install the MCP server
+cargo install kindlyguard && kindlyguard --stdio
+
+# Install the CLI tools for scanning and monitoring
+cargo install kindly-tools
 ```
 
 ### Docker
@@ -75,20 +79,29 @@ docker run -it \
 
 **That's it!** You're now protected. Try it:
 ```bash
-kindlyguard scan "DROP TABLE users;"
+kindly-tools scan "DROP TABLE users;"
 # 🚨 SQL injection detected at position 0-4
+
+# Or protect any AI CLI automatically:
+kindly-tools wrap -- claude "Write a script to delete files"
+# ⚠️ Potential threat detected - command blocked
 ```
 
 ### Configure with Claude or VS Code (Optional)
 ```bash
 # Auto-detect and configure MCP integration
-kindlyguard setup-mcp
+kindly-tools setup-mcp
 
 # Or specify your IDE
-kindlyguard setup-mcp --ide claude-desktop
+kindly-tools setup-mcp --ide claude-desktop
 
 # Show configuration for manual setup
-kindlyguard show-mcp-config
+kindly-tools show-mcp-config
+
+# Set up shield auto-wrap for AI CLI protection
+kindly-tools wrap --init  # Creates ~/.kindlyguard/wrap.toml
+kindly-tools shield auto-wrap -o ~/.kindly-shield.sh
+echo 'source ~/.kindly-shield.sh' >> ~/.bashrc  # or ~/.zshrc
 ```
 
 ## ✨ Features at a Glance
@@ -100,6 +113,15 @@ kindlyguard show-mcp-config
 - 🎯 **<0.1% false positives** - Accurate threat detection
 - 🔒 **Enterprise features** - OAuth 2.0, rate limiting, audit logs
 - 📖 **Developer friendly** - Clear messages, not cryptic errors
+
+### 🎉 New in v0.11.0
+
+- **Unified Binary Structure** - Simplified to just `kindlyguard` (server) and `kindly-tools` (CLI)
+- **Command Wrapping** - Wrap any command with `kindly-tools wrap` for automatic threat detection
+- **Colored Output** - Beautiful, color-coded threat reports in the terminal
+- **Shield Auto-Wrap** - Automatically protect terminal commands with the shield
+- **Configuration File Support** - Full TOML/YAML configuration for all tools
+- **Improved Performance** - Faster scanning with optimized threat detection
 
 ## 🎯 Quick Start Guide with New Tools
 
@@ -124,19 +146,26 @@ RUST_LOG=debug cargo run -- --stdio
 ### 3. Run Security Scan
 ```bash
 # Scan a file
-kindlyguard scan suspicious.txt
+kindly-tools scan suspicious.txt
 
 # Scan text directly
-kindlyguard scan "SELECT * FROM users WHERE id = '$input'"
+kindly-tools scan "SELECT * FROM users WHERE id = '$input'"
 
 # Scan with detailed output
-kindlyguard scan --verbose malicious.json
+kindly-tools scan --verbose malicious.json
+
+# NEW: Wrap command output with automatic threat detection
+kindly-tools wrap -- curl https://suspicious-site.com
+# Output will be color-coded:
+#   🟢 Safe content in green
+#   🔴 Threats highlighted in red
+#   🟡 Warnings in yellow
 ```
 
 ### 4. Monitor Threats in Real-Time
 ```bash
 # Start monitoring dashboard
-kindlyguard monitor
+kindly-tools monitor
 
 # Or use the TUI shield
 cargo xtask shield
@@ -145,10 +174,10 @@ cargo xtask shield
 ### 5. Configure for Your IDE
 ```bash
 # Auto-configure MCP
-kindlyguard setup-mcp
+kindly-tools setup-mcp
 
 # Test the configuration
-kindlyguard test-mcp
+kindly-tools test-mcp
 ```
 
 ## 🛡️ What is KindlyGuard?
@@ -236,11 +265,18 @@ pub trait SecurityScanner: Send + Sync {
 let scanner = create_scanner(config)?; // Automatic selection
 ```
 
+### Binary Structure (v0.11.0+)
+
+KindlyGuard is now organized into two main binaries:
+
+- **`kindlyguard`** - The MCP server binary that integrates with AI assistants
+- **`kindly-tools`** - CLI tools for scanning, wrapping commands, and monitoring
+
 ### Key Components
 
 - **Scanner Engine** - Modular threat detection system
 - **Neutralizer** - Safe content transformation
-- **Shield UI** - Real-time threat monitoring
+- **Shield UI** - Real-time threat monitoring with auto-wrap support
 - **Resilience Layer** - Circuit breakers and retry logic
 - **Storage Backend** - SQLite persistence with caching
 
@@ -310,10 +346,10 @@ KindlyGuard includes intelligent MCP (Model Context Protocol) setup that auto-de
 ### Automatic Setup
 ```bash
 # Auto-detect your IDE and configure
-kindlyguard setup-mcp
+kindly-tools setup-mcp
 
 # Test the MCP connection
-kindlyguard test-mcp
+kindly-tools test-mcp
 ```
 
 ### Supported IDEs
@@ -327,8 +363,8 @@ kindlyguard test-mcp
 If auto-setup doesn't work for your environment:
 ```bash
 # Show configuration in your preferred format
-kindlyguard show-mcp-config --format json
-kindlyguard show-mcp-config --format yaml
+kindly-tools show-mcp-config --format json
+kindly-tools show-mcp-config --format yaml
 ```
 
 ### What It Does
@@ -404,23 +440,33 @@ cargo xtask coverage         # Code coverage
 cargo xtask deps             # Dependency graph
 ```
 
-### kindlyguard CLI Commands
+### kindly-tools Commands
 ```bash
 # Core Commands
-kindlyguard scan <input>     # Scan for threats
-kindlyguard server           # Start MCP server
-kindlyguard monitor          # Live monitoring
-kindlyguard config           # Manage configuration
+kindly-tools scan <input>      # Scan for threats
+kindly-tools wrap <command>    # Wrap command output with threat detection (colored output!)
+kindly-tools monitor           # Live monitoring dashboard
+kindly-tools config            # Manage configuration
 
 # MCP Integration
-kindlyguard setup-mcp        # Auto-configure MCP
-kindlyguard test-mcp         # Test MCP connection
-kindlyguard show-mcp-config  # Display MCP config
+kindly-tools setup-mcp         # Auto-configure MCP
+kindly-tools test-mcp          # Test MCP connection
+kindly-tools show-mcp-config   # Display MCP config
+
+# Shield Auto-Wrap Feature (NEW!)
+kindly-tools shield --auto-wrap # Automatically wrap terminal commands
 
 # Utilities
-kindlyguard health           # Health check
-kindlyguard version          # Show version
-kindlyguard help            # Get help
+kindly-tools health            # Health check
+kindly-tools version           # Show version
+kindly-tools help              # Get help
+```
+
+### kindlyguard Server Commands
+```bash
+# Start the MCP server
+kindlyguard --stdio            # Standard I/O mode for MCP
+kindlyguard server             # HTTP server mode
 ```
 
 ## 🧪 Testing
@@ -484,7 +530,7 @@ services:
     ports:
       - "127.0.0.1:8080:8080"  # Only expose locally
     healthcheck:
-      test: ["CMD", "/usr/local/bin/kindlyguard", "health"]
+      test: ["CMD", "/usr/local/bin/kindly-tools", "health"]
       interval: 30s
       timeout: 10s
       retries: 3
@@ -606,7 +652,11 @@ We use cutting-edge Rust tooling for security and productivity:
 
 ## 📈 Roadmap
 
-### v0.9.7 (Current Release)
+### v0.11.0 (Current Release)
+- ✅ Unified binary structure (`kindlyguard` + `kindly-tools`)
+- ✅ Command wrapping with colored output
+- ✅ Shield auto-wrap feature
+- ✅ Configuration file support
 - ✅ Core security scanning engine
 - ✅ MCP protocol implementation
 - ✅ OAuth 2.0 authentication

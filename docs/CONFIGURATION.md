@@ -1181,6 +1181,183 @@ Enable detailed configuration logging:
 export RUST_LOG="kindly_guard::config=debug"
 ```
 
+## CLI Tools Configuration
+
+The `kindly-tools` CLI commands support additional configuration options:
+
+### Scan Command Configuration
+
+```toml
+[cli.scan]
+# Default output format
+# Options: "human", "json", "yaml"
+default_format = "human"
+
+# Show verbose output by default
+verbose = false
+
+# Maximum files to scan in directory mode
+max_files = 1000
+
+# File extensions to scan (empty = all)
+extensions = [".txt", ".json", ".yaml", ".toml", ".md"]
+
+# Ignore patterns (gitignore syntax)
+ignore_patterns = ["*.log", "node_modules/", ".git/"]
+```
+
+### Wrap Command Configuration
+
+```toml
+[cli.wrap]
+# Default threat threshold
+# Options: "low", "medium", "high"
+default_threshold = "medium"
+
+# Allow execution with low threats
+allow_safe = false
+
+# Commands to auto-wrap by default
+auto_wrap_commands = ["claude", "openai", "gemini", "gpt"]
+
+# Show wrapper output
+quiet = false
+```
+
+### Shield Auto-Wrap Configuration
+
+The Shield Auto-Wrap feature provides automatic protection for AI CLI tools by intercepting commands before execution. This configuration is stored in `~/.kindlyguard/wrap.toml`:
+
+```toml
+# Enable auto-wrapping globally
+enabled = true
+
+# Protection mode
+# Options: "warning" (show threats but allow), "blocking" (prevent execution)
+mode = "blocking"
+
+# KindlyGuard server URL for threat detection
+server = "http://localhost:8080"
+
+# Show detailed threat information
+verbose = true
+
+# Log wrapped sessions
+log_sessions = true
+log_directory = "/home/user/.kindlyguard/logs"
+
+# Default AI commands to protect
+commands = [
+    "claude",
+    "openai",
+    "gemini",
+    "anthropic",
+    "gpt",
+    "ai",
+    "llm",
+    "ollama",
+    "bard"
+]
+
+# Custom commands specific to your environment
+custom_commands = [
+    "company-llm",
+    "internal-ai-cli"
+]
+```
+
+#### Setting Up Shield Auto-Wrap
+
+1. **Initialize configuration:**
+   ```bash
+   kindly-tools wrap --init
+   ```
+
+2. **Generate shell integration:**
+   ```bash
+   kindly-tools shield auto-wrap -o ~/.kindly-shield.sh
+   ```
+
+3. **Add to shell profile:**
+   ```bash
+   # For bash
+   echo 'source ~/.kindly-shield.sh' >> ~/.bashrc
+   
+   # For zsh
+   echo 'source ~/.kindly-shield.sh' >> ~/.zshrc
+   ```
+
+4. **Reload shell:**
+   ```bash
+   source ~/.bashrc  # or source ~/.zshrc
+   ```
+
+#### Managing Protected Commands
+
+```bash
+# Add a command to protection list
+kindly-tools wrap --add my-ai-tool
+
+# Remove a command from protection
+kindly-tools wrap --remove gemini
+
+# Show current configuration
+kindly-tools wrap --config
+
+# Test protection
+kindly-tools wrap -- claude "test prompt"
+```
+
+#### Environment Variable Overrides
+
+```bash
+# Temporarily disable protection
+export KINDLY_SHIELD_DISABLED=1
+
+# Override protection mode
+export KINDLY_WRAP_MODE=warning
+
+# Set custom server
+export KINDLY_WRAP_SERVER=https://security.company.com
+```
+
+### Monitor Command Configuration
+
+```toml
+[cli.monitor]
+# Refresh interval in milliseconds
+refresh_interval_ms = 1000
+
+# Show detailed statistics by default
+detailed = false
+
+# Maximum threat history to keep
+max_history = 100
+
+# Color theme
+# Options: "default", "solarized", "dracula"
+theme = "default"
+
+# Show keyboard shortcuts
+show_help = true
+```
+
+### Environment Variable Overrides
+
+```bash
+# Scan command
+export KINDLY_CLI_SCAN_DEFAULT_FORMAT=json
+export KINDLY_CLI_SCAN_VERBOSE=true
+
+# Wrap command
+export KINDLY_CLI_WRAP_DEFAULT_THRESHOLD=high
+export KINDLY_CLI_WRAP_ALLOW_SAFE=false
+
+# Monitor command
+export KINDLY_CLI_MONITOR_REFRESH_INTERVAL_MS=500
+export KINDLY_CLI_MONITOR_DETAILED=true
+```
+
 ## Need Help?
 
 - Configuration examples: [/examples/configs/](../examples/configs/)

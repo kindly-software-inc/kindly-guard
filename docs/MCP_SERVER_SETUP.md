@@ -394,8 +394,8 @@ cd /path/to/kindly-guard
 git pull
 cargo build --release --package kindly-guard-server
 
-# Replace binary
-cp target/release/kindly-guard-server \
+# Replace binary (now named 'kindlyguard')
+cp target/release/kindlyguard \
    ~/.claude/mcp-servers/kindly-guard/
 
 # Restart Claude Desktop

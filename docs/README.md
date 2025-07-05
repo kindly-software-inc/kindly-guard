@@ -29,6 +29,12 @@ See [RELEASE_NOTES_v0.9.4.md](../RELEASE_NOTES_v0.9.4.md) for full details.
 - [CURRENT_TEST_STATUS.md](development/CURRENT_TEST_STATUS.md) - Current test suite status
 - [MULTI_PROTOCOL_SECURITY_TEST_PLAN.md](development/MULTI_PROTOCOL_SECURITY_TEST_PLAN.md) - Security test planning
 
+### 🔧 Tools & CLI
+- [KINDLY_TOOLS_CLI.md](./KINDLY_TOOLS_CLI.md) - Command-line interface reference
+- [INSTALLATION.md](./INSTALLATION.md) - Installation guide for all platforms
+- [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Quick command reference
+- [SHIELD_AUTO_WRAP.md](./SHIELD_AUTO_WRAP.md) - Auto-wrap shell protection
+
 ### 🔒 Security
 - [SECURITY_AUDIT_REPORT.md](./SECURITY_AUDIT_REPORT.md) - Security analysis and findings
 - [API_DOCUMENTATION.md](./API_DOCUMENTATION.md) - API security guidelines
