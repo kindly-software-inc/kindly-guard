@@ -1,3 +1,18 @@
+//! Code coverage generation command
+//!
+//! This command generates code coverage reports using cargo-llvm-cov.
+//! 
+//! ## CI Environment Handling
+//!
+//! The behavior varies based on the CI environment:
+//! - **GitHub Actions**: Only checks if tools exist, never attempts installation.
+//!   GitHub Actions workflows should install required tools explicitly.
+//! - **Other CI**: Attempts to auto-install missing tools via cargo install.
+//! - **Local**: Prompts the user to install missing tools interactively.
+//!
+//! This ensures that GitHub Actions workflows maintain full control over their
+//! tool installation process while still providing convenience for other environments.
+
 use anyhow::{Context as _, Result};
 use clap::Args;
 use colored::*;
@@ -6,7 +21,7 @@ use std::process::Command;
 use std::time::Instant;
 
 use crate::utils::{Context, spinner, workspace_root};
-use crate::utils::tools::ensure_tool_installed;
+use crate::utils::tools::{ensure_tool_installed, CiEnvironment};
 
 #[derive(Args)]
 pub struct CoverageCmd {
@@ -68,11 +83,36 @@ pub struct CoverageCmd {
 }
 
 pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
+    // Provide environment-specific context for debugging
+    match CiEnvironment::detect() {
+        CiEnvironment::GitHubActions => {
+            ctx.debug("Running in GitHub Actions environment");
+        }
+        CiEnvironment::Other => {
+            ctx.debug("Running in CI environment (non-GitHub Actions)");
+        }
+        CiEnvironment::None => {
+            ctx.debug("Running in local/interactive environment");
+        }
+    }
+
     // Ensure cargo-llvm-cov is installed (auto-installs in CI)
     match ensure_tool_installed(&ctx, "cargo-llvm-cov", None)
         .context("Failed to ensure cargo-llvm-cov is available")? {
         true => ctx.debug("cargo-llvm-cov is available"),
-        false => anyhow::bail!("cargo-llvm-cov is required for coverage generation"),
+        false => {
+            match CiEnvironment::detect() {
+                CiEnvironment::GitHubActions => {
+                    anyhow::bail!(
+                        "cargo-llvm-cov is required for coverage generation but not found.\n\
+                        In GitHub Actions, please install it in your workflow using one of:\n\
+                        - uses: taiki-e/install-action@cargo-llvm-cov\n\
+                        - run: cargo install cargo-llvm-cov"
+                    );
+                }
+                _ => anyhow::bail!("cargo-llvm-cov is required for coverage generation"),
+            }
+        }
     }
 
     // If using nextest, ensure it's installed (auto-installs in CI)
@@ -80,7 +120,19 @@ pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
         match ensure_tool_installed(&ctx, "cargo-nextest", None)
             .context("Failed to ensure cargo-nextest is available")? {
             true => ctx.debug("cargo-nextest is available"),
-            false => anyhow::bail!("cargo-nextest is required when --nextest is specified"),
+            false => {
+                match CiEnvironment::detect() {
+                    CiEnvironment::GitHubActions => {
+                        anyhow::bail!(
+                            "cargo-nextest is required when --nextest is specified but not found.\n\
+                            In GitHub Actions, please install it in your workflow using one of:\n\
+                            - uses: taiki-e/install-action@cargo-nextest\n\
+                            - run: cargo install cargo-nextest"
+                        );
+                    }
+                    _ => anyhow::bail!("cargo-nextest is required when --nextest is specified"),
+                }
+            }
         }
     }
 

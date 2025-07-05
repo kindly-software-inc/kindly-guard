@@ -31,6 +31,11 @@ jobs:
         with:
           cache-on-failure: true
       
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      
       - name: Run CI
         run: cargo xtask ci
         env:
@@ -48,6 +53,18 @@ jobs:
           components: llvm-tools-preview
       
       - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+      
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
+      
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
       
       - name: Generate coverage
         run: cargo xtask coverage

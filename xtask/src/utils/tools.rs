@@ -42,6 +42,44 @@ pub fn is_ci_environment() -> bool {
         .unwrap_or(false)
 }
 
+/// Check if we're running specifically in GitHub Actions
+///
+/// GitHub Actions sets the GITHUB_ACTIONS environment variable to "true"
+pub fn is_github_actions() -> bool {
+    std::env::var("GITHUB_ACTIONS")
+        .map(|val| val == "true")
+        .unwrap_or(false)
+}
+
+/// Get the CI environment type
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CiEnvironment {
+    /// Not in CI
+    None,
+    /// GitHub Actions
+    GitHubActions,
+    /// Other CI system (has CI=true but not GitHub Actions)
+    Other,
+}
+
+impl CiEnvironment {
+    /// Detect the current CI environment
+    pub fn detect() -> Self {
+        if is_github_actions() {
+            CiEnvironment::GitHubActions
+        } else if is_ci_environment() {
+            CiEnvironment::Other
+        } else {
+            CiEnvironment::None
+        }
+    }
+    
+    /// Check if we're in any CI environment
+    pub fn is_ci(&self) -> bool {
+        !matches!(self, CiEnvironment::None)
+    }
+}
+
 /// Check if a cargo tool is installed
 ///
 /// # Arguments
@@ -68,9 +106,12 @@ pub fn is_tool_installed(tool_name: &str) -> Result<bool> {
 
 /// Ensure a cargo tool is installed, with CI and interactive handling
 ///
-/// In CI environments (detected via CI environment variable), tools are
-/// automatically installed without prompting. In interactive environments,
-/// the user is asked for permission before installation.
+/// Behavior varies by environment:
+/// - GitHub Actions: Only checks if tool exists, never attempts installation.
+///   The workflow should handle tool installation explicitly.
+/// - Other CI environments: Tools are automatically installed without prompting
+///   if `ci_auto_install` is enabled in config.
+/// - Interactive environments: The user is asked for permission before installation.
 ///
 /// # Arguments
 /// * `ctx` - Context for logging and command execution
@@ -113,14 +154,31 @@ pub fn ensure_tool_installed(
         }
     }
     
-    // Handle CI environment
-    if is_ci_environment() {
-        if config.ci_auto_install {
-            ctx.info(&format!("CI environment detected - auto-installing {}", tool_name));
-            return install_tool(ctx, tool_name, &config);
-        } else {
-            ctx.error(&format!("{} is required but not installed in CI", tool_name));
+    // Handle CI environment based on type
+    match CiEnvironment::detect() {
+        CiEnvironment::GitHubActions => {
+            // GitHub Actions should handle tool installation in workflow
+            ctx.error(&format!(
+                "{} is required but not installed in GitHub Actions. \
+                Please ensure the workflow installs required tools. \
+                For example, use 'taiki-e/install-action@{}' or add to the workflow:\n  \
+                - run: cargo install {}",
+                tool_name, tool_name, tool_name
+            ));
             return Ok(false);
+        }
+        CiEnvironment::Other => {
+            // Other CI systems - attempt auto-installation if configured
+            if config.ci_auto_install {
+                ctx.info(&format!("CI environment detected - auto-installing {}", tool_name));
+                return install_tool(ctx, tool_name, &config);
+            } else {
+                ctx.error(&format!("{} is required but not installed in CI", tool_name));
+                return Ok(false);
+            }
+        }
+        CiEnvironment::None => {
+            // Not in CI - continue to interactive handling below
         }
     }
     
@@ -299,6 +357,9 @@ pub mod common_tools {
     /// Unsafe code checker
     pub const CARGO_GEIGER: &str = "cargo-geiger";
     
+    /// Code coverage tool
+    pub const CARGO_LLVM_COV: &str = "cargo-llvm-cov";
+    
     /// All security-related tools
     pub const SECURITY_TOOLS: &[&str] = &[CARGO_AUDIT, CARGO_GEIGER];
     
@@ -315,8 +376,9 @@ mod tests {
     
     #[test]
     fn test_ci_detection() {
-        // Save original value
-        let original = std::env::var("CI").ok();
+        // Save original values
+        let original_ci = std::env::var("CI").ok();
+        let original_gh = std::env::var("GITHUB_ACTIONS").ok();
         
         // Test CI=true
         std::env::set_var("CI", "true");
@@ -334,9 +396,77 @@ mod tests {
         std::env::remove_var("CI");
         assert!(!is_ci_environment());
         
-        // Restore original value
-        if let Some(val) = original {
+        // Restore original values
+        if let Some(val) = original_ci {
             std::env::set_var("CI", val);
+        }
+        if let Some(val) = original_gh {
+            std::env::set_var("GITHUB_ACTIONS", val);
+        }
+    }
+    
+    #[test]
+    fn test_github_actions_detection() {
+        // Save original values
+        let original_ci = std::env::var("CI").ok();
+        let original_gh = std::env::var("GITHUB_ACTIONS").ok();
+        
+        // Test GitHub Actions
+        std::env::set_var("GITHUB_ACTIONS", "true");
+        assert!(is_github_actions());
+        
+        // Test not GitHub Actions
+        std::env::set_var("GITHUB_ACTIONS", "false");
+        assert!(!is_github_actions());
+        
+        // Test not set
+        std::env::remove_var("GITHUB_ACTIONS");
+        assert!(!is_github_actions());
+        
+        // Restore original values
+        if let Some(val) = original_ci {
+            std::env::set_var("CI", val);
+        } else {
+            std::env::remove_var("CI");
+        }
+        if let Some(val) = original_gh {
+            std::env::set_var("GITHUB_ACTIONS", val);
+        } else {
+            std::env::remove_var("GITHUB_ACTIONS");
+        }
+    }
+    
+    #[test]
+    fn test_ci_environment_detection() {
+        // Save original values
+        let original_ci = std::env::var("CI").ok();
+        let original_gh = std::env::var("GITHUB_ACTIONS").ok();
+        
+        // Test no CI
+        std::env::remove_var("CI");
+        std::env::remove_var("GITHUB_ACTIONS");
+        assert_eq!(CiEnvironment::detect(), CiEnvironment::None);
+        
+        // Test GitHub Actions
+        std::env::set_var("CI", "true");
+        std::env::set_var("GITHUB_ACTIONS", "true");
+        assert_eq!(CiEnvironment::detect(), CiEnvironment::GitHubActions);
+        
+        // Test other CI
+        std::env::set_var("CI", "true");
+        std::env::remove_var("GITHUB_ACTIONS");
+        assert_eq!(CiEnvironment::detect(), CiEnvironment::Other);
+        
+        // Restore original values
+        if let Some(val) = original_ci {
+            std::env::set_var("CI", val);
+        } else {
+            std::env::remove_var("CI");
+        }
+        if let Some(val) = original_gh {
+            std::env::set_var("GITHUB_ACTIONS", val);
+        } else {
+            std::env::remove_var("GITHUB_ACTIONS");
         }
     }
     

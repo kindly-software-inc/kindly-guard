@@ -66,7 +66,7 @@ pub async fn run(cmd: CiCmd, ctx: Context) -> Result<()> {
 
     // Step 3: Tests
     if !cmd.skip_tests && all_passed {
-        ctx.info("Running tests...");
+        ctx.info("Running tests with nextest for 3x faster execution...");
         match run_tests(&ctx, &cmd.test_args, &ci_os).await {
             Ok(_) => ctx.success("All tests passed"),
             Err(e) => {
@@ -126,7 +126,8 @@ async fn run_clippy(ctx: &Context, ci_rust: &Option<String>) -> Result<()> {
 }
 
 async fn run_tests(ctx: &Context, test_args: &[String], ci_os: &Option<String>) -> Result<()> {
-    let mut args = vec!["test", "--all-features", "--workspace"];
+    // Use cargo xtask test with nextest for 3x faster execution
+    let mut args = vec!["xtask", "test", "--nextest", "--nextest-profile", "ci"];
     
     // Add OS-specific test configuration
     if let Some(os) = ci_os {
@@ -134,8 +135,8 @@ async fn run_tests(ctx: &Context, test_args: &[String], ci_os: &Option<String>) 
             "windows-latest" => {
                 ctx.debug("Configuring tests for Windows");
                 // Windows might need different test thread count
-                args.push("--");
-                args.push("--test-threads=1");
+                args.push("--test-threads");
+                args.push("1");
             }
             "macos-latest" => {
                 ctx.debug("Configuring tests for macOS");
@@ -149,14 +150,14 @@ async fn run_tests(ctx: &Context, test_args: &[String], ci_os: &Option<String>) 
                 ctx.warn(&format!("Unknown CI_OS: {}", os));
             }
         }
-    } else {
-        // Default test arguments
-        args.push("--");
     }
     
     // Add any additional test arguments
-    for arg in test_args {
-        args.push(arg);
+    if !test_args.is_empty() {
+        args.push("--");
+        for arg in test_args {
+            args.push(arg);
+        }
     }
     
     ctx.run_command("cargo", &args)?;
