@@ -139,18 +139,24 @@ pub fn ensure_tool_installed(
 ) -> Result<bool> {
     let config = config.unwrap_or_default();
     
-    // Check if tool is already installed
+    // Always check if tool is already installed first
+    if is_tool_installed(tool_name).unwrap_or(false) {
+        ctx.debug(&format!("{} is already installed", tool_name));
+        return Ok(true);
+    }
+    
+    // If we reach here, the tool is not installed or we couldn't verify
     match is_tool_installed(tool_name) {
-        Ok(true) => {
-            ctx.debug(&format!("{} is already installed", tool_name));
-            return Ok(true);
-        }
         Ok(false) => {
             ctx.info(&format!("{} is not installed", tool_name));
         }
         Err(e) => {
             ctx.warn(&format!("Failed to check if {} is installed: {}", tool_name, e));
             // Continue anyway - attempt installation
+        }
+        Ok(true) => {
+            // This shouldn't happen due to the check above, but handle it anyway
+            return Ok(true);
         }
     }
     

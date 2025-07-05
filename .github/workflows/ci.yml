@@ -45,6 +45,8 @@ jobs:
   coverage:
     name: Coverage
     runs-on: ubuntu-latest
+    env:
+      CARGO_INCREMENTAL: 0
     steps:
       - uses: actions/checkout@v4
       
@@ -61,17 +63,12 @@ jobs:
         with:
           tool: cargo-llvm-cov
       
-      - name: Install cargo-nextest
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-nextest
-      
       - name: Generate coverage
-        run: cargo xtask coverage
+        run: cargo llvm-cov --all-features --workspace --lcov --output-path lcov.info
       
       - name: Upload coverage
         uses: codecov/codecov-action@v4
         with:
-          files: ./target/coverage/lcov.info
+          files: lcov.info
           fail_ci_if_error: false
           token: ${{ secrets.CODECOV_TOKEN }}
