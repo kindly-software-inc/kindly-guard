@@ -123,9 +123,9 @@
                         <Component Id='binary0' Guid='*'>
                             <File
                                 Id='exe0'
-                                Name='kindly-guard-cli.exe'
+                                Name='kindlyguard.exe'
                                 DiskId='1'
-                                Source='$(var.CargoTargetBinDir)\kindly-guard-cli.exe'
+                                Source='$(var.CargoTargetBinDir)\kindlyguard.exe'
                                 KeyPath='yes'/>
                         </Component>
                     </Directory>

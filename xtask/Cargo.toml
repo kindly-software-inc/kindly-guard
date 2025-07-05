@@ -4,6 +4,9 @@ version = "0.1.0"
 edition = "2021"
 authors = ["samduchaine"]
 
+[package.metadata.dist]
+dist = false
+
 [package.metadata.wix]
 upgrade-guid = "4D028697-62FB-4A0C-9620-EF7C1D2D8315"
 path-guid = "1E637BA0-8ECA-4006-937A-62D95CC9F22E"

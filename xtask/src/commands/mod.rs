@@ -6,4 +6,5 @@ pub mod publish;
 pub mod release;
 pub mod security;
 pub mod test;
+pub mod validate_dist;
 pub mod version;

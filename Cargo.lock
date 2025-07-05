@@ -1753,7 +1753,7 @@ dependencies = [
 
 [[package]]
 name = "kindly-guard-cli"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1778,7 +1778,7 @@ dependencies = [
 
 [[package]]
 name = "kindly-guard-server"
-version = "0.10.0"
+version = "0.10.1"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -1840,7 +1840,7 @@ version = "0.10.0"
 
 [[package]]
 name = "kindly-tools"
-version = "0.1.0"
+version = "0.10.1"
 dependencies = [
  "anyhow",
  "clap",

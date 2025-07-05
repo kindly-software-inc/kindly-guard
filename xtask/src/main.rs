@@ -7,7 +7,7 @@ mod interactive;
 mod test;
 mod utils;
 
-use commands::{build, cache, doctor, package, publish, release, security, test as test_cmd, version};
+use commands::{build, cache, doctor, package, publish, release, security, test as test_cmd, validate_dist, version};
 
 #[derive(Parser)]
 #[command(name = "xtask")]
@@ -62,6 +62,9 @@ enum Commands {
     
     /// Check development environment health
     Doctor(doctor::DoctorCmd),
+    
+    /// Validate dist configuration
+    ValidateDist(validate_dist::ValidateDistCmd),
 }
 
 #[tokio::main]
@@ -101,5 +104,6 @@ async fn main() -> Result<()> {
         Commands::Publish(cmd) => publish::run(cmd, ctx).await,
         Commands::Package(cmd) => package::run(cmd, ctx).await,
         Commands::Doctor(cmd) => doctor::run(cmd, ctx).await,
+        Commands::ValidateDist(cmd) => validate_dist::run(cmd, ctx).await,
     }
 }

@@ -4,6 +4,9 @@ version = "0.10.0"
 edition = "2021"
 license = "Apache-2.0"
 
+[package.metadata.dist]
+dist = false
+
 [dependencies]
 # This is just a placeholder for the Tauri app
 # The actual app is in src-tauri/
