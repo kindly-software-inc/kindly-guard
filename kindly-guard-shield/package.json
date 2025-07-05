@@ -1,7 +1,7 @@
 {
   "name": "kindly-guard-shield",
   "private": true,
-  "version": "0.9.7",
+  "version": "0.10.0",
   "description": "Security shield display for KindlyGuard",
   "license": "Apache-2.0",
   "type": "module",

@@ -427,7 +427,7 @@ async fn run_cargo_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> Res
 }
 
 async fn run_nextest_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> Result<()> {
-    let mut nextest_args = nextest::NextestArgs::default();
+    let mut nextest_args = crate::utils::nextest::NextestArgs::default();
     
     // Set profile if specified
     nextest_args.profile = cmd.nextest_profile.clone();
@@ -450,7 +450,7 @@ async fn run_nextest_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> R
     nextest_args.extra_args = cmd.args.clone();
     
     // Run tests
-    nextest::run_tests(nextest_args).await?;
+    crate::utils::nextest::run_tests(nextest_args).await?;
     Ok(())
 }
 
@@ -601,7 +601,7 @@ async fn run_cargo_tests_with_output(cmd: &TestCmd, ctx: &Context, integration: 
         .env("CARGO_TERM_COLOR", "never")
         .output()?;
     
-    String::from_utf8_lossy(&output.stdout).into_owned()
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 // Run nextest with captured output
@@ -636,7 +636,7 @@ async fn run_nextest_tests_with_output(cmd: &TestCmd, ctx: &Context, integration
         .env("CARGO_TERM_COLOR", "never")
         .output()?;
     
-    String::from_utf8_lossy(&output.stdout).into_owned()
+    Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 // Parse test output for summary

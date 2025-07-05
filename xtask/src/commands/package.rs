@@ -72,9 +72,9 @@ pub async fn run(cmd: PackageCmd, ctx: Context) -> Result<()> {
         ensure_command_exists("cross")?;
     }
 
-    let targets = cmd.targets.unwrap_or_else(default_targets);
+    let targets = cmd.targets.clone().unwrap_or_else(default_targets);
     let output_dir = PathBuf::from(&cmd.output_dir);
-    let version = cmd.version.unwrap_or_else(|| {
+    let version = cmd.version.clone().unwrap_or_else(|| {
         get_version(None).unwrap_or_else(|_| "0.1.0".to_string())
     });
 
@@ -343,10 +343,10 @@ async fn create_npm_packages(
     }
 
     // Create platform-specific packages
-    for (target, target_artifacts) in by_target {
+    for (target, target_artifacts) in &by_target {
         create_platform_npm_package(
-            &target,
-            target_artifacts,
+            target,
+            target_artifacts.clone(),
             &base_package,
             cmd,
             ctx,
@@ -386,7 +386,7 @@ async fn create_platform_npm_package(
     std::fs::create_dir_all(&bin_dir)?;
 
     // Copy binaries
-    for artifact in artifacts {
+    for artifact in &artifacts {
         let dest = bin_dir.join(&artifact.binary_name);
         std::fs::copy(&artifact.binary_path, &dest)?;
 
@@ -415,7 +415,7 @@ async fn create_platform_npm_package(
 
     // Binary mapping
     let mut bin = serde_json::Map::new();
-    for artifact in artifacts {
+    for artifact in &artifacts {
         let bin_name = artifact
             .binary_name
             .trim_end_matches(".exe")
@@ -775,7 +775,7 @@ fn find_binaries(target: &str, build_type: &str) -> Result<Vec<PathBuf>> {
 
 fn strip_binary(binary_path: &Path, target: &str) -> Result<()> {
     let strip_cmd = if target.contains("apple") || target.contains("darwin") {
-        "strip"
+        "strip".to_string()
     } else if target.contains("windows") {
         // Windows binaries are typically stripped during build
         return Ok(());

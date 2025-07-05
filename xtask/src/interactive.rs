@@ -5,7 +5,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
-    commands::{build, cache, doctor, package, publish, release, security, test, version},
+    commands::{build, doctor, package, publish, release, security, version},
     config::ReleaseConfig,
     utils::Context,
 };
@@ -284,21 +284,15 @@ default = {:?}
             return Ok(());
         }
 
-        // Create release command
-        let cmd = release::ReleaseCmd {
-            version: Some(new_version),
-            yes: true,
-            skip_tests: !run_tests,
-            skip_security: !run_security,
-            skip_build: !build_binaries,
-            skip_publish: !publish_release,
-            prerelease,
-            draft: false,
-        };
-
-        // Run release with progress tracking
-        println!();
-        release::run(cmd, self.ctx.clone()).await?;
+        // TODO: Interactive mode needs to be redesigned to work with clap command structs
+        self.ctx.info("Release command construction from interactive mode is temporarily disabled");
+        self.ctx.info(&format!("Would have created release {} with:", new_version));
+        self.ctx.info(&format!("  - Run tests: {}", run_tests));
+        self.ctx.info(&format!("  - Run security: {}", run_security));
+        self.ctx.info(&format!("  - Build binaries: {}", build_binaries));
+        self.ctx.info(&format!("  - Publish: {}", publish_release));
+        self.ctx.info(&format!("  - Prerelease: {}", prerelease));
+        self.ctx.info("Please use 'cargo xtask release' from the command line instead");
 
         Ok(())
     }
@@ -339,7 +333,7 @@ default = {:?}
         let profile = profiles[profile_selection].to_string();
 
         // Additional options
-        let clean_first = Confirm::with_theme(&self.theme)
+        let _clean_first = Confirm::with_theme(&self.theme)
             .with_prompt("Clean before building?")
             .default(false)
             .interact()?;
@@ -349,37 +343,26 @@ default = {:?}
             .default(false)
             .interact()?;
 
-        // Create build command
+        // TODO: Fix interactive mode to work with private clap structs
+        /*
         let cmd = build::BuildCmd {
-            target,
-            profile: Some(profile),
-            clean: clean_first,
-            release: false,
-            all_targets: false,
-            jobs: None,
-            features: vec![],
-            no_default_features: false,
+            targets: target.map(|t| vec![t]),
+            release: profile == "release",
+            strip: profile == "release" || profile == "secure",
+            archive: false,
+            output_dir: None,
         };
 
         // Run build
         println!();
         build::run(cmd, self.ctx.clone()).await?;
+        */
+        self.ctx.info("Build command is temporarily disabled in interactive mode");
 
         if run_tests {
             println!("\n{}", "Running tests...".yellow());
-            let test_cmd = test::TestCmd {
-                test_name: None,
-                package: None,
-                all: true,
-                integration: false,
-                doc: false,
-                bench: false,
-                release: false,
-                verbose: false,
-                nocapture: false,
-                test_threads: None,
-            };
-            test::run(test_cmd, self.ctx.clone()).await?;
+            // TODO: Interactive mode needs to be redesigned to work with clap command structs
+            self.ctx.info("Test execution from interactive mode is temporarily disabled");
         }
 
         Ok(())
@@ -387,65 +370,11 @@ default = {:?}
 
     async fn interactive_test(&mut self) -> Result<()> {
         println!("{}", "\n🧪 Test Runner".blue().bold());
-
-        let test_types = vec![
-            "All tests",
-            "Unit tests only",
-            "Integration tests only",
-            "Documentation tests",
-            "Benchmarks",
-            "Specific test",
-        ];
-
-        let test_selection = Select::with_theme(&self.theme)
-            .with_prompt("What to test?")
-            .items(&test_types)
-            .default(0)
-            .interact()?;
-
-        let mut cmd = test::TestCmd {
-            test_name: None,
-            package: None,
-            all: false,
-            integration: false,
-            doc: false,
-            bench: false,
-            release: false,
-            verbose: false,
-            nocapture: false,
-            test_threads: None,
-        };
-
-        match test_selection {
-            0 => cmd.all = true,
-            1 => {}, // Default is unit tests
-            2 => cmd.integration = true,
-            3 => cmd.doc = true,
-            4 => cmd.bench = true,
-            5 => {
-                let test_name: String = Input::with_theme(&self.theme)
-                    .with_prompt("Enter test name (or pattern)")
-                    .interact_text()?;
-                cmd.test_name = Some(test_name);
-            }
-            _ => unreachable!(),
-        }
-
-        // Additional options
-        cmd.release = Confirm::with_theme(&self.theme)
-            .with_prompt("Run in release mode?")
-            .default(false)
-            .interact()?;
-
-        cmd.verbose = Confirm::with_theme(&self.theme)
-            .with_prompt("Verbose output?")
-            .default(false)
-            .interact()?;
-
-        // Run tests
-        println!();
-        test::run(cmd, self.ctx.clone()).await?;
-
+        
+        // TODO: Interactive mode needs to be redesigned to work with clap command structs
+        self.ctx.info("Test execution from interactive mode is temporarily disabled");
+        self.ctx.info("Please use 'cargo xtask test' from the command line instead");
+        
         Ok(())
     }
 
@@ -470,16 +399,10 @@ default = {:?}
             .default(false)
             .interact()?;
 
-        let cmd = security::SecurityCmd {
-            audit: audit_selection == 0 || audit_selection == 1,
-            fix,
-            ignore_file: None,
-            deny: vec![],
-        };
-
-        // Run security audit
-        println!();
-        security::run(cmd, self.ctx.clone()).await?;
+        // TODO: Interactive mode needs to be redesigned to work with clap command structs
+        self.ctx.info("Security command construction from interactive mode is temporarily disabled");
+        self.ctx.info(&format!("You selected: {} with fix={}", audit_types[audit_selection], fix));
+        self.ctx.info("Please use 'cargo xtask security' from the command line instead");
 
         Ok(())
     }
@@ -577,7 +500,8 @@ default = {:?}
             .default("dist".to_string())
             .interact_text()?;
 
-        // Create package command
+        // TODO: Fix interactive mode to work with private clap structs
+        /*
         let cmd = package::PackageCmd {
             targets: selected_targets,
             output_dir,
@@ -590,23 +514,24 @@ default = {:?}
             max_compression,
             version: None,
         };
+        */
 
         // Show summary
         println!("\n{}", "📋 Package Summary:".green());
-        println!("  Output: {}", cmd.output_dir);
-        if let Some(ref targets) = cmd.targets {
+        println!("  Output: {}", output_dir);
+        if let Some(ref targets) = selected_targets {
             println!("  Platforms: {}", targets.join(", "));
         } else {
             println!("  Platforms: All supported");
         }
-        if cmd.npm {
+        if create_npm {
             println!("  NPM packages: Yes");
-            if let Some(ref scope) = cmd.npm_scope {
+            if let Some(ref scope) = npm_scope {
                 println!("  NPM scope: {}", scope);
             }
         }
-        println!("  Checksums: {}", if cmd.checksums { "Yes" } else { "No" });
-        println!("  Strip symbols: {}", if cmd.strip { "Yes" } else { "No" });
+        println!("  Checksums: {}", if generate_checksums { "Yes" } else { "No" });
+        println!("  Strip symbols: {}", if strip_binaries { "Yes" } else { "No" });
 
         if Confirm::with_theme(&self.theme)
             .with_prompt("Proceed with packaging?")
@@ -614,7 +539,8 @@ default = {:?}
             .interact()?
         {
             println!();
-            package::run(cmd, self.ctx.clone()).await?;
+            // package::run(cmd, self.ctx.clone()).await?;
+            self.ctx.info("Package command is temporarily disabled in interactive mode");
         } else {
             println!("{}", "Packaging cancelled.".yellow());
         }
@@ -650,18 +576,20 @@ default = {:?}
             .default(true)
             .interact()?;
 
+        // TODO: Fix interactive mode to work with private clap structs
+        /*
         let cmd = publish::PublishCmd {
-            registry,
-            package: None,
-            all: registry.is_none(),
-            dry_run,
-            no_verify: false,
-            token: None,
+            crates_io: registry.as_deref() == Some("crates.io") || registry.is_none(),
+            npm: registry.as_deref() == Some("npm") || registry.is_none(),
+            docker: registry.as_deref() == Some("Docker Hub") || registry.is_none(),
+            skip_verification: dry_run,
         };
 
         // Run publish
         println!();
         publish::run(cmd, self.ctx.clone()).await?;
+        */
+        self.ctx.info("Publish command is temporarily disabled in interactive mode");
 
         Ok(())
     }
@@ -684,46 +612,50 @@ default = {:?}
 
         match action_selection {
             0 => {
+                // TODO: Fix interactive mode to work with private clap structs
+                /*
                 let cmd = version::VersionCmd {
-                    bump: None,
-                    set: None,
+                    version: None,
+                    check: false,
                     show: true,
-                    tag: false,
-                    push: false,
+                    changelog: false,
+                    commit: false,
                 };
                 version::run(cmd, self.ctx.clone()).await?;
+                */
+                self.ctx.info("Version show command is temporarily disabled in interactive mode");
             }
             1 => {
-                let bump_types = vec!["patch", "minor", "major"];
-                let bump_selection = Select::with_theme(&self.theme)
-                    .with_prompt("Select version bump type")
-                    .items(&bump_types)
-                    .default(0)
-                    .interact()?;
+                let version: String = Input::with_theme(&self.theme)
+                    .with_prompt("Enter new version (e.g., 0.10.0)")
+                    .interact_text()?;
 
+                // TODO: Fix interactive mode to work with private clap structs
+                /*
                 let cmd = version::VersionCmd {
-                    bump: Some(bump_types[bump_selection].to_string()),
-                    set: None,
+                    version: Some(version),
+                    check: false,
                     show: false,
-                    tag: false,
-                    push: false,
+                    changelog: true,
+                    commit: true,
                 };
                 version::run(cmd, self.ctx.clone()).await?;
+                */
+                self.ctx.info(&format!("Version set to {} is temporarily disabled in interactive mode", version));
             }
             2 => {
-                let push = Confirm::with_theme(&self.theme)
-                    .with_prompt("Push tag to remote?")
-                    .default(true)
-                    .interact()?;
-
+                // TODO: Fix interactive mode to work with private clap structs
+                /*
                 let cmd = version::VersionCmd {
-                    bump: None,
-                    set: None,
+                    version: None,
+                    check: true,
                     show: false,
-                    tag: true,
-                    push,
+                    changelog: false,
+                    commit: false,
                 };
                 version::run(cmd, self.ctx.clone()).await?;
+                */
+                self.ctx.info("Version check command is temporarily disabled in interactive mode");
             }
             3 => {
                 // TODO: Implement version history listing
@@ -754,14 +686,10 @@ default = {:?}
 
         match action_selection {
             0 => {
-                let cmd = cache::CacheCmd {
-                    clean: false,
-                    prune: false,
-                    stats: true,
-                    export: None,
-                    import: None,
-                };
-                cache::run(cmd, self.ctx.clone()).await?;
+                // This action is for showing stats
+                // Since the new CacheCmd uses subcommands, we need to handle this differently
+                // For now, let's print a message that this needs to be implemented
+                self.ctx.info("Cache statistics feature is not yet implemented in interactive mode");
             }
             1 => {
                 let confirm = Confirm::with_theme(&self.theme)
@@ -770,25 +698,13 @@ default = {:?}
                     .interact()?;
 
                 if confirm {
-                    let cmd = cache::CacheCmd {
-                        clean: true,
-                        prune: false,
-                        stats: false,
-                        export: None,
-                        import: None,
-                    };
-                    cache::run(cmd, self.ctx.clone()).await?;
+                    // Clean cache functionality needs to be implemented
+                    self.ctx.info("Cache cleaning feature is not yet implemented in interactive mode");
                 }
             }
             2 => {
-                let cmd = cache::CacheCmd {
-                    clean: false,
-                    prune: true,
-                    stats: false,
-                    export: None,
-                    import: None,
-                };
-                cache::run(cmd, self.ctx.clone()).await?;
+                // Prune cache functionality
+                self.ctx.info("Cache pruning feature is not yet implemented in interactive mode");
             }
             3 => {
                 let path: String = Input::with_theme(&self.theme)
@@ -796,28 +712,16 @@ default = {:?}
                     .default("cache-export.tar.gz".to_string())
                     .interact_text()?;
 
-                let cmd = cache::CacheCmd {
-                    clean: false,
-                    prune: false,
-                    stats: false,
-                    export: Some(path.into()),
-                    import: None,
-                };
-                cache::run(cmd, self.ctx.clone()).await?;
+                // Export cache functionality
+                self.ctx.info(&format!("Cache export to {} is not yet implemented in interactive mode", path));
             }
             4 => {
                 let path: String = Input::with_theme(&self.theme)
                     .with_prompt("Import path")
                     .interact_text()?;
 
-                let cmd = cache::CacheCmd {
-                    clean: false,
-                    prune: false,
-                    stats: false,
-                    export: None,
-                    import: Some(path.into()),
-                };
-                cache::run(cmd, self.ctx.clone()).await?;
+                // Import cache functionality
+                self.ctx.info(&format!("Cache import from {} is not yet implemented in interactive mode", path));
             }
             _ => unreachable!(),
         }
@@ -858,6 +762,10 @@ default = {:?}
             .default(false)
             .interact()?;
 
+        let has_component = component.is_some();
+        
+        // TODO: Fix interactive mode to work with private clap structs
+        /*
         let cmd = doctor::DoctorCmd {
             component,
             detailed,
@@ -866,10 +774,12 @@ default = {:?}
         // Run doctor
         println!();
         doctor::run(cmd, self.ctx.clone()).await?;
+        */
+        self.ctx.info("Doctor command is temporarily disabled in interactive mode");
 
         // Show suggestions after doctor run
         println!("\n{}", "💡 Next Steps:".yellow());
-        if component.is_none() {
+        if !has_component {
             println!("  • Review any warnings or errors above");
             println!("  • Run specific component checks for more details");
         } else {

@@ -17,7 +17,7 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.9.7"
+version = "0.10.0"
 edition = "2021"
 rust-version = "1.81"  # MSRV - Minimum Supported Rust Version
 authors = ["samduchaine"]
@@ -74,45 +74,37 @@ debug-assertions = true
 inherits = "release"
 debug = true
 
-# cargo-dist configuration
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+# Config for 'dist'
 [workspace.metadata.dist]
-# The preferred cargo-dist version to use in CI (Cargo.toml SemVer syntax)
+# The preferred dist version to use in CI (Cargo.toml SemVer syntax)
 cargo-dist-version = "0.25.1"
 # CI backends to support
-ci = ["github"]
-# The installers to generate
-installers = ["shell", "powershell", "npm", "homebrew", "msi", "pkg"]
-# Target platforms to build for
-targets = [
-    "aarch64-apple-darwin",
-    "x86_64-apple-darwin",
-    "x86_64-unknown-linux-gnu",
-    "x86_64-unknown-linux-musl",
-    "x86_64-pc-windows-msvc",
-]
+ci = "github"
+# The installers to generate for each app
+installers = ["shell", "powershell", "npm", "homebrew", "msi"]
+# Target platforms to build apps for (Rust target-triple syntax)
+targets = ["aarch64-apple-darwin", "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-unknown-linux-musl", "x86_64-pc-windows-msvc"]
 # Publish jobs to run in CI
 publish-jobs = ["homebrew"]
-# Publish prereleases to package managers
+# Which actions to run on pull requests
 pr-run-mode = "plan"
 # Whether to install an updater program
 install-updater = true
+# The archive format to use for windows builds (defaults .zip)
+windows-archive = ".zip"
+# The archive format to use for non-windows builds (defaults .tar.xz)
+unix-archive = ".tar.gz"
+# Extra static files to include in each App (path relative to this Cargo.toml's dir)
+include = ["LICENSE", "README.md", "SECURITY.md"]
+# Path that installers should place binaries in
+install-path = "CARGO_HOME"
 
 # Config for building installers
 [workspace.metadata.dist.github-custom-runners]
 aarch64-apple-darwin = "macos-14"
 x86_64-apple-darwin = "macos-13"
-
-# The archive format to use for windows builds (defaults .zip)
-[workspace.metadata.dist.windows-archive]
-format = ".zip"
-include-symbols = false
-
-# The archive format to use for non-windows builds (defaults .tar.xz)
-[workspace.metadata.dist.unix-archive]
-format = ".tar.gz"
-compression = "gzip"
-
-# Extra static files to include in each App (path relative to Cargo.toml)
-[workspace.metadata.dist.extra-artifacts]
-artifacts = ["LICENSE", "README.md", "SECURITY.md"]
-auto = false

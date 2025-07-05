@@ -7,7 +7,7 @@ mod interactive;
 mod test;
 mod utils;
 
-use commands::{build, cache, doctor, package, publish, release, security, test, version};
+use commands::{build, cache, doctor, package, publish, release, security, test as test_cmd, version};
 
 #[derive(Parser)]
 #[command(name = "xtask")]
@@ -46,7 +46,7 @@ enum Commands {
     Cache(cache::CacheCmd),
     
     /// Run tests and benchmarks
-    Test(test::TestCmd),
+    Test(test_cmd::TestCmd),
     
     /// Run security audits
     Security(security::SecurityCmd),
@@ -95,7 +95,7 @@ async fn main() -> Result<()> {
         Commands::Release(cmd) => release::run(cmd, ctx).await,
         Commands::Build(cmd) => build::run(cmd, ctx).await,
         Commands::Cache(cmd) => cache::run(cmd, ctx).await,
-        Commands::Test(cmd) => test::run(cmd, ctx).await,
+        Commands::Test(cmd) => test_cmd::run(cmd, ctx).await,
         Commands::Security(cmd) => security::run(cmd, ctx).await,
         Commands::Version(cmd) => version::run(cmd, ctx).await,
         Commands::Publish(cmd) => publish::run(cmd, ctx).await,

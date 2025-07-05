@@ -7,6 +7,12 @@ license = "Apache-2.0"
 repository = "https://github.com/samduchaine/kindly-guard"
 description = "Development tools and utilities for KindlyGuard ecosystem"
 
+[package.metadata.wix]
+upgrade-guid = "B74D2B57-5FF7-4E2B-9DC5-652840E9A425"
+path-guid = "D109016B-4CDB-4C59-99D5-7035073E1576"
+license = false
+eula = false
+
 [[bin]]
 name = "kindly-tools"
 path = "src/main.rs"

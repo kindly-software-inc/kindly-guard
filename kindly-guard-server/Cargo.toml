@@ -12,6 +12,12 @@ keywords = ["security", "mcp", "ai-security", "threat-detection", "unicode"]
 categories = ["command-line-utilities", "network-programming"]
 description = "Security-focused MCP server protecting AI model interactions from threats"
 
+[package.metadata.wix]
+upgrade-guid = "E5C54FAC-C3B9-4BCC-B28B-4A01681785C2"
+path-guid = "463FAEB0-B528-4E4F-BD15-267BA0B2F222"
+license = false
+eula = false
+
 [lib]
 name = "kindly_guard_server"
 path = "src/lib.rs"

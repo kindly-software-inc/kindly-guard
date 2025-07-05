@@ -12,6 +12,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Platform testing ongoing
 - Release artifacts preparation
 
+## [0.10.0] - 2025-01-05
+
+### Added
+- **Resilience Architecture**: Comprehensive trait-based resilience components
+  - Circuit breaker pattern with configurable thresholds
+  - Retry mechanism with exponential backoff and jitter
+  - Bulkhead isolation for resource protection
+  - All components use trait abstraction for flexibility
+
+- **Enhanced Security Features**
+  - Improved Unicode threat detection with better performance
+  - Advanced XSS context-aware filtering
+  - Enhanced SQL injection prevention patterns
+  - Better command injection detection for Windows/Unix
+
+- **Performance Improvements**
+  - Optimized scanner performance (200+ MB/s for large files)
+  - Reduced memory usage through streaming
+  - Lock-free atomic statistics collection
+  - SIMD optimizations for Unicode scanning
+
+- **Developer Experience**
+  - Improved xtask build system
+  - Better error messages and diagnostics
+  - Enhanced CLI with more commands
+  - Comprehensive test suite with property tests
+
+### Changed
+- Migrated all resilience components to trait-based architecture
+- Updated minimum Rust version to 1.81
+- Improved configuration schema with better defaults
+- Enhanced MCP protocol compliance
+- Better separation of concerns between modules
+
+### Fixed
+- Various compilation warnings and clippy lints
+- Improved error handling throughout codebase
+- Better handling of edge cases in threat detection
+- Fixed race conditions in concurrent operations
+
+### Security
+- All security operations now use constant-time comparisons
+- Enhanced protection against timing attacks
+- Improved input validation across all APIs
+- Better isolation of security-critical operations
+
 ## [0.9.5] - 2024-01-XX
 
 ### Added
@@ -47,7 +93,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enhanced aggressive neutralization for edge cases
 - Updated MCP protocol response format for compliance
 - Refactored event buffer to use trait-based architecture
-- Moved `AtomicBitPackedEventBuffer` to `kindly-guard-core`
+- Enhanced internal buffering implementation
 
 ### Fixed
 - Runtime configuration issues (`block_in_place` errors)
@@ -76,7 +122,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Initial trait-based architecture implementation
 - Factory pattern for component selection
-- Enhanced implementations in `kindly-guard-core`
+- Enhanced implementations with proprietary optimizations
 - OAuth 2.0 authentication support
 - Distributed tracing with OpenTelemetry
 - Circuit breaker pattern implementation

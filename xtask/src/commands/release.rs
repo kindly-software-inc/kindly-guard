@@ -546,7 +546,7 @@ async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Re
             .default(true)
             .interact()? 
         {
-            generate_interactive_release_notes(ctx, &target_version.unwrap_or(current_version))?;
+            generate_interactive_release_notes(ctx, &target_version.clone().unwrap_or(current_version.clone()))?;
         }
         
         // Show next steps

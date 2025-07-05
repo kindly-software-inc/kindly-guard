@@ -1,6 +1,6 @@
 {
   "name": "kindlyguard-darwin-x64",
-  "version": "0.9.7",
+  "version": "0.10.0",
   "description": "macOS x64 (Intel) binary for KindlyGuard",
   "repository": {
     "type": "git",
