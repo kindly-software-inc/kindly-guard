@@ -1,9 +1,14 @@
-[alias]
-# Convenience alias for running xtask
-xtask = "run --package xtask --"
+[target.x86_64-unknown-linux-musl]
+rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-static"]
 
-# Other useful aliases
-br = "build --release"
-ba = "build --all-features"
-ta = "test --all-features"
-sec = "xtask security --all"
+[env]
+OPENSSL_NO_VENDOR = "1"
+OPENSSL_STATIC = "1"
+
+[net]
+git-fetch-with-cli = true
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
