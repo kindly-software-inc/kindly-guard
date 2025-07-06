@@ -1702,7 +1702,7 @@ dependencies = [
 
 [[package]]
 name = "kindly-guard-server"
-version = "0.11.11"
+version = "0.11.12"
 dependencies = [
  "anyhow",
  "arbitrary",
@@ -1760,11 +1760,11 @@ dependencies = [
 
 [[package]]
 name = "kindly-guard-shield"
-version = "0.11.10"
+version = "0.11.11"
 
 [[package]]
 name = "kindly-tools"
-version = "0.11.10"
+version = "0.11.11"
 dependencies = [
  "anyhow",
  "chrono",
