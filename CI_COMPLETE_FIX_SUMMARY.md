@@ -66,4 +66,3 @@ All CI/CD issues have been resolved. The pipeline is now:
 - Fast with parallel execution
 - Supporting all target platforms
 - Ready for production releases
-EOF < /dev/null

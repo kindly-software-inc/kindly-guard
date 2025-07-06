@@ -40,7 +40,10 @@ impl CacheManager {
             .unwrap_or_else(|| PathBuf::from(".cache"))
             .join("kindly-guard");
 
-        Self { backend, _cache_dir: cache_dir }
+        Self {
+            backend,
+            _cache_dir: cache_dir,
+        }
     }
 
     /// Initialize the cache backend
