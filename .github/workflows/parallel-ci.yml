@@ -73,9 +73,9 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kindly-guard-${{ matrix.target }}
+          name: kindlyguard-${{ matrix.target }}
           path: |
-            target/${{ matrix.target }}/release/kindly-guard*
+            target/${{ matrix.target }}/release/kindlyguard*
             !target/**/*.d
             !target/**/*.rlib
 

@@ -7,7 +7,7 @@ echo "KindlyGuard Performance Stress Test"
 echo "=================================="
 
 # Check if binary exists
-if [ ! -f "./target/release/kindly-guard" ]; then
+if [ ! -f "./target/release/kindlyguard" ]; then
     echo "Error: Release binary not found. Building..."
     cargo build --release
 fi
@@ -37,7 +37,7 @@ monitor_resources() {
 echo -e "\n[Test 1] Memory Leak Detection"
 echo "Running 10,000 requests and monitoring memory..."
 
-./target/release/kindly-guard --stdio > /dev/null 2>&1 &
+./target/release/kindlyguard --stdio > /dev/null 2>&1 &
 SERVER_PID=$!
 sleep 2
 
@@ -48,7 +48,7 @@ MONITOR_PID=$!
 # Send many requests
 for i in {1..10000}; do
     echo '{"method":"tools/scan","params":{"content":"test data"}}' | \
-        timeout 1 ./target/release/kindly-guard --stdio > /dev/null 2>&1 || true
+        timeout 1 ./target/release/kindlyguard --stdio > /dev/null 2>&1 || true
     
     if [ $((i % 1000)) -eq 0 ]; then
         echo "  Processed $i requests..."
@@ -64,7 +64,7 @@ echo "  Memory test complete. Results in memory_test.csv"
 echo -e "\n[Test 2] CPU Stress Test"
 echo "Sending complex patterns at high rate..."
 
-./target/release/kindly-guard --stdio > /dev/null 2>&1 &
+./target/release/kindlyguard --stdio > /dev/null 2>&1 &
 SERVER_PID=$!
 sleep 2
 
@@ -106,7 +106,7 @@ REQUEST_COUNT=0
 
 for i in {1..30}; do
     for j in {1..100}; do
-        cat complex_input.json | timeout 0.5 ./target/release/kindly-guard --stdio > /dev/null 2>&1 &
+        cat complex_input.json | timeout 0.5 ./target/release/kindlyguard --stdio > /dev/null 2>&1 &
         REQUEST_COUNT=$((REQUEST_COUNT + 1))
     done
     sleep 0.1
@@ -126,7 +126,7 @@ echo "  Average: $RPS requests/second"
 echo -e "\n[Test 3] Large Input Handling"
 echo "Testing with increasingly large inputs..."
 
-./target/release/kindly-guard --stdio > /dev/null 2>&1 &
+./target/release/kindlyguard --stdio > /dev/null 2>&1 &
 SERVER_PID=$!
 sleep 2
 
@@ -139,7 +139,7 @@ print(json.dumps(data))
 " > "large_${size}kb.json"
     
     START=$(date +%s%N)
-    timeout 5 bash -c "cat large_${size}kb.json | ./target/release/kindly-guard --stdio" > /dev/null 2>&1
+    timeout 5 bash -c "cat large_${size}kb.json | ./target/release/kindlyguard --stdio" > /dev/null 2>&1
     END=$(date +%s%N)
     
     ELAPSED=$((($END - $START) / 1000000))
@@ -181,7 +181,7 @@ fi
 echo -e "\n[Test 5] Pathological Input Test"
 echo "Testing with inputs designed to stress the system..."
 
-./target/release/kindly-guard --stdio > /dev/null 2>&1 &
+./target/release/kindlyguard --stdio > /dev/null 2>&1 &
 SERVER_PID=$!
 sleep 2
 
@@ -193,11 +193,11 @@ for i in range(100):
     nested = {'nested': nested}
 data = {'method': 'tools/scan', 'params': {'content': json.dumps(nested)}}
 print(json.dumps(data))
-" | timeout 2 ./target/release/kindly-guard --stdio > /dev/null 2>&1 || echo "  Deep nesting: Timeout (expected)"
+" | timeout 2 ./target/release/kindlyguard --stdio > /dev/null 2>&1 || echo "  Deep nesting: Timeout (expected)"
 
 # Repetitive patterns
 echo '{"method":"tools/scan","params":{"content":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaab"}}' | \
-    timeout 1 ./target/release/kindly-guard --stdio > /dev/null 2>&1 || echo "  Repetitive pattern: Timeout"
+    timeout 1 ./target/release/kindlyguard --stdio > /dev/null 2>&1 || echo "  Repetitive pattern: Timeout"
 
 kill $SERVER_PID 2>/dev/null || true
 

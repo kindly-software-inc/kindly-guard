@@ -8,7 +8,7 @@ echo "Starting KindlyGuard with shield display..."
 mkfifo /tmp/kindly-in /tmp/kindly-out 2>/dev/null || true
 
 # Start KindlyGuard in background with shield
-./target/release/kindly-guard --config minimal-config.toml --shield --stdio < /tmp/kindly-in > /tmp/kindly-out 2>&1 &
+./target/release/kindlyguard --config minimal-config.toml --shield --stdio < /tmp/kindly-in > /tmp/kindly-out 2>&1 &
 KINDLY_PID=$!
 
 # Give it a moment to start
