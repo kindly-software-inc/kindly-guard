@@ -136,13 +136,13 @@ impl UltraTransport {
 /// - Self-healing network topology
 /// - Byzantine fault tolerance
 pub struct MeshTransport {
-    config: serde_json::Value,
+    _config: serde_json::Value,
 }
 
 impl MeshTransport {
     pub fn new(config: serde_json::Value) -> Result<Self> {
         info!("Initializing mesh transport with distributed capabilities");
-        Ok(Self { config })
+        Ok(Self { _config: config })
     }
 }
 

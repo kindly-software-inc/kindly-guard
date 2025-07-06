@@ -269,13 +269,13 @@ impl ConfigWriter for TomlConfigWriter {
 
 /// YAML configuration writer for VS Code variants
 pub struct YamlConfigWriter {
-    server_name: String,
+    _server_name: String,
 }
 
 impl YamlConfigWriter {
     pub fn new(server_name: impl Into<String>) -> Self {
         Self {
-            server_name: server_name.into(),
+            _server_name: server_name.into(),
         }
     }
 }

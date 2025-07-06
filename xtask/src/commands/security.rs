@@ -410,9 +410,11 @@ fn generate_sarif_report(results: &SecurityResults, ctx: &Context) -> Result<()>
     let json = serde_json::to_string_pretty(&report).context("Failed to serialize SARIF report")?;
 
     // Create the target/security directory if it doesn't exist
-    std::fs::create_dir_all("target/security").context("Failed to create target/security directory")?;
-    
-    std::fs::write("target/security/results.sarif", json).context("Failed to write SARIF report")?;
+    std::fs::create_dir_all("target/security")
+        .context("Failed to create target/security directory")?;
+
+    std::fs::write("target/security/results.sarif", json)
+        .context("Failed to write SARIF report")?;
 
     spinner.finish_with_message("SARIF report generated");
     ctx.info("SARIF report saved to: target/security/results.sarif");

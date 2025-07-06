@@ -8,7 +8,7 @@ mod test;
 mod utils;
 
 use commands::{
-    build, cache, ci, coverage, doctor, local_ci, parallel_ci, package, publish, release, security,
+    build, cache, ci, coverage, doctor, local_ci, package, parallel_ci, publish, release, security,
     test as test_cmd, validate_dist, version,
 };
 

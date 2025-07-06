@@ -25,17 +25,17 @@ impl SystemMetrics {
     pub fn new() -> Self {
         Self::default()
     }
-    
+
     /// Collect current system metrics
     pub async fn collect() -> Result<Self> {
         let mut sys = System::new_all();
-        
+
         // Refresh system information
         sys.refresh_all();
-        
+
         // Calculate CPU usage
         let cpu_usage = sys.global_cpu_usage();
-        
+
         // Calculate memory usage
         let total_memory = sys.total_memory();
         let used_memory = sys.used_memory();
@@ -44,11 +44,11 @@ impl SystemMetrics {
         } else {
             0.0
         };
-        
+
         // Disk I/O is harder to measure accurately
         // For now, use a placeholder
         let disk_io = 0.0;
-        
+
         Ok(Self {
             cpu_usage,
             memory_usage,
@@ -67,7 +67,7 @@ impl PipelineMetrics {
             average_task_time: std::time::Duration::ZERO,
         }
     }
-    
+
     /// Update metrics with task completion
     pub fn task_completed(&mut self, duration: std::time::Duration, success: bool) {
         if success {
@@ -75,16 +75,17 @@ impl PipelineMetrics {
         } else {
             self.failed_tasks += 1;
         }
-        
+
         // Update average time
         let total_finished = self.completed_tasks + self.failed_tasks;
         if total_finished > 0 {
             let current_total = self.average_task_time.as_secs_f64() * (total_finished - 1) as f64;
             let new_total = current_total + duration.as_secs_f64();
-            self.average_task_time = std::time::Duration::from_secs_f64(new_total / total_finished as f64);
+            self.average_task_time =
+                std::time::Duration::from_secs_f64(new_total / total_finished as f64);
         }
     }
-    
+
     /// Get completion percentage
     pub fn completion_percent(&self) -> f32 {
         if self.total_tasks > 0 {

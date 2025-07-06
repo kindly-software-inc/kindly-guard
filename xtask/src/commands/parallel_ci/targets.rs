@@ -39,7 +39,7 @@ impl TargetMatrix {
             // Always include current platform
             Target::current_platform(),
         ];
-        
+
         // Add common cross-compilation targets
         #[cfg(target_os = "linux")]
         {
@@ -47,25 +47,25 @@ impl TargetMatrix {
             targets.push(Target::linux_arm64());
             targets.push(Target::windows_x64());
         }
-        
+
         #[cfg(target_os = "macos")]
         {
             targets.push(Target::macos_x64());
             targets.push(Target::macos_arm64());
         }
-        
+
         #[cfg(target_os = "windows")]
         {
             targets.push(Target::windows_x64());
             targets.push(Target::linux_x64());
         }
-        
+
         // Remove duplicates
         targets.dedup();
-        
+
         Self { targets }
     }
-    
+
     /// Create default set of platforms for CI
     pub fn default_platforms() -> Self {
         Self {
@@ -78,32 +78,32 @@ impl TargetMatrix {
             ],
         }
     }
-    
+
     /// Create from string list
     pub fn from_strings(targets: Vec<String>) -> Self {
         let targets = targets
             .into_iter()
             .filter_map(|s| Target::from_string(&s))
             .collect();
-        
+
         Self { targets }
     }
-    
+
     /// Get all target strings
     pub fn all_targets(&self) -> Vec<String> {
         self.targets.iter().map(|t| t.triple.clone()).collect()
     }
-    
+
     /// Iterator over targets
     pub fn iter(&self) -> impl Iterator<Item = &Target> {
         self.targets.iter()
     }
-    
+
     /// Check if empty
     pub fn is_empty(&self) -> bool {
         self.targets.is_empty()
     }
-    
+
     /// Number of targets
     pub fn len(&self) -> usize {
         self.targets.len()
@@ -115,19 +115,19 @@ impl Target {
     pub fn current_platform() -> Self {
         #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
         return Self::linux_x64();
-        
+
         #[cfg(all(target_os = "linux", target_arch = "aarch64"))]
         return Self::linux_arm64();
-        
+
         #[cfg(all(target_os = "macos", target_arch = "x86_64"))]
         return Self::macos_x64();
-        
+
         #[cfg(all(target_os = "macos", target_arch = "aarch64"))]
         return Self::macos_arm64();
-        
+
         #[cfg(all(target_os = "windows", target_arch = "x86_64"))]
         return Self::windows_x64();
-        
+
         #[cfg(not(any(
             all(target_os = "linux", target_arch = "x86_64"),
             all(target_os = "linux", target_arch = "aarch64"),
@@ -142,7 +142,7 @@ impl Target {
             requires_cross: false,
         };
     }
-    
+
     pub fn linux_x64() -> Self {
         Self {
             triple: "x86_64-unknown-linux-gnu".to_string(),
@@ -151,7 +151,7 @@ impl Target {
             requires_cross: cfg!(not(all(target_os = "linux", target_arch = "x86_64"))),
         }
     }
-    
+
     pub fn linux_arm64() -> Self {
         Self {
             triple: "aarch64-unknown-linux-gnu".to_string(),
@@ -160,7 +160,7 @@ impl Target {
             requires_cross: cfg!(not(all(target_os = "linux", target_arch = "aarch64"))),
         }
     }
-    
+
     pub fn macos_x64() -> Self {
         Self {
             triple: "x86_64-apple-darwin".to_string(),
@@ -169,7 +169,7 @@ impl Target {
             requires_cross: cfg!(not(all(target_os = "macos", target_arch = "x86_64"))),
         }
     }
-    
+
     pub fn macos_arm64() -> Self {
         Self {
             triple: "aarch64-apple-darwin".to_string(),
@@ -178,7 +178,7 @@ impl Target {
             requires_cross: cfg!(not(all(target_os = "macos", target_arch = "aarch64"))),
         }
     }
-    
+
     pub fn windows_x64() -> Self {
         Self {
             triple: "x86_64-pc-windows-msvc".to_string(),
@@ -187,7 +187,7 @@ impl Target {
             requires_cross: cfg!(not(all(target_os = "windows", target_arch = "x86_64"))),
         }
     }
-    
+
     pub fn wasm32() -> Self {
         Self {
             triple: "wasm32-unknown-unknown".to_string(),
@@ -196,7 +196,7 @@ impl Target {
             requires_cross: false, // wasm doesn't need cross
         }
     }
-    
+
     /// Parse from string representation
     pub fn from_string(s: &str) -> Option<Self> {
         match s {

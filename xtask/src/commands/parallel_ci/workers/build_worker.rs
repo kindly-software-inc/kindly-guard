@@ -4,7 +4,7 @@ use anyhow::Result;
 use std::process::Command;
 use std::time::Instant;
 
-use super::{Worker, WorkerTask, WorkerResult};
+use super::{Worker, WorkerResult, WorkerTask};
 
 /// Worker for build tasks
 pub struct BuildWorker {
@@ -20,7 +20,7 @@ impl BuildWorker {
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);
-        
+
         Self { use_cross }
     }
 }
@@ -28,9 +28,13 @@ impl BuildWorker {
 impl Worker for BuildWorker {
     fn execute(&self, task: WorkerTask) -> Result<WorkerResult> {
         match task {
-            WorkerTask::Build { target, release, features } => {
+            WorkerTask::Build {
+                target,
+                release,
+                features,
+            } => {
                 let start = Instant::now();
-                
+
                 // Determine build command
                 let cmd = if target.contains("wasm") {
                     "cargo"
@@ -39,17 +43,17 @@ impl Worker for BuildWorker {
                 } else {
                     "cargo"
                 };
-                
+
                 let mut command = Command::new(cmd);
                 command.arg("build");
-                
+
                 // Add target
                 command.arg("--target").arg(&target);
-                
+
                 if release {
                     command.arg("--release");
                 }
-                
+
                 if let Some(features) = features {
                     if features == "all" {
                         command.arg("--all-features");
@@ -57,11 +61,11 @@ impl Worker for BuildWorker {
                         command.arg("--features").arg(&features);
                     }
                 }
-                
+
                 // Execute build
                 let output = command.output()?;
                 let duration = start.elapsed();
-                
+
                 let success = output.status.success();
                 let output_str = if success {
                     format!("Successfully built for {}", target)
@@ -72,7 +76,7 @@ impl Worker for BuildWorker {
                         String::from_utf8_lossy(&output.stderr)
                     )
                 };
-                
+
                 Ok(WorkerResult {
                     success,
                     output: output_str,

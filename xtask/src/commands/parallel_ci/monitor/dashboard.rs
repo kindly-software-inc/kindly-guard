@@ -33,47 +33,61 @@ impl Dashboard {
         execute!(stdout, EnterAlternateScreen, EnableMouseCapture)?;
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend)?;
-        
+
         Ok(Self { terminal })
     }
-    
+
     /// Run the dashboard
-    pub async fn run(&mut self, _snapshot_rx: tokio::sync::mpsc::Receiver<MonitorSnapshot>) -> Result<()> {
+    pub async fn run(
+        &mut self,
+        _snapshot_rx: tokio::sync::mpsc::Receiver<MonitorSnapshot>,
+    ) -> Result<()> {
         // TODO: Implement full TUI event loop
         // For now, just a placeholder
         Ok(())
     }
-    
+
     /// Draw the dashboard
     fn draw(&mut self, f: &mut Frame, snapshot: &MonitorSnapshot) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .margin(1)
             .constraints([
-                Constraint::Length(3),  // Header
-                Constraint::Length(3),  // System metrics
-                Constraint::Min(10),    // Pipeline status
-                Constraint::Length(3),  // Footer
+                Constraint::Length(3), // Header
+                Constraint::Length(3), // System metrics
+                Constraint::Min(10),   // Pipeline status
+                Constraint::Length(3), // Footer
             ])
             .split(f.area());
-        
+
         // Header
         let header = Paragraph::new(vec![
             Line::from(vec![
                 Span::raw("╔══════════════════════ "),
-                Span::styled("KindlyGuard Parallel CI", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    "KindlyGuard Parallel CI",
+                    Style::default()
+                        .fg(Color::Cyan)
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::raw(" ══════════════════════╗"),
             ]),
             Line::from(vec![
                 Span::raw("║ "),
-                Span::styled("Maximizing Hardware Power", Style::default().fg(Color::Green)),
-                Span::raw(format!(" | Elapsed: {} ", format_duration(snapshot.elapsed))),
+                Span::styled(
+                    "Maximizing Hardware Power",
+                    Style::default().fg(Color::Green),
+                ),
+                Span::raw(format!(
+                    " | Elapsed: {} ",
+                    format_duration(snapshot.elapsed)
+                )),
                 Span::raw("║"),
             ]),
         ])
         .alignment(Alignment::Center);
         f.render_widget(header, chunks[0]);
-        
+
         // System metrics
         let metrics_layout = Layout::default()
             .direction(Direction::Horizontal)
@@ -83,30 +97,32 @@ impl Dashboard {
                 Constraint::Percentage(34),
             ])
             .split(chunks[1]);
-        
+
         let cpu_gauge = Gauge::default()
             .block(Block::default().title("CPU").borders(Borders::ALL))
             .gauge_style(Style::default().fg(Color::Yellow))
             .percent(snapshot.system_metrics.cpu_usage as u16)
             .label(format!("{}%", snapshot.system_metrics.cpu_usage as u16));
         f.render_widget(cpu_gauge, metrics_layout[0]);
-        
+
         let mem_gauge = Gauge::default()
             .block(Block::default().title("Memory").borders(Borders::ALL))
             .gauge_style(Style::default().fg(Color::Blue))
             .percent(snapshot.system_metrics.memory_usage as u16)
             .label(format!("{}%", snapshot.system_metrics.memory_usage as u16));
         f.render_widget(mem_gauge, metrics_layout[1]);
-        
+
         let io_gauge = Gauge::default()
             .block(Block::default().title("Disk I/O").borders(Borders::ALL))
             .gauge_style(Style::default().fg(Color::Magenta))
             .percent(snapshot.system_metrics.disk_io as u16)
             .label(format!("{}%", snapshot.system_metrics.disk_io as u16));
         f.render_widget(io_gauge, metrics_layout[2]);
-        
+
         // Pipeline status
-        let pipeline_items: Vec<ListItem> = snapshot.pipelines.iter()
+        let pipeline_items: Vec<ListItem> = snapshot
+            .pipelines
+            .iter()
             .map(|(name, pipeline)| {
                 let (icon, color) = match pipeline.status {
                     PipelineStatus::Pending => ("⏸", Color::Gray),
@@ -114,12 +130,13 @@ impl Dashboard {
                     PipelineStatus::Completed => ("✓", Color::Green),
                     PipelineStatus::Failed => ("✗", Color::Red),
                 };
-                
+
                 let progress_bar = create_progress_bar(pipeline.progress_percent);
-                let duration = pipeline.duration
+                let duration = pipeline
+                    .duration
                     .map(|d| format_duration(d))
                     .unwrap_or_else(|| "—".to_string());
-                
+
                 ListItem::new(Line::from(vec![
                     Span::styled(format!("{} ", icon), Style::default().fg(color)),
                     Span::styled(format!("{:<15}", name), Style::default().fg(Color::White)),
@@ -129,12 +146,12 @@ impl Dashboard {
                 ]))
             })
             .collect();
-        
+
         let pipelines_list = List::new(pipeline_items)
             .block(Block::default().title("Pipelines").borders(Borders::ALL))
             .style(Style::default().fg(Color::White));
         f.render_widget(pipelines_list, chunks[2]);
-        
+
         // Footer
         let footer = Paragraph::new(Line::from(vec![
             Span::raw("║ Press "),
@@ -178,8 +195,9 @@ fn create_progress_bar(percent: f32) -> String {
     let width = 20;
     let filled = ((percent / 100.0) * width as f32) as usize;
     let empty = width - filled;
-    
-    format!("[{}{}] {:>5.1}%",
+
+    format!(
+        "[{}{}] {:>5.1}%",
         "█".repeat(filled),
         "░".repeat(empty),
         percent

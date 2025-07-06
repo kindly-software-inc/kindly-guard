@@ -39,10 +39,10 @@ impl CacheManager {
         let cache_dir = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from(".cache"))
             .join("kindly-guard");
-        
+
         Self { backend, cache_dir }
     }
-    
+
     /// Initialize the cache backend
     pub async fn init(&self) -> Result<()> {
         match &self.backend {
@@ -54,10 +54,10 @@ impl CacheManager {
             },
             CacheBackend::None => {},
         }
-        
+
         Ok(())
     }
-    
+
     /// Setup sccache with configuration
     async fn setup_sccache(&self, config: &SccacheConfig) -> Result<()> {
         // Check if sccache is installed
@@ -67,11 +67,13 @@ impl CacheManager {
             .await
             .map(|o| o.status.success())
             .unwrap_or(false);
-        
+
         if !sccache_available {
-            return Err(anyhow::anyhow!("sccache not installed. Install with: cargo install sccache"));
+            return Err(anyhow::anyhow!(
+                "sccache not installed. Install with: cargo install sccache"
+            ));
         }
-        
+
         // Set environment variables based on storage backend
         match &config.storage {
             SccacheStorage::Local { dir } => {
@@ -88,31 +90,28 @@ impl CacheManager {
                 std::env::set_var("SCCACHE_GHA_ENABLED", "true");
             },
         }
-        
+
         // Set cache size
         std::env::set_var("SCCACHE_CACHE_SIZE", &config.max_size);
-        
+
         // Set Rust to use sccache
         std::env::set_var("RUSTC_WRAPPER", "sccache");
-        
+
         // Start sccache server
         Command::new("sccache")
             .arg("--start-server")
             .output()
             .await?;
-        
+
         Ok(())
     }
-    
+
     /// Get cache statistics
     pub async fn stats(&self) -> Result<CacheStats> {
         match &self.backend {
             CacheBackend::Sccache { .. } => {
-                let output = Command::new("sccache")
-                    .arg("--show-stats")
-                    .output()
-                    .await?;
-                
+                let output = Command::new("sccache").arg("--show-stats").output().await?;
+
                 if output.status.success() {
                     let stats_str = String::from_utf8_lossy(&output.stdout);
                     Ok(CacheStats::from_sccache_output(&stats_str))
@@ -132,15 +131,12 @@ impl CacheManager {
             CacheBackend::None => Ok(CacheStats::default()),
         }
     }
-    
+
     /// Clear the cache
     pub async fn clear(&self) -> Result<()> {
         match &self.backend {
             CacheBackend::Sccache { .. } => {
-                Command::new("sccache")
-                    .arg("--zero-stats")
-                    .output()
-                    .await?;
+                Command::new("sccache").arg("--zero-stats").output().await?;
             },
             CacheBackend::Local { path } => {
                 if path.exists() {
@@ -150,7 +146,7 @@ impl CacheManager {
             },
             CacheBackend::None => {},
         }
-        
+
         Ok(())
     }
 }
@@ -167,7 +163,7 @@ impl CacheStats {
     /// Parse sccache output
     fn from_sccache_output(output: &str) -> Self {
         let mut stats = Self::default();
-        
+
         // Simple parsing of sccache stats
         for line in output.lines() {
             if line.contains("Cache hits") {
@@ -185,7 +181,7 @@ impl CacheStats {
                 }
             }
         }
-        
+
         stats
     }
 }
@@ -194,7 +190,7 @@ impl CacheStats {
 async fn calculate_dir_size(path: &PathBuf) -> Result<u64> {
     let mut size = 0u64;
     let mut entries = tokio::fs::read_dir(path).await?;
-    
+
     while let Some(entry) = entries.next_entry().await? {
         let metadata = entry.metadata().await?;
         if metadata.is_file() {
@@ -203,7 +199,7 @@ async fn calculate_dir_size(path: &PathBuf) -> Result<u64> {
             size += Box::pin(calculate_dir_size(&entry.path())).await?;
         }
     }
-    
+
     Ok(size)
 }
 
@@ -212,7 +208,7 @@ fn parse_size(s: &str) -> Option<u64> {
     let s = s.trim();
     if let Some(num_str) = s.split_whitespace().next() {
         let num: f64 = num_str.parse().ok()?;
-        
+
         if s.contains("GB") {
             Some((num * 1024.0 * 1024.0 * 1024.0) as u64)
         } else if s.contains("MB") {

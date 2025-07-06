@@ -1,5 +1,5 @@
 //! Parallel CI/CD system for maximizing hardware utilization
-//! 
+//!
 //! This module implements a massively parallel CI/CD pipeline that runs
 //! all tests, builds, and security scans simultaneously across multiple
 //! OS targets.
@@ -9,12 +9,12 @@ use clap::Parser;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-pub mod coordinator;
-pub mod pipelines;
-pub mod workers;
-pub mod targets;
-pub mod monitor;
 pub mod cache;
+pub mod coordinator;
+pub mod monitor;
+pub mod pipelines;
+pub mod targets;
+pub mod workers;
 
 use crate::utils::Context;
 use coordinator::Coordinator;
@@ -70,7 +70,7 @@ pub struct ParallelCiCmd {
 impl ParallelCiCmd {
     pub async fn run(&self, ctx: &Context) -> Result<()> {
         let ctx = Arc::new(ctx.clone());
-        
+
         // Print header
         ctx.info("");
         ctx.info("╔══════════════════════════════════════════════╗");
@@ -85,7 +85,8 @@ impl ParallelCiCmd {
             self.max_parallel,
             self.fail_fast,
             self.dashboard,
-        ).await?;
+        )
+        .await?;
 
         // Configure pipelines based on flags
         if !self.smoke_tests && !self.full_suite && !self.security_scan && !self.benchmark {

@@ -6,23 +6,23 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc;
 
-use crate::utils::Context;
 use super::monitor::MonitorEvent;
 use super::targets::TargetMatrix;
+use crate::utils::Context;
 
-mod format;
-mod build;
-mod test;
-mod security;
 mod benchmark;
+mod build;
+mod format;
 mod package;
+mod security;
+mod test;
 
-pub use format::FormatPipeline;
-pub use build::BuildPipeline;
-pub use test::TestPipeline;
-pub use security::SecurityPipeline;
 pub use benchmark::BenchmarkPipeline;
+pub use build::BuildPipeline;
+pub use format::FormatPipeline;
 pub use package::PackagePipeline;
+pub use security::SecurityPipeline;
+pub use test::TestPipeline;
 
 /// Status of a pipeline execution
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -47,10 +47,10 @@ pub struct PipelineResult {
 pub trait Pipeline: Send + Sync {
     /// Name of the pipeline
     fn name(&self) -> &str;
-    
+
     /// Number of tasks this pipeline will execute
     fn task_count(&self, targets: &TargetMatrix) -> usize;
-    
+
     /// Execute the pipeline
     async fn execute(
         &self,
@@ -58,12 +58,12 @@ pub trait Pipeline: Send + Sync {
         targets: TargetMatrix,
         event_tx: mpsc::Sender<MonitorEvent>,
     ) -> Result<String>;
-    
+
     /// Check if this pipeline can run in parallel with others
     fn parallel_safe(&self) -> bool {
         true
     }
-    
+
     /// Priority level (higher runs first)
     fn priority(&self) -> u32 {
         50
@@ -78,10 +78,12 @@ pub async fn send_progress(
     total: usize,
     message: String,
 ) {
-    let _ = event_tx.send(MonitorEvent::Progress {
-        pipeline: pipeline.to_string(),
-        current,
-        total,
-        message,
-    }).await;
+    let _ = event_tx
+        .send(MonitorEvent::Progress {
+            pipeline: pipeline.to_string(),
+            current,
+            total,
+            message,
+        })
+        .await;
 }
