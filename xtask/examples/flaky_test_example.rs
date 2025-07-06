@@ -6,9 +6,7 @@ use std::path::Path;
 use std::time::Duration;
 
 use chrono::Utc;
-use xtask::test::{
-    BackoffStrategy, FlakyTestManager, RetryPolicy, TestExecution,
-};
+use xtask::test::{BackoffStrategy, FlakyTestManager, RetryPolicy, TestExecution};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -32,7 +30,7 @@ async fn main() -> anyhow::Result<()> {
             },
             output: None,
         };
-        
+
         manager.record_execution(execution).await?;
     }
 
@@ -47,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
             error_message: None,
             output: None,
         };
-        
+
         manager.record_execution(execution).await?;
     }
 
@@ -64,7 +62,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Get retry policy for the flaky test
-    let policy = manager.get_retry_policy("tests::network::connection_test").await;
+    let policy = manager
+        .get_retry_policy("tests::network::connection_test")
+        .await;
     println!(
         "\nRetry policy for flaky test: {} retries with {:?} backoff",
         policy.max_retries,
@@ -78,7 +78,9 @@ async fn main() -> anyhow::Result<()> {
     );
 
     // Generate report
-    let report = manager.generate_report(&xtask::utils::Context::default()).await?;
+    let report = manager
+        .generate_report(&xtask::utils::Context::default())
+        .await?;
     println!("\n=== Flakiness Report Summary ===");
     println!("Total tests tracked: {}", report.total_tests);
     println!("Flaky tests: {}", report.flaky_tests);
@@ -90,18 +92,22 @@ async fn main() -> anyhow::Result<()> {
     println!("{}", nextest_config);
 
     // Demonstrate quarantine
-    manager.quarantine_test(
-        "tests::network::connection_test",
-        "Too flaky for CI".to_string()
-    ).await?;
-    
+    manager
+        .quarantine_test(
+            "tests::network::connection_test",
+            "Too flaky for CI".to_string(),
+        )
+        .await?;
+
     let quarantined = manager.get_quarantined_tests().await;
     println!("\n=== Quarantined Tests ===");
     for (name, stats) in quarantined {
         println!(
             "{}: {}",
             name,
-            stats.quarantine_reason.unwrap_or_else(|| "No reason".to_string())
+            stats
+                .quarantine_reason
+                .unwrap_or_else(|| "No reason".to_string())
         );
     }
 

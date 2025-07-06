@@ -82,11 +82,11 @@ impl Default for ReleaseConfig {
 impl ReleaseConfig {
     pub fn load() -> Result<Self> {
         let config_path = Self::config_path()?;
-        
+
         if config_path.exists() {
             let content = std::fs::read_to_string(&config_path)
                 .with_context(|| format!("Failed to read {}", config_path.display()))?;
-            
+
             toml::from_str(&content)
                 .with_context(|| format!("Failed to parse {}", config_path.display()))
         } else {
@@ -96,15 +96,14 @@ impl ReleaseConfig {
 
     pub fn save(&self) -> Result<()> {
         let config_path = Self::config_path()?;
-        
+
         if let Some(parent) = config_path.parent() {
             std::fs::create_dir_all(parent)
                 .with_context(|| format!("Failed to create directory {}", parent.display()))?;
         }
 
-        let content = toml::to_string_pretty(self)
-            .context("Failed to serialize config")?;
-        
+        let content = toml::to_string_pretty(self).context("Failed to serialize config")?;
+
         std::fs::write(&config_path, content)
             .with_context(|| format!("Failed to write {}", config_path.display()))?;
 

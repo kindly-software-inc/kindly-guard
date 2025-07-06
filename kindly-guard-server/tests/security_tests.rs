@@ -158,7 +158,7 @@ async fn test_regex_dos_protection() {
         enhanced_mode: Some(false),
         crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
-            max_input_size: None,
+        max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -240,7 +240,8 @@ async fn test_path_traversal_prevention() {
         enhanced_mode: Some(false),
         crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
-            max_input_size: None,
+        allow_text_control_chars: false,
+        max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -278,7 +279,8 @@ async fn test_command_injection_prevention() {
         enhanced_mode: Some(false),
         crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
-            max_input_size: None,
+        allow_text_control_chars: false,
+        max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();
@@ -385,7 +387,7 @@ async fn test_unicode_normalization_attacks() {
         enhanced_mode: Some(false),
         crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
-            max_input_size: None,
+        max_input_size: None,
     };
 
     let scanner = SecurityScanner::new(config).unwrap();

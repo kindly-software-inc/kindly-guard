@@ -149,7 +149,7 @@ impl ResilientNeutralizer {
                     context,
                 )
                 .await
-            }
+            },
 
             RecoveryStrategy::FallbackAction { action } => {
                 context.fallback_used = true;
@@ -161,7 +161,7 @@ impl ResilientNeutralizer {
                     correlation_data: None,
                     extracted_params: None,
                 })
-            }
+            },
 
             RecoveryStrategy::Quarantine => {
                 context.fallback_used = true;
@@ -173,7 +173,7 @@ impl ResilientNeutralizer {
                     correlation_data: None,
                     extracted_params: None,
                 })
-            }
+            },
 
             RecoveryStrategy::SkipAndMark => Ok(NeutralizeResult {
                 action_taken: NeutralizeAction::NoAction,
@@ -227,7 +227,7 @@ impl ResilientNeutralizer {
                         threat.threat_type,
                         e
                     );
-                }
+                },
             }
         }
 
@@ -285,7 +285,7 @@ impl ThreatNeutralizer for ResilientNeutralizer {
                     breaker.record_success();
                 }
                 Ok(result)
-            }
+            },
             Err(e) if self.config.enabled => {
                 // Record failure and try recovery
                 if self.config.circuit_breaker_enabled {
@@ -300,7 +300,7 @@ impl ThreatNeutralizer for ResilientNeutralizer {
                 self.execute_recovery(threat, content, strategy, &mut context)
                     .await
                     .context("Recovery failed after initial neutralization failure")
-            }
+            },
             Err(e) => Err(e),
         }
     }
@@ -365,7 +365,7 @@ impl CircuitBreaker {
                 } else {
                     true
                 }
-            }
+            },
             CircuitState::HalfOpen => true,
         }
     }
@@ -377,13 +377,13 @@ impl CircuitBreaker {
                 self.state = CircuitState::Closed;
                 self.failure_count = 0;
                 self.last_failure_time = None;
-            }
+            },
             _ => {
                 // Reset failure count on success
                 if self.failure_count > 0 {
                     self.failure_count = self.failure_count.saturating_sub(1);
                 }
-            }
+            },
         }
     }
 
@@ -400,13 +400,13 @@ impl CircuitBreaker {
                         self.failure_count
                     );
                 }
-            }
+            },
             CircuitState::HalfOpen => {
                 // Failed during recovery, reopen
                 self.state = CircuitState::Open;
                 tracing::warn!("Circuit breaker reopened after failure during recovery");
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 }

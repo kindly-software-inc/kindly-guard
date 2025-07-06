@@ -76,7 +76,7 @@ async fn execute_auto_wrap(args: AutoWrapArgs) -> Result<()> {
                 "Unsupported shell: {}. Currently only bash and zsh are supported.",
                 shell
             ))
-        }
+        },
     };
 
     // Output the script
@@ -108,7 +108,9 @@ fn generate_bash_functions(commands: &[String]) -> String {
     // Check if kindly is available
     script.push_str("# Check if kindly is installed\n");
     script.push_str("if ! command -v kindly &> /dev/null; then\n");
-    script.push_str("    echo \"Warning: kindly command not found. Shield protection disabled.\" >&2\n");
+    script.push_str(
+        "    echo \"Warning: kindly command not found. Shield protection disabled.\" >&2\n",
+    );
     script.push_str("    echo \"Install with: cargo install kindly-tools\" >&2\n");
     script.push_str("    KINDLY_SHIELD_DISABLED=1\n");
     script.push_str("fi\n\n");
@@ -154,7 +156,9 @@ fn generate_bash_functions(commands: &[String]) -> String {
     script.push_str("            command \"$cmd\" \"$@\"\n");
     script.push_str("        else\n");
     script.push_str("            # Threats detected\n");
-    script.push_str("            echo \"⚠️  KindlyGuard Shield: Potential security threats detected!\" >&2\n");
+    script.push_str(
+        "            echo \"⚠️  KindlyGuard Shield: Potential security threats detected!\" >&2\n",
+    );
     script.push_str("            echo \"Run 'kindly scan $temp_file' for details\" >&2\n");
     script.push_str("            echo \"To bypass (AT YOUR OWN RISK): KINDLY_SHIELD_DISABLED=1 $cmd ...\" >&2\n");
     script.push_str("            rm -f \"$temp_file\"\n");
@@ -171,7 +175,7 @@ fn generate_bash_functions(commands: &[String]) -> String {
     for cmd in commands {
         // Sanitize command name for shell function
         let safe_cmd = cmd.replace('-', "_");
-        
+
         script.push_str(&format!("# Wrapper for {}\n", cmd));
         script.push_str(&format!("{safe_cmd}() {{\n"));
         script.push_str(&format!("    __kindly_shield_wrap \"{}\" \"$@\"\n", cmd));
@@ -193,7 +197,9 @@ fn generate_bash_functions(commands: &[String]) -> String {
 
     script.push_str("kindly-shield-disable() {\n");
     script.push_str("    export KINDLY_SHIELD_DISABLED=1\n");
-    script.push_str("    echo \"⚠️  KindlyGuard Shield: DISABLED - AI commands are now unprotected!\"\n");
+    script.push_str(
+        "    echo \"⚠️  KindlyGuard Shield: DISABLED - AI commands are now unprotected!\"\n",
+    );
     script.push_str("}\n\n");
 
     script.push_str("kindly-shield-enable() {\n");

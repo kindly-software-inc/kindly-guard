@@ -4,7 +4,7 @@ use colored::*;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use crate::utils::{Context, ensure_command_exists, spinner};
+use crate::utils::{ensure_command_exists, spinner, Context};
 
 #[derive(Args)]
 pub struct SecurityCmd {
@@ -59,7 +59,7 @@ impl std::str::FromStr for OutputFormat {
 
 pub async fn run(cmd: SecurityCmd, ctx: Context) -> Result<()> {
     let run_all = cmd.all || (!cmd.audit && !cmd.deny && !cmd.sarif);
-    
+
     let mut results = SecurityResults::default();
 
     // Run cargo-audit
@@ -155,7 +155,7 @@ struct BansCheck {
 
 pub fn run_audit(ctx: &Context) -> Result<AuditResult> {
     ensure_command_exists("cargo-audit")?;
-    
+
     let spinner = spinner("Checking for vulnerabilities");
 
     let output = std::process::Command::new("cargo")
@@ -166,27 +166,31 @@ pub fn run_audit(ctx: &Context) -> Result<AuditResult> {
     spinner.finish_and_clear();
 
     // Parse JSON output
-    let audit_output: serde_json::Value = serde_json::from_slice(&output.stdout)
-        .context("Failed to parse audit output")?;
+    let audit_output: serde_json::Value =
+        serde_json::from_slice(&output.stdout).context("Failed to parse audit output")?;
 
     // Extract results
     let vulnerabilities = audit_output["vulnerabilities"]["count"]
         .as_u64()
         .unwrap_or(0) as u32;
-    
-    let warnings = audit_output["warnings"]["count"]
-        .as_u64()
-        .unwrap_or(0) as u32;
+
+    let warnings = audit_output["warnings"]["count"].as_u64().unwrap_or(0) as u32;
 
     let mut vulnerable_packages = Vec::new();
-    
+
     if let Some(vulns) = audit_output["vulnerabilities"]["list"].as_array() {
         for vuln in vulns {
             vulnerable_packages.push(VulnerablePackage {
                 name: vuln["package"]["name"].as_str().unwrap_or("").to_string(),
-                version: vuln["package"]["version"].as_str().unwrap_or("").to_string(),
+                version: vuln["package"]["version"]
+                    .as_str()
+                    .unwrap_or("")
+                    .to_string(),
                 advisory: vuln["advisory"]["id"].as_str().unwrap_or("").to_string(),
-                severity: vuln["advisory"]["severity"].as_str().unwrap_or("unknown").to_string(),
+                severity: vuln["advisory"]["severity"]
+                    .as_str()
+                    .unwrap_or("unknown")
+                    .to_string(),
                 title: vuln["advisory"]["title"].as_str().unwrap_or("").to_string(),
             });
         }
@@ -205,8 +209,9 @@ pub fn run_audit(ctx: &Context) -> Result<AuditResult> {
     if vulnerabilities > 0 {
         ctx.error(&format!("Found {} vulnerabilities", vulnerabilities));
         for pkg in &result.vulnerable_packages {
-            println!("  {} {} - {} ({})", 
-                pkg.name.red(), 
+            println!(
+                "  {} {} - {} ({})",
+                pkg.name.red(),
                 pkg.version,
                 pkg.title,
                 match pkg.severity.as_str() {
@@ -227,7 +232,7 @@ pub fn run_audit(ctx: &Context) -> Result<AuditResult> {
 
 pub fn run_deny(ctx: &Context) -> Result<DenyResult> {
     ensure_command_exists("cargo-deny")?;
-    
+
     let spinner = spinner("Checking dependencies");
 
     // Ensure deny.toml exists
@@ -258,7 +263,7 @@ pub fn run_deny(ctx: &Context) -> Result<DenyResult> {
                 Some("error") => errors += 1,
                 Some("warning") => warnings += 1,
                 Some("note") => notes += 1,
-                _ => {}
+                _ => {},
             }
         }
     }
@@ -315,8 +320,7 @@ unknown-registry = "warn"
 unknown-git = "warn"
 "#;
 
-    std::fs::write("deny.toml", deny_toml)
-        .context("Failed to write deny.toml")?;
+    std::fs::write("deny.toml", deny_toml).context("Failed to write deny.toml")?;
 
     Ok(())
 }
@@ -380,7 +384,8 @@ fn generate_sarif_report(results: &SecurityResults, ctx: &Context) -> Result<()>
                     "critical" | "high" => "error",
                     "medium" => "warning",
                     _ => "note",
-                }.to_string(),
+                }
+                .to_string(),
                 message: SarifText {
                     text: format!("{} {} - {}", pkg.name, pkg.version, pkg.title),
                 },
@@ -402,11 +407,9 @@ fn generate_sarif_report(results: &SecurityResults, ctx: &Context) -> Result<()>
         }],
     };
 
-    let json = serde_json::to_string_pretty(&report)
-        .context("Failed to serialize SARIF report")?;
+    let json = serde_json::to_string_pretty(&report).context("Failed to serialize SARIF report")?;
 
-    std::fs::write("security-report.sarif", json)
-        .context("Failed to write SARIF report")?;
+    std::fs::write("security-report.sarif", json).context("Failed to write SARIF report")?;
 
     spinner.finish_with_message("SARIF report generated");
     ctx.info("SARIF report saved to: security-report.sarif");
@@ -424,12 +427,10 @@ fn print_security_summary(results: &SecurityResults, ctx: &Context) {
         } else {
             "SECURE".green()
         };
-        
-        println!("{:<20} {} ({} vulnerabilities, {} warnings)",
-            "Cargo Audit:",
-            status,
-            audit.vulnerabilities,
-            audit.warnings
+
+        println!(
+            "{:<20} {} ({} vulnerabilities, {} warnings)",
+            "Cargo Audit:", status, audit.vulnerabilities, audit.warnings
         );
     }
 
@@ -441,12 +442,10 @@ fn print_security_summary(results: &SecurityResults, ctx: &Context) {
         } else {
             "PASSED".green()
         };
-        
-        println!("{:<20} {} ({} errors, {} warnings)",
-            "Cargo Deny:",
-            status,
-            deny.errors,
-            deny.warnings
+
+        println!(
+            "{:<20} {} ({} errors, {} warnings)",
+            "Cargo Deny:", status, deny.errors, deny.warnings
         );
     }
 

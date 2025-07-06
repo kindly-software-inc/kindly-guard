@@ -665,11 +665,11 @@ impl NeutralizationHealthChecker {
             match neutralizer.neutralize(&threat, content).await {
                 Ok(_) => {
                     tracing::debug!("Synthetic probe passed for {:?}", threat.threat_type);
-                }
+                },
                 Err(e) => {
                     tracing::warn!("Synthetic probe failed for {:?}: {}", threat.threat_type, e);
                     all_passed = false;
-                }
+                },
             }
         }
 

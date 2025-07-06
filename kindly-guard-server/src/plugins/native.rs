@@ -56,11 +56,11 @@ impl PluginLoader for NativePluginLoader {
         match filename {
             "sql_injection_plugin.so" | "sql_injection_plugin.dll" => {
                 Ok(Box::new(SqlInjectionPlugin::new()))
-            }
+            },
             "xss_plugin.so" | "xss_plugin.dll" => Ok(Box::new(XssPlugin::new())),
             "custom_pattern_plugin.so" | "custom_pattern_plugin.dll" => {
                 Ok(Box::new(CustomPatternPlugin::new()))
-            }
+            },
             _ => Err(anyhow::anyhow!("Unknown plugin type: {}", filename)),
         }
     }
@@ -97,7 +97,7 @@ impl PluginLoader for NativePluginLoader {
                         max_data_size_mb: Some(10),
                     },
                 })
-            }
+            },
             _ => Err(anyhow::anyhow!("Not a native plugin file")),
         }
     }

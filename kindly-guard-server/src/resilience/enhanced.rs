@@ -87,12 +87,12 @@ impl CircuitBreakerTrait for EnhancedCircuitBreaker {
             Ok(result) => {
                 // Record success
                 Ok(result)
-            }
+            },
             Err(e) => {
                 // Record failure
                 *self.last_failure_time.write() = Some(Instant::now());
                 Err(CircuitBreakerError::ServiceError(e.to_string()))
-            }
+            },
         }
     }
 
@@ -207,7 +207,7 @@ impl RetryStrategyTrait for EnhancedRetryStrategy {
                         Duration::from_secs_f64(delay.as_secs_f64() * self.multiplier),
                         self.max_delay,
                     );
-                }
+                },
             }
         }
     }
@@ -451,13 +451,13 @@ impl ResilienceFactory for EnhancedResilienceFactory {
             Duration::from_secs(300),
         )))
     }
-    
+
     fn create_bulkhead(
         &self,
         config: &crate::config::Config,
     ) -> Result<Arc<dyn crate::resilience::DynBulkhead>> {
         use crate::resilience::bulkhead::{BulkheadWrapper, EnhancedBulkhead};
-        
+
         let bulkhead = EnhancedBulkhead::from_config(config);
         Ok(Arc::new(BulkheadWrapper::new(bulkhead)))
     }

@@ -147,14 +147,14 @@ impl StdioConnection {
                 drop(stats);
 
                 Ok(Some(line.trim().to_string()))
-            }
+            },
             Err(e) => {
                 let mut stats = self.stats.lock().await;
                 stats.errors += 1;
                 drop(stats);
 
                 Err(anyhow::anyhow!("Failed to read from stdin: {}", e))
-            }
+            },
         }
     }
 
@@ -171,14 +171,14 @@ impl StdioConnection {
                 drop(stats);
 
                 Ok(())
-            }
+            },
             Err(e) => {
                 let mut stats = self.stats.lock().await;
                 stats.errors += 1;
                 drop(stats);
 
                 Err(anyhow::anyhow!("Failed to write to stdout: {}", e))
-            }
+            },
         }
     }
 }
@@ -234,7 +234,7 @@ impl TransportConnection for StdioConnection {
 
                 debug!("Received message: {}", message.id);
                 Ok(Some(message))
-            }
+            },
             _ => Ok(None),
         }
     }

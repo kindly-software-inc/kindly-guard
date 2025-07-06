@@ -186,10 +186,10 @@ impl ProxyTransport {
                             error!("Proxy connection error: {}", e);
                         }
                     });
-                }
+                },
                 Err(e) => {
                     error!("Failed to accept connection: {}", e);
-                }
+                },
             }
         }
 

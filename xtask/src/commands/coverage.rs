@@ -1,7 +1,7 @@
 //! Code coverage generation command
 //!
 //! This command generates code coverage reports using cargo-llvm-cov.
-//! 
+//!
 //! ## CI Environment Handling
 //!
 //! The behavior varies based on the CI environment:
@@ -20,8 +20,8 @@ use std::path::Path;
 use std::process::Command;
 use std::time::Instant;
 
-use crate::utils::{Context, spinner, workspace_root};
 use crate::utils::tools::{ensure_tool_installed, is_tool_installed, CiEnvironment};
+use crate::utils::{spinner, workspace_root, Context};
 
 #[derive(Args)]
 pub struct CoverageCmd {
@@ -87,13 +87,13 @@ pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
     match CiEnvironment::detect() {
         CiEnvironment::GitHubActions => {
             ctx.debug("Running in GitHub Actions environment");
-        }
+        },
         CiEnvironment::Other => {
             ctx.debug("Running in CI environment (non-GitHub Actions)");
-        }
+        },
         CiEnvironment::None => {
             ctx.debug("Running in local/interactive environment");
-        }
+        },
     }
 
     // Check for cargo-llvm-cov
@@ -101,7 +101,8 @@ pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
         ctx.debug("cargo-llvm-cov is already installed");
     } else {
         match ensure_tool_installed(&ctx, "cargo-llvm-cov", None)
-            .context("Failed to ensure cargo-llvm-cov is available")? {
+            .context("Failed to ensure cargo-llvm-cov is available")?
+        {
             true => ctx.debug("cargo-llvm-cov installed successfully"),
             false => anyhow::bail!("cargo-llvm-cov is required for coverage generation"),
         }
@@ -113,7 +114,8 @@ pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
             ctx.debug("cargo-nextest is already installed");
         } else {
             match ensure_tool_installed(&ctx, "cargo-nextest", None)
-                .context("Failed to ensure cargo-nextest is available")? {
+                .context("Failed to ensure cargo-nextest is available")?
+            {
                 true => ctx.debug("cargo-nextest installed successfully"),
                 false => anyhow::bail!("cargo-nextest is required when --nextest is specified"),
             }
@@ -156,7 +158,7 @@ pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
 
     // Add output format flags
     let mut output_formats = Vec::new();
-    
+
     if cmd.html {
         output_formats.push("--html");
     }
@@ -204,50 +206,53 @@ pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
 
     // Run coverage generation
     let spinner = spinner("Generating coverage report...");
-    
+
     ctx.debug(&format!("Running: cargo {}", args.join(" ")));
-    
+
     let result = ctx.run_command("cargo", &args);
-    
+
     spinner.finish_and_clear();
 
     match result {
         Ok(output) => {
             let duration = start.elapsed();
-            ctx.success(&format!("Coverage generated in {:.2}s", duration.as_secs_f64()));
-            
+            ctx.success(&format!(
+                "Coverage generated in {:.2}s",
+                duration.as_secs_f64()
+            ));
+
             // Parse and display coverage summary
             display_coverage_summary(&output, &ctx)?;
-            
+
             // Show report locations
             ctx.info("\nCoverage reports generated:");
-            
+
             if cmd.html {
                 let html_path = coverage_dir.join("html").join("index.html");
                 ctx.info(&format!("  HTML: {}", html_path.display()));
-                
+
                 // Open in browser if requested
                 if cmd.open && html_path.exists() {
                     ctx.info("Opening HTML report in browser...");
                     open_in_browser(&html_path)?;
                 }
             }
-            
+
             if cmd.lcov {
                 let lcov_path = coverage_dir.join("lcov.info");
                 ctx.info(&format!("  LCOV: {}", lcov_path.display()));
             }
-            
+
             if cmd.text {
                 let text_path = coverage_dir.join("lcov.txt");
                 ctx.info(&format!("  Text: {}", text_path.display()));
             }
-            
+
             if cmd.json {
                 let json_path = coverage_dir.join("lcov.json");
                 ctx.info(&format!("  JSON: {}", json_path.display()));
             }
-            
+
             // Check coverage threshold if specified
             if let Some(threshold) = cmd.fail_under {
                 let coverage = extract_coverage_percentage(&output)?;
@@ -259,11 +264,11 @@ pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
                     anyhow::bail!("Coverage below threshold");
                 }
             }
-        }
+        },
         Err(e) => {
             ctx.error("Failed to generate coverage");
             return Err(e);
-        }
+        },
     }
 
     Ok(())
@@ -272,17 +277,17 @@ pub async fn run(cmd: CoverageCmd, ctx: Context) -> Result<()> {
 fn display_coverage_summary(output: &str, _ctx: &Context) -> Result<()> {
     // Look for coverage summary in the output
     let lines: Vec<&str> = output.lines().collect();
-    
+
     for (i, line) in lines.iter().enumerate() {
         if line.contains("Coverage") || line.contains("TOTAL") {
             // Print the coverage summary section
             println!("\n{}", "Coverage Summary:".bold());
             println!("{}", "=".repeat(60));
-            
+
             // Print a few lines around the coverage info
             let start = i.saturating_sub(2);
             let end = (i + 3).min(lines.len());
-            
+
             for j in start..end {
                 let line = lines[j];
                 if line.contains("TOTAL") || line.contains("Coverage") {
@@ -291,12 +296,12 @@ fn display_coverage_summary(output: &str, _ctx: &Context) -> Result<()> {
                     println!("{}", line);
                 }
             }
-            
+
             println!("{}", "=".repeat(60));
             break;
         }
     }
-    
+
     Ok(())
 }
 
@@ -308,7 +313,7 @@ fn extract_coverage_percentage(output: &str) -> Result<f64> {
             return Ok(percentage);
         }
     }
-    
+
     // If we can't find it in the output, try to parse from the generated reports
     anyhow::bail!("Could not extract coverage percentage from output")
 }
@@ -316,13 +321,13 @@ fn extract_coverage_percentage(output: &str) -> Result<f64> {
 fn extract_percentage_from_line(line: &str) -> Option<f64> {
     // Try different patterns to extract percentage
     // Using simple string parsing instead of regex for simplicity
-    
+
     // Check for patterns like "85.2%" or "Coverage: 85.2%" or "TOTAL ... 85.2%"
     if let Some(percent_pos) = line.find('%') {
         // Find the start of the number by going backwards from %
         let mut start = percent_pos;
         let bytes = line.as_bytes();
-        
+
         while start > 0 {
             let prev = start - 1;
             let ch = bytes[prev];
@@ -332,7 +337,7 @@ fn extract_percentage_from_line(line: &str) -> Option<f64> {
                 break;
             }
         }
-        
+
         // Extract and parse the number
         if start < percent_pos {
             if let Ok(percentage) = line[start..percent_pos].parse::<f64>() {
@@ -340,18 +345,18 @@ fn extract_percentage_from_line(line: &str) -> Option<f64> {
             }
         }
     }
-    
+
     None
 }
 
 fn open_in_browser(path: &Path) -> Result<()> {
     let url = format!("file://{}", path.display());
-    
+
     #[cfg(target_os = "macos")]
     {
         Command::new("open").arg(&url).spawn()?;
     }
-    
+
     #[cfg(target_os = "linux")]
     {
         if let Ok(_) = Command::new("xdg-open").arg(&url).spawn() {
@@ -364,11 +369,11 @@ fn open_in_browser(path: &Path) -> Result<()> {
             anyhow::bail!("Could not find a browser to open the report");
         }
     }
-    
+
     #[cfg(target_os = "windows")]
     {
         Command::new("cmd").args(&["/C", "start", &url]).spawn()?;
     }
-    
+
     Ok(())
 }

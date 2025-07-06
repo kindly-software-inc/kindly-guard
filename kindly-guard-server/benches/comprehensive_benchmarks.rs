@@ -126,19 +126,19 @@ mod test_data {
                 0 => {
                     // Add benign text
                     result.push_str("This is normal text. ");
-                }
+                },
                 1 => {
                     // Add unicode threat
                     result.push_str("Hidden\u{202E}text here. ");
-                }
+                },
                 2 => {
                     // Add SQL injection
                     result.push_str("SELECT * FROM users WHERE id = '1' OR '1'='1'. ");
-                }
+                },
                 3 => {
                     // Add XSS attempt
                     result.push_str("<script>alert('xss')</script> ");
-                }
+                },
                 _ => unreachable!(),
             }
         }

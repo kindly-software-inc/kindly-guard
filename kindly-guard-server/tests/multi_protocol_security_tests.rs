@@ -616,10 +616,10 @@ mod cross_protocol_attacks {
                     resp.url().scheme() == "https",
                     "Protocol downgrade attack succeeded"
                 );
-            }
+            },
             Err(_) => {
                 // Connection refused is acceptable (no downgrade)
-            }
+            },
         }
 
         Ok(())
@@ -827,7 +827,7 @@ async fn scan_handler(
             Ok(Response::new(Body::from(
                 json!({"status": "clean"}).to_string(),
             )))
-        }
+        },
         Err(_) => Err(StatusCode::BAD_REQUEST),
     }
 }
@@ -855,7 +855,7 @@ async fn handle_websocket(mut socket: WebSocket) {
             Ok(WsMessage::Text(text)) => {
                 // Echo back for testing
                 let _ = socket.send(WsMessage::Text(text)).await;
-            }
+            },
             Ok(WsMessage::Binary(data)) => {
                 if data.len() > MAX_WEBSOCKET_FRAME_SIZE {
                     let _ = socket
@@ -865,9 +865,9 @@ async fn handle_websocket(mut socket: WebSocket) {
                         .await;
                     break;
                 }
-            }
+            },
             Ok(WsMessage::Close(_)) => break,
-            _ => {}
+            _ => {},
         }
     }
 }

@@ -1305,7 +1305,9 @@ pub fn create_audit_logger(config: &crate::config::Config) -> Arc<dyn AuditLogge
     // For now, use default audit config
     // TODO: Add audit config to main Config struct
     let audit_config = AuditConfig::default();
-    
+
     let factory = DefaultAuditLoggerFactory;
-    factory.create(&audit_config).unwrap_or_else(|_| Arc::new(NoOpAuditLogger))
+    factory
+        .create(&audit_config)
+        .unwrap_or_else(|_| Arc::new(NoOpAuditLogger))
 }

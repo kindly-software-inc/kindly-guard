@@ -3,6 +3,8 @@ pub mod cache;
 pub mod ci;
 pub mod coverage;
 pub mod doctor;
+pub mod local_ci;
+pub mod parallel_ci;
 pub mod package;
 pub mod publish;
 pub mod release;

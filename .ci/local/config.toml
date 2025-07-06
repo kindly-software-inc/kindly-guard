@@ -1,0 +1,67 @@
+# Local CI/CD Configuration for KindlyGuard
+# This configuration is used for local development CI runs
+
+[ci]
+# Run tests in parallel using nextest
+use_nextest = true
+
+# Generate coverage reports
+coverage = true
+
+# Run security audits
+security_audit = true
+
+# Cache directory for faster builds
+cache_dir = ".ci/cache"
+
+# Reports output directory
+reports_dir = ".ci/reports"
+
+# Artifacts output directory
+artifacts_dir = ".ci/artifacts"
+
+# Log directory
+logs_dir = ".ci/logs"
+
+[test]
+# Test configuration
+parallel = true
+retries = 2
+timeout = "5m"
+
+# Skip slow tests in quick mode
+quick_mode_skip = ["integration", "property"]
+
+[security]
+# Security scan configuration
+cargo_audit = true
+cargo_deny = true
+sarif_output = ".ci/reports/security.sarif"
+
+[build]
+# Build configuration
+targets = ["x86_64-unknown-linux-gnu"]
+release_mode = false
+strip = false
+
+# For release builds
+[build.release]
+release_mode = true
+strip = true
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc"
+]
+
+[cache]
+# sccache configuration
+enabled = true
+backend = "local"
+max_size = "10G"
+
+[hooks]
+# Git hooks for local CI
+pre_commit = ["fmt", "clippy"]
+pre_push = ["test", "security"]

@@ -33,7 +33,7 @@ use kindly_guard_server::{
     auth::{AuthConfig, AuthContext, AuthManager, ScopeRequirements},
     config::{Config, ScannerConfig},
     logging::{LogConfig, SemanticLogger},
-    rate_limit::{RateLimiter, RateLimitConfig},
+    rate_limit::{RateLimitConfig, RateLimiter},
     scanner::{SecurityScanner, ThreatType},
     signing::{SigningAlgorithm, SigningConfig, SigningManager},
 };
@@ -458,7 +458,7 @@ async fn test_v5_2_1_sanitization() -> Result<()> {
         match &threat.location {
             kindly_guard_server::scanner::Location::Json { path } => {
                 assert!(path.starts_with("$.user."), "Invalid JSON path: {}", path);
-            }
+            },
             _ => panic!("Expected JSON location"),
         }
     }
@@ -625,7 +625,7 @@ async fn test_v7_1_1_secure_error_handling() -> Result<()> {
             assert!(!error_msg.contains("/home/"));
             assert!(!error_msg.contains("src/"));
             assert!(error_msg.contains("depth exceeded") || error_msg.contains("Maximum"));
-        }
+        },
         Ok(_) => panic!("Expected error for deeply nested JSON"),
     }
 

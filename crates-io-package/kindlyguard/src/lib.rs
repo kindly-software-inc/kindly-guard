@@ -95,12 +95,11 @@
 /// - Configuration management
 pub use kindly_guard_server as server;
 
-
 // Re-export commonly used types at the crate root for convenience
-pub use server::{SecurityScanner, Threat, ThreatType, Severity};
-pub use server::security::SecurityContext;
 pub use server::config::{Config, ScannerConfig};
 pub use server::error::{KindlyError, KindlyResult};
+pub use server::security::SecurityContext;
+pub use server::{SecurityScanner, Severity, Threat, ThreatType};
 
 /// Prelude module for convenient imports
 ///
@@ -111,10 +110,10 @@ pub use server::error::{KindlyError, KindlyResult};
 /// use kindlyguard::prelude::*;
 /// ```
 pub mod prelude {
-    pub use crate::server::{SecurityScanner, Threat, ThreatType, Severity};
-    pub use crate::server::security::SecurityContext;
     pub use crate::server::config::{Config, ScannerConfig};
     pub use crate::server::error::{KindlyError, KindlyResult};
+    pub use crate::server::security::SecurityContext;
+    pub use crate::server::{SecurityScanner, Severity, Threat, ThreatType};
 }
 
 #[cfg(test)]

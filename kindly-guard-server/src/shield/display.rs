@@ -69,7 +69,7 @@ impl ShieldDisplay {
                 if let Event::Key(key) = event::read()? {
                     match key.code {
                         KeyCode::Char('q') | KeyCode::Esc => break,
-                        _ => {}
+                        _ => {},
                     }
                 }
             }

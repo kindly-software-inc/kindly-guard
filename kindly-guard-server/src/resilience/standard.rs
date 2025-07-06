@@ -20,10 +20,10 @@ use crate::resilience::circuit_breaker::{
 use crate::resilience::retry::{DefaultRetryPolicy, RetryBuilder, RetryConfig};
 use crate::traits::{
     CircuitBreakerError, CircuitBreakerTrait, CircuitBreakerWrapper, CircuitState, CircuitStats,
-    DynCircuitBreaker, DynRetryStrategy, HealthCheckMetadata,
-    HealthCheckResult, HealthCheckTrait, HealthCheckType, HealthReport, HealthStatus,
-    RecoveryContext, RecoveryState, RecoveryStats, RecoveryStrategyTrait, ResilienceFactory,
-    RetryContext, RetryDecision, RetryStats, RetryStrategyTrait, RetryStrategyWrapper,
+    DynCircuitBreaker, DynRetryStrategy, HealthCheckMetadata, HealthCheckResult, HealthCheckTrait,
+    HealthCheckType, HealthReport, HealthStatus, RecoveryContext, RecoveryState, RecoveryStats,
+    RecoveryStrategyTrait, ResilienceFactory, RetryContext, RetryDecision, RetryStats,
+    RetryStrategyTrait, RetryStrategyWrapper,
 };
 use anyhow::Result;
 use async_trait::async_trait;
@@ -74,13 +74,13 @@ impl CircuitBreakerTrait for StandardCircuitBreaker {
         breaker.call(f).await.map_err(|e| match e {
             crate::resilience::circuit_breaker::CircuitBreakerError::CircuitOpen => {
                 CircuitBreakerError::CircuitOpen
-            }
+            },
             crate::resilience::circuit_breaker::CircuitBreakerError::ServiceError(msg) => {
                 CircuitBreakerError::ServiceError(msg)
-            }
+            },
             crate::resilience::circuit_breaker::CircuitBreakerError::Timeout(d) => {
                 CircuitBreakerError::Timeout(d)
-            }
+            },
         })
     }
 
@@ -190,10 +190,10 @@ impl RetryStrategyTrait for StandardRetryStrategy {
                 if stats.total_attempts > 1 {
                     stats.successful_retries += 1;
                 }
-            }
+            },
             Err(_) => {
                 stats.failed_retries += 1;
-            }
+            },
         }
 
         result
@@ -289,13 +289,13 @@ impl ResilienceFactory for StandardResilienceFactory {
     ) -> Result<Arc<dyn RecoveryStrategyTrait>> {
         Ok(Arc::new(StandardRecoveryStrategy::new()))
     }
-    
+
     fn create_bulkhead(
         &self,
         config: &crate::config::Config,
     ) -> Result<Arc<dyn crate::resilience::DynBulkhead>> {
         use crate::resilience::bulkhead::{BulkheadWrapper, StandardBulkhead};
-        
+
         let bulkhead = StandardBulkhead::from_config(config);
         Ok(Arc::new(BulkheadWrapper::new(bulkhead)))
     }
@@ -346,21 +346,21 @@ impl HealthCheckTrait for StandardHealthChecker {
                     HealthStatus::Unhealthy => {
                         tracing::warn!("Dependency '{}' is unhealthy", name);
                         all_healthy = false;
-                    }
+                    },
                     HealthStatus::Degraded => {
                         tracing::info!("Dependency '{}' is degraded", name);
                         has_degraded = true;
-                    }
-                    HealthStatus::Healthy => {}
+                    },
+                    HealthStatus::Healthy => {},
                 },
                 Ok(Err(e)) => {
                     tracing::error!("Health check failed for '{}': {}", name, e);
                     all_healthy = false;
-                }
+                },
                 Err(_) => {
                     tracing::error!("Health check timeout for '{}'", name);
                     all_healthy = false;
-                }
+                },
             }
         }
 

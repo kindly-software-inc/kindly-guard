@@ -112,7 +112,7 @@ impl ThreatNeutralizer for SecurityAwareNeutralizer {
                     context.request_id,
                     context.neutralization.threats_neutralized
                 );
-            }
+            },
             Err(e) => {
                 context.record_neutralization(false);
                 tracing::error!(
@@ -121,7 +121,7 @@ impl ThreatNeutralizer for SecurityAwareNeutralizer {
                     e,
                     context.neutralization.neutralization_failures
                 );
-            }
+            },
         }
 
         result

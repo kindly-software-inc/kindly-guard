@@ -102,19 +102,19 @@ pub enum Commands {
         /// Force a specific IDE type (claude-desktop, vscode, cursor, neovim)
         #[arg(long)]
         ide: Option<String>,
-        
+
         /// Show what would be done without making changes
         #[arg(long)]
         dry_run: bool,
     },
-    
+
     /// Show MCP configuration for manual setup
     ShowMcpConfig {
         /// Format: json, toml, yaml
         #[arg(long, default_value = "json")]
         format: String,
     },
-    
+
     /// Test MCP connection
     TestMcp,
 }
@@ -193,36 +193,34 @@ async fn execute_command(
         None => {
             // No subcommand - show minimal status
             show_status(shield, format, color).await
-        }
+        },
         Some(Commands::Status) => show_status(shield, format, color).await,
         Some(Commands::Scan { input, text }) => {
             // Validate scan input
             let validated_input = CommandValidator::validate_scan(&input, text)?;
             scan_command(validated_input, text, format, color).await
-        }
+        },
         Some(Commands::Telemetry { detailed }) => show_telemetry(detailed, format, color).await,
         Some(Commands::AdvancedSecurity { action }) => {
             handle_advanced_security(shield, action, format, color).await
-        }
+        },
         Some(Commands::Info { feature }) => {
             // Validate feature name if provided
             let validated_feature = CommandValidator::validate_info_feature(feature.as_deref())?;
             show_info(validated_feature, format, color).await
-        }
+        },
         Some(Commands::Dashboard { port }) => {
             // Validate port
             let validated_port = CommandValidator::validate_dashboard_port(port)?;
             start_dashboard(shield, validated_port).await
-        }
+        },
         Some(Commands::SetupMcp { ide, dry_run }) => {
             setup_mcp_command(ide, dry_run, format, color).await
-        }
-        Some(Commands::ShowMcpConfig { format: config_format }) => {
-            show_mcp_config_command(&config_format, color).await
-        }
-        Some(Commands::TestMcp) => {
-            test_mcp_command(format, color).await
-        }
+        },
+        Some(Commands::ShowMcpConfig {
+            format: config_format,
+        }) => show_mcp_config_command(&config_format, color).await,
+        Some(Commands::TestMcp) => test_mcp_command(format, color).await,
     }
 }
 
@@ -266,10 +264,10 @@ async fn show_status(shield: Arc<Shield>, format: DisplayFormat, color: bool) ->
                     println!(
                         r#"{{"status":"display_error","message":"Unable to render display"}}"#
                     );
-                }
+                },
             }
             Ok(())
-        }
+        },
     }
 }
 
@@ -302,7 +300,7 @@ async fn scan_command(
                 "Failed to initialize scanner: {}. Try updating your configuration.",
                 e
             ));
-        }
+        },
     };
 
     let (content, source) = if is_text {
@@ -320,11 +318,11 @@ async fn scan_command(
                 eprintln!("Could not read file '{input}': {e}. Treating as literal text.");
                 // If file doesn't exist, treat as text
                 (input.clone(), "input")
-            }
+            },
             Err(_) => {
                 eprintln!("File read timed out after 30 seconds");
                 return Err(anyhow::anyhow!("File read timeout"));
-            }
+            },
         }
     };
 
@@ -342,7 +340,7 @@ async fn scan_command(
                 }),
             };
             println!("{}", serde_json::to_string_pretty(&output)?);
-        }
+        },
         _ => {
             if threats.is_empty() {
                 if color {
@@ -363,17 +361,17 @@ async fn scan_command(
                     match &threat.location {
                         crate::scanner::Location::Text { offset, length } => {
                             println!("   Location: Text at offset {offset}, length {length}");
-                        }
+                        },
                         crate::scanner::Location::Json { path } => {
                             println!("   Location: JSON path {path}");
-                        }
+                        },
                         crate::scanner::Location::Binary { offset } => {
                             println!("   Location: Binary at offset {offset}");
-                        }
+                        },
                     }
                 }
             }
-        }
+        },
     }
 
     Ok(())
@@ -453,7 +451,7 @@ async fn handle_advanced_security(
                         }),
                     };
                     println!("{}", serde_json::to_string_pretty(&output)?);
-                }
+                },
                 _ => {
                     if enabled {
                         if color {
@@ -473,9 +471,9 @@ async fn handle_advanced_security(
                         println!("Advanced Security: DISABLED");
                         println!("Run '/kindlyguard advancedsecurity enable' to activate");
                     }
-                }
+                },
             }
-        }
+        },
         Some(AdvancedAction::Enable) => {
             shield.set_event_processor_enabled(true);
             if color {
@@ -483,11 +481,11 @@ async fn handle_advanced_security(
             } else {
                 println!("✓ Advanced security mode enabled");
             }
-        }
+        },
         Some(AdvancedAction::Disable) => {
             shield.set_event_processor_enabled(false);
             println!("Advanced security mode disabled");
-        }
+        },
     }
 
     Ok(())
@@ -504,7 +502,7 @@ Identifies and blocks malicious Unicode characters:
 • Bidirectional text attacks that reverse text flow
 • Homograph attacks using lookalike characters
 • Control characters that can break parsers"
-        }
+        },
         Some("injection") => {
             r"Injection Prevention
 ──────────────────
@@ -513,7 +511,7 @@ Protects against various injection attacks:
 • Command injection - Blocks shell command execution
 • Prompt injection - Protects AI model interactions
 • Template injection - Prevents template engine exploits"
-        }
+        },
         Some("path") => {
             r"Path Traversal Defense
 ────────────────────
@@ -522,7 +520,7 @@ Prevents directory traversal attacks:
 • Prevents absolute path access
 • Validates file paths
 • Protects against symbolic link attacks"
-        }
+        },
         Some("advanced" | "enhanced") => {
             r"Enhanced Protection Mode
 ─────────────────────
@@ -533,7 +531,7 @@ Advanced security features (when enabled):
 • Zero-day Protection - Detects unknown threats
 
 Note: Implementation details vary by configuration"
-        }
+        },
         _ => {
             r"KindlyGuard Security Features
 ───────────────────────────
@@ -555,7 +553,7 @@ Note: Implementation details vary by configuration"
 
 All features designed with security-first principles.
 Use '/kindlyguard info <feature>' for detailed information."
-        }
+        },
     };
 
     match format {
@@ -569,7 +567,7 @@ Use '/kindlyguard info <feature>' for detailed information."
                 }),
             };
             println!("{}", serde_json::to_string_pretty(&output)?);
-        }
+        },
         _ => {
             if color && feature.as_deref() == Some("advanced") {
                 // Purple color for advanced features
@@ -593,7 +591,7 @@ Use '/kindlyguard info <feature>' for detailed information."
             } else {
                 println!("{info_text}");
             }
-        }
+        },
     }
 
     Ok(())
@@ -629,12 +627,12 @@ async fn setup_mcp_command(
     format: DisplayFormat,
     color: bool,
 ) -> Result<()> {
-    use crate::setup::{McpDetector, IdeType};
+    use crate::setup::{IdeType, McpDetector};
     use std::path::PathBuf;
-    
+
     // Create detector
     let detector = McpDetector::new();
-    
+
     // Determine IDE
     let ide_type = if let Some(ide_name) = ide {
         // Parse provided IDE name
@@ -645,7 +643,10 @@ async fn setup_mcp_command(
             "neovim" | "nvim" => IdeType::Neovim,
             "zed" => IdeType::Zed,
             _ => {
-                let error_msg = format!("Unknown IDE: {}. Supported: claude-desktop, vscode, cursor, neovim, zed", ide_name);
+                let error_msg = format!(
+                    "Unknown IDE: {}. Supported: claude-desktop, vscode, cursor, neovim, zed",
+                    ide_name
+                );
                 match format {
                     DisplayFormat::Json => {
                         let output = CommandOutput {
@@ -656,17 +657,17 @@ async fn setup_mcp_command(
                             }),
                         };
                         println!("{}", serde_json::to_string_pretty(&output)?);
-                    }
+                    },
                     _ => {
                         if color {
                             eprintln!("\x1b[31m✗ {}\x1b[0m", error_msg);
                         } else {
                             eprintln!("✗ {}", error_msg);
                         }
-                    }
+                    },
                 }
                 return Err(anyhow::anyhow!(error_msg));
-            }
+            },
         }
     } else {
         // Auto-detect IDE
@@ -686,7 +687,7 @@ async fn setup_mcp_command(
                             }),
                         };
                         println!("{}", serde_json::to_string_pretty(&output)?);
-                    }
+                    },
                     _ => {
                         if color {
                             eprintln!("\x1b[33m⚠ No IDE detected\x1b[0m");
@@ -705,27 +706,26 @@ async fn setup_mcp_command(
                             eprintln!("  • neovim - Neovim");
                             eprintln!("  • zed - Zed");
                         }
-                    }
+                    },
                 }
                 return Err(anyhow::anyhow!("No IDE detected"));
-            }
+            },
         }
     };
-    
+
     // Get the config path
     let config_path = detector.get_config_path(ide_type)?;
-    
+
     // Create config writer
     use crate::setup::create_config_writer;
     let writer = create_config_writer(&config_path, "kindly-guard");
-    
+
     // Get current binary path
-    let binary_path = std::env::current_exe()
-        .unwrap_or_else(|_| PathBuf::from("kindly-guard"));
-    
+    let binary_path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("kindly-guard"));
+
     if dry_run {
         // Show what would be done
-        
+
         match format {
             DisplayFormat::Json => {
                 let output = CommandOutput {
@@ -738,7 +738,7 @@ async fn setup_mcp_command(
                     }),
                 };
                 println!("{}", serde_json::to_string_pretty(&output)?);
-            }
+            },
             _ => {
                 if color {
                     println!("\x1b[36m🔍 Dry Run - No changes will be made\x1b[0m");
@@ -752,12 +752,12 @@ async fn setup_mcp_command(
                 println!("Binary path: {}", binary_path.display());
                 println!("\nConfiguration would be written to:");
                 println!("{}", config_path.display());
-            }
+            },
         }
     } else {
         // Actually write the config
         writer.write_config(&config_path, &binary_path.display().to_string())?;
-        
+
         match format {
             DisplayFormat::Json => {
                 let output = CommandOutput {
@@ -778,7 +778,7 @@ async fn setup_mcp_command(
                     }),
                 };
                 println!("{}", serde_json::to_string_pretty(&output)?);
-            }
+            },
             _ => {
                 if color {
                     println!("\x1b[32m✓ MCP configuration installed successfully!\x1b[0m");
@@ -794,45 +794,44 @@ async fn setup_mcp_command(
                     IdeType::ClaudeDesktop => {
                         println!("1. Restart Claude Desktop");
                         println!("2. KindlyGuard will be available in the MCP menu");
-                    }
+                    },
                     IdeType::VsCode | IdeType::Cursor => {
                         println!("1. Restart VS Code/Cursor");
                         println!("2. Ensure the MCP extension is installed");
                         println!("3. KindlyGuard will appear in the MCP panel");
-                    }
+                    },
                     IdeType::Neovim => {
                         println!("1. Restart Neovim");
                         println!("2. Ensure your MCP plugin is configured");
                         println!("3. KindlyGuard commands will be available");
-                    }
+                    },
                     IdeType::Zed => {
                         println!("1. Restart Zed");
                         println!("2. Check MCP integration in settings");
-                    }
+                    },
                     IdeType::ClaudeCode => {
                         println!("1. Restart Claude Code");
                         println!("2. KindlyGuard will be available in the MCP menu");
-                    }
+                    },
                     IdeType::Unknown => {
                         println!("1. Restart your IDE");
                         println!("2. Check MCP configuration");
-                    }
+                    },
                 }
-            }
+            },
         }
     }
-    
+
     Ok(())
 }
 
 /// Show MCP configuration
 async fn show_mcp_config_command(config_format: &str, color: bool) -> Result<()> {
     use std::path::PathBuf;
-    
+
     // Get current binary path
-    let binary_path = std::env::current_exe()
-        .unwrap_or_else(|_| PathBuf::from("kindly-guard"));
-    
+    let binary_path = std::env::current_exe().unwrap_or_else(|_| PathBuf::from("kindly-guard"));
+
     // Generate configuration based on format
     let config = match config_format.to_lowercase().as_str() {
         "json" => {
@@ -847,7 +846,7 @@ async fn show_mcp_config_command(config_format: &str, color: bool) -> Result<()>
                     }
                 }
             })
-        }
+        },
         "toml" => {
             // TOML format for config files that use it
             let toml_str = format!(
@@ -861,7 +860,7 @@ RUST_LOG = "kindly_guard=info"
                 binary_path.display()
             );
             serde_json::Value::String(toml_str)
-        }
+        },
         "yaml" => {
             // YAML format
             let yaml_str = format!(
@@ -876,15 +875,15 @@ RUST_LOG = "kindly_guard=info"
                 binary_path.display()
             );
             serde_json::Value::String(yaml_str)
-        }
+        },
         _ => {
             return Err(anyhow::anyhow!(
                 "Unsupported format: {}. Use json, toml, or yaml",
                 config_format
             ));
-        }
+        },
     };
-    
+
     // Display the configuration
     if config_format == "json" {
         println!("{}", serde_json::to_string_pretty(&config)?);
@@ -894,7 +893,7 @@ RUST_LOG = "kindly_guard=info"
             println!("{}", s);
         }
     }
-    
+
     // Add helpful message
     if color {
         eprintln!("\n\x1b[36m💡 Add this configuration to your IDE's MCP settings\x1b[0m");
@@ -903,21 +902,21 @@ RUST_LOG = "kindly_guard=info"
         eprintln!("\n💡 Add this configuration to your IDE's MCP settings");
         eprintln!("Binary path: {}", binary_path.display());
     }
-    
+
     Ok(())
 }
 
 /// Test MCP connection
 async fn test_mcp_command(format: DisplayFormat, color: bool) -> Result<()> {
     use serde_json::json;
+    use std::time::Duration;
     use tokio::io::{AsyncBufReadExt, AsyncWriteExt, BufReader};
     use tokio::process::Command;
-    use std::time::Duration;
-    
+
     // Get current binary path
-    let binary_path = std::env::current_exe()
-        .unwrap_or_else(|_| std::path::PathBuf::from("kindly-guard"));
-    
+    let binary_path =
+        std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("kindly-guard"));
+
     // Start KindlyGuard in stdio mode
     let mut child = Command::new(&binary_path)
         .arg("--stdio")
@@ -926,13 +925,19 @@ async fn test_mcp_command(format: DisplayFormat, color: bool) -> Result<()> {
         .stderr(std::process::Stdio::piped())
         .spawn()
         .map_err(|e| anyhow::anyhow!("Failed to start KindlyGuard: {}", e))?;
-    
-    let stdin = child.stdin.take().ok_or_else(|| anyhow::anyhow!("Failed to get stdin"))?;
-    let stdout = child.stdout.take().ok_or_else(|| anyhow::anyhow!("Failed to get stdout"))?;
-    
+
+    let stdin = child
+        .stdin
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get stdin"))?;
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| anyhow::anyhow!("Failed to get stdout"))?;
+
     let mut stdin = tokio::io::BufWriter::new(stdin);
     let mut reader = BufReader::new(stdout).lines();
-    
+
     // Send initialize request
     let init_request = json!({
         "jsonrpc": "2.0",
@@ -947,21 +952,20 @@ async fn test_mcp_command(format: DisplayFormat, color: bool) -> Result<()> {
             }
         }
     });
-    
+
     // Write request
     let request_str = serde_json::to_string(&init_request)?;
     stdin.write_all(request_str.as_bytes()).await?;
     stdin.write_all(b"\n").await?;
     stdin.flush().await?;
-    
+
     // Read response with timeout
-    let response = tokio::time::timeout(Duration::from_secs(5), async {
-        reader.next_line().await
-    }).await;
-    
+    let response =
+        tokio::time::timeout(Duration::from_secs(5), async { reader.next_line().await }).await;
+
     // Kill the child process
     let _ = child.kill().await;
-    
+
     match response {
         Ok(Ok(Some(line))) => {
             // Parse response
@@ -981,7 +985,7 @@ async fn test_mcp_command(format: DisplayFormat, color: bool) -> Result<()> {
                                     }),
                                 };
                                 println!("{}", serde_json::to_string_pretty(&output)?);
-                            }
+                            },
                             _ => {
                                 if color {
                                     println!("\x1b[32m✓ MCP connection test successful!\x1b[0m");
@@ -993,7 +997,7 @@ async fn test_mcp_command(format: DisplayFormat, color: bool) -> Result<()> {
                                 println!("Binary: {}", binary_path.display());
                                 println!("Protocol: MCP 2024-11-05");
                                 println!("Status: Ready to protect your code!");
-                            }
+                            },
                         }
                     } else if let Some(error) = response_json.get("error") {
                         // Error response
@@ -1008,33 +1012,34 @@ async fn test_mcp_command(format: DisplayFormat, color: bool) -> Result<()> {
                                     }),
                                 };
                                 println!("{}", serde_json::to_string_pretty(&output)?);
-                            }
+                            },
                             _ => {
                                 if color {
                                     eprintln!("\x1b[31m✗ MCP error: {}\x1b[0m", error);
                                 } else {
                                     eprintln!("✗ MCP error: {}", error);
                                 }
-                            }
+                            },
                         }
                         return Err(anyhow::anyhow!("MCP error response"));
                     } else {
                         return Err(anyhow::anyhow!("Invalid MCP response format"));
                     }
-                }
+                },
                 Err(e) => {
                     return Err(anyhow::anyhow!("Failed to parse MCP response: {}", e));
-                }
+                },
             }
-        }
+        },
         Ok(Ok(None)) | Ok(Err(_)) => {
             return Err(anyhow::anyhow!("Failed to read MCP response"));
-        }
+        },
         Err(_) => {
-            return Err(anyhow::anyhow!("MCP connection timeout - server did not respond"));
-        }
+            return Err(anyhow::anyhow!(
+                "MCP connection timeout - server did not respond"
+            ));
+        },
     }
-    
+
     Ok(())
 }
-

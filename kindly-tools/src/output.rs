@@ -95,13 +95,13 @@ fn print_table_results(
                 let location = match &threat.location {
                     kindly_guard_server::scanner::Location::Text { offset, length } => {
                         format!("offset: {offset}, len: {length}")
-                    }
+                    },
                     kindly_guard_server::scanner::Location::Json { path } => {
                         format!("JSON path: {path}")
-                    }
+                    },
                     kindly_guard_server::scanner::Location::Binary { offset } => {
                         format!("binary offset: {offset}")
-                    }
+                    },
                 };
 
                 table.add_row(vec![
@@ -191,9 +191,9 @@ fn print_json_results(
                 Err(_) => {
                     // Last resort: print error JSON
                     println!(r#"{{"error": "Failed to serialize scan results"}}"#);
-                }
+                },
             }
-        }
+        },
     }
 }
 

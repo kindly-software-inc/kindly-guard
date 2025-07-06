@@ -142,7 +142,7 @@ impl SigningManager {
                     } else {
                         anyhow::bail!("HMAC secret required when HMAC-SHA256 is enabled");
                     }
-                }
+                },
                 SigningAlgorithm::Ed25519 => {
                     if let Some(private_key) = &config.ed25519_private_key {
                         let key_bytes = general_purpose::STANDARD
@@ -163,7 +163,7 @@ impl SigningManager {
                     } else {
                         anyhow::bail!("Ed25519 private key required when Ed25519 is enabled");
                     }
-                }
+                },
             }
         }
 
@@ -203,7 +203,7 @@ impl SigningManager {
                 let result = mac.finalize();
 
                 general_purpose::STANDARD.encode(result.into_bytes())
-            }
+            },
             SigningAlgorithm::Ed25519 => {
                 let signing_key = self
                     .signing_key
@@ -212,7 +212,7 @@ impl SigningManager {
 
                 let signature = signing_key.sign(canonical.as_bytes());
                 general_purpose::STANDARD.encode(signature.to_bytes())
-            }
+            },
         };
 
         Ok(SignedMessage {
@@ -281,7 +281,7 @@ impl SigningManager {
 
                 mac.verify_slice(&expected)
                     .map_err(|_| anyhow::anyhow!("HMAC verification failed"))?;
-            }
+            },
             SigningAlgorithm::Ed25519 => {
                 let verifying_key = self
                     .verifying_key
@@ -297,7 +297,7 @@ impl SigningManager {
                 verifying_key
                     .verify(canonical.as_bytes(), &signature)
                     .map_err(|_| anyhow::anyhow!("Ed25519 verification failed"))?;
-            }
+            },
         }
 
         Ok(())
@@ -345,11 +345,11 @@ impl SigningManager {
                         "ed25519" => Some(SigningAlgorithm::Ed25519),
                         _ => None,
                     };
-                }
+                },
                 "signature" => signature = Some(kv[1].to_string()),
                 "timestamp" => timestamp = kv[1].parse().ok(),
                 "keyid" => key_id = Some(kv[1].to_string()),
-                _ => {}
+                _ => {},
             }
         }
 

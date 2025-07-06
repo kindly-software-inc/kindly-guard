@@ -123,7 +123,7 @@ pub async fn ensure_installed() -> Result<()> {
     }
 
     println!("Installing cargo-nextest...");
-    
+
     // Try to install using cargo-binstall first (faster)
     if which("cargo-binstall").is_ok() {
         println!("Using cargo-binstall for faster installation...");
@@ -156,14 +156,16 @@ pub async fn ensure_installed() -> Result<()> {
 /// Create nextest configuration file
 pub fn create_config(project_root: &Path) -> Result<()> {
     let config_dir = project_root.join(".config");
-    std::fs::create_dir_all(&config_dir)
-        .context("Failed to create .config directory")?;
+    std::fs::create_dir_all(&config_dir).context("Failed to create .config directory")?;
 
     let config_path = config_dir.join("nextest.toml");
-    
+
     // Check if config already exists
     if config_path.exists() {
-        println!("Nextest configuration already exists at: {}", config_path.display());
+        println!(
+            "Nextest configuration already exists at: {}",
+            config_path.display()
+        );
         return Ok(());
     }
 
@@ -249,7 +251,10 @@ inherits = "default"
     std::fs::write(&config_path, config_content)
         .context("Failed to write nextest configuration")?;
 
-    println!("✓ Created nextest configuration at: {}", config_path.display());
+    println!(
+        "✓ Created nextest configuration at: {}",
+        config_path.display()
+    );
     Ok(())
 }
 
@@ -405,12 +410,12 @@ pub struct RetryData {
 /// Parse nextest JSON output
 pub fn parse_json_output(output: &str) -> Result<Vec<TestResult>> {
     let mut results = Vec::new();
-    
+
     for line in output.lines() {
         if line.trim().is_empty() {
             continue;
         }
-        
+
         // Try to parse each line as a test event
         if let Ok(event) = serde_json::from_str::<serde_json::Value>(line) {
             if event["type"] == "test" && event["event"] == "finished" {
@@ -443,14 +448,14 @@ pub fn parse_json_output(output: &str) -> Result<Vec<TestResult>> {
             }
         }
     }
-    
+
     Ok(results)
 }
 
 /// Get test statistics from results
 pub fn get_test_stats(results: &[TestResult]) -> TestStats {
     let mut stats = TestStats::default();
-    
+
     for result in results {
         match result.status {
             TestStatus::Passed => stats.passed += 1,
@@ -458,14 +463,14 @@ pub fn get_test_stats(results: &[TestResult]) -> TestStats {
             TestStatus::Ignored => stats.ignored += 1,
             TestStatus::Leaked => stats.leaked += 1,
         }
-        
+
         stats.total_duration += result.duration;
-        
+
         if result.retry_data.is_some() {
             stats.retried += 1;
         }
     }
-    
+
     stats.total = results.len();
     stats
 }
@@ -485,29 +490,29 @@ impl TestStats {
     /// Print a summary of test statistics
     pub fn print_summary(&self) {
         use colored::Colorize;
-        
+
         println!("\n{}", "Test Summary".bold());
         println!("{}", "─".repeat(40));
-        
+
         println!("Total:    {}", self.total);
         println!("Passed:   {} {}", self.passed, "✓".green());
-        
+
         if self.failed > 0 {
             println!("Failed:   {} {}", self.failed, "✗".red());
         }
-        
+
         if self.ignored > 0 {
             println!("Ignored:  {}", self.ignored);
         }
-        
+
         if self.leaked > 0 {
             println!("Leaked:   {} {}", self.leaked, "⚠".yellow());
         }
-        
+
         if self.retried > 0 {
             println!("Retried:  {} {}", self.retried, "↻".yellow());
         }
-        
+
         println!("Duration: {:.2}s", self.total_duration);
         println!("{}", "─".repeat(40));
     }

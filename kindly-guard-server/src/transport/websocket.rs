@@ -160,7 +160,7 @@ impl Transport for WebSocketTransport {
                 drop(stats);
 
                 Ok(Box::new(conn))
-            }
+            },
             None => Err(anyhow::anyhow!("Connection queue closed")),
         }
     }
@@ -200,13 +200,13 @@ impl Transport for WebSocketTransport {
                 if let Some(enabled) = value.as_bool() {
                     self.config.compression = enabled;
                 }
-            }
+            },
             "ping_interval_ms" => {
                 if let Some(interval) = value.as_u64() {
                     self.config.ping_interval_ms = interval;
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
         Ok(())
     }
@@ -329,7 +329,7 @@ impl TransportConnection for WebSocketConnection {
 
                 debug!("WebSocket received message: {}", message.id);
                 Ok(Some(message))
-            }
+            },
             None => Ok(None),
         }
     }

@@ -5,8 +5,8 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 use indicatif::{ProgressBar, ProgressStyle};
 use tokio::process::Command as TokioCommand;
@@ -51,7 +51,8 @@ impl ProcessBuilder {
         I: IntoIterator<Item = S>,
         S: AsRef<str>,
     {
-        self.args.extend(args.into_iter().map(|s| s.as_ref().to_string()));
+        self.args
+            .extend(args.into_iter().map(|s| s.as_ref().to_string()));
         self
     }
 
@@ -61,10 +62,8 @@ impl ProcessBuilder {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        self.env_vars.insert(
-            key.as_ref().to_string(),
-            value.as_ref().to_string(),
-        );
+        self.env_vars
+            .insert(key.as_ref().to_string(), value.as_ref().to_string());
         self
     }
 
@@ -101,7 +100,7 @@ impl ProcessBuilder {
     /// Run the command synchronously
     pub fn run(self) -> Result<ProcessOutput> {
         let start = std::time::Instant::now();
-        
+
         let mut cmd = Command::new(&self.command);
         cmd.args(&self.args);
 
@@ -147,7 +146,7 @@ impl ProcessBuilder {
     /// Run with streaming output
     fn run_streaming(self) -> Result<ProcessOutput> {
         let start = std::time::Instant::now();
-        
+
         let mut cmd = Command::new(&self.command);
         cmd.args(&self.args);
 
@@ -207,11 +206,11 @@ impl ProcessBuilder {
         };
 
         let status = child.wait()?;
-        
+
         let stdout = stdout_handle
             .map(|h| h.join().unwrap_or_default())
             .unwrap_or_default();
-        
+
         let stderr = stderr_handle
             .map(|h| h.join().unwrap_or_default())
             .unwrap_or_default();
@@ -227,7 +226,7 @@ impl ProcessBuilder {
     /// Run the command asynchronously
     pub async fn run_async(self) -> Result<ProcessOutput> {
         let start = tokio::time::Instant::now();
-        
+
         let mut cmd = TokioCommand::new(&self.command);
         cmd.args(&self.args);
 
@@ -321,7 +320,7 @@ fn wait_with_timeout(
                     }
                     anyhow::bail!("Process timed out after {:?}", duration);
                 }
-            }
+            },
             Err(e) => return Err(e.into()),
         }
 
@@ -352,14 +351,14 @@ where
     F: std::future::Future<Output = Result<ProcessOutput>> + Send,
 {
     use futures::future::join_all;
-    
+
     let results = join_all(futures).await;
-    
+
     let mut outputs = Vec::new();
     for result in results {
         outputs.push(result?);
     }
-    
+
     Ok(outputs)
 }
 
@@ -417,7 +416,7 @@ impl Pipeline {
             if let Some(stdout) = prev_stdout.take() {
                 cmd.stdin(stdout);
             }
-            
+
             if i < num_commands - 1 {
                 cmd.stdout(Stdio::piped());
             } else {
@@ -442,7 +441,7 @@ impl Pipeline {
         }
 
         let output = last_output.unwrap();
-        
+
         Ok(ProcessOutput {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
@@ -468,7 +467,7 @@ where
 
     let result = f();
     pb.finish_and_clear();
-    
+
     result
 }
 
@@ -488,7 +487,7 @@ where
 
     let result = f.await;
     pb.finish_and_clear();
-    
+
     result
 }
 

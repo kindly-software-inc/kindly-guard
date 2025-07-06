@@ -218,7 +218,7 @@ mod tests {
 
                 // Should return Ok or a proper error, never panic
                 match result {
-                    Ok(_) => { /* Success */ }
+                    Ok(_) => { /* Success */ },
                     Err(e) => {
                         // Error should be informative, not a panic
                         assert!(
@@ -226,7 +226,7 @@ mod tests {
                             "Unexpected panic-like error: {:?}",
                             e
                         );
-                    }
+                    },
                 }
             }
         }
@@ -315,7 +315,7 @@ mod tests {
             let result = neutralizer.neutralize(&threat, content).await;
 
             match result {
-                Ok(_) => { /* Success */ }
+                Ok(_) => { /* Success */ },
                 Err(e) => {
                     // Should be a controlled error, not memory corruption
                     assert!(
@@ -325,7 +325,7 @@ mod tests {
                         "Unexpected error type: {:?}",
                         e
                     );
-                }
+                },
             }
         }
     }

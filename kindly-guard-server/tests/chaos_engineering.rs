@@ -143,14 +143,14 @@ impl ChaosMonkey {
             FaultType::NetworkTimeout => {
                 sleep(Duration::from_secs(30)).await;
                 Err(KindlyError::TimeoutError(30))
-            }
+            },
             FaultType::NetworkError => Err(KindlyError::NetworkError("Network error".to_string())),
             FaultType::ResourceExhaustion => {
                 // Simulate resource exhaustion
                 let _memory_hog: Vec<u8> = vec![0; 100_000_000]; // 100MB
                 sleep(Duration::from_millis(100)).await;
                 Ok(())
-            }
+            },
             FaultType::MemoryPressure => {
                 // Allocate and deallocate memory rapidly
                 for _ in 0..100 {
@@ -158,7 +158,7 @@ impl ChaosMonkey {
                     sleep(Duration::from_micros(100)).await;
                 }
                 Ok(())
-            }
+            },
             FaultType::CpuSpike => {
                 // CPU intensive operation
                 let start = std::time::Instant::now();
@@ -166,18 +166,21 @@ impl ChaosMonkey {
                     let _ = (0..1000).fold(0u64, |acc, x| acc.wrapping_add(x * x));
                 }
                 Ok(())
-            }
-            FaultType::DiskFull => Err(KindlyError::ResourceError { resource: "disk".to_string(), limit: "full".to_string() }),
+            },
+            FaultType::DiskFull => Err(KindlyError::ResourceError {
+                resource: "disk".to_string(),
+                limit: "full".to_string(),
+            }),
             FaultType::RandomDelay => {
                 let mut rng = self.rng.lock().await;
                 let delay_ms = rng.gen_range(10..500);
                 sleep(Duration::from_millis(delay_ms)).await;
                 Ok(())
-            }
+            },
             FaultType::PartialResponse => {
                 // Return success but with incomplete data
                 Ok(())
-            }
+            },
             FaultType::CorruptedData => Err(KindlyError::InvalidInput {
                 reason: "Data corruption detected".to_string(),
             }),
@@ -388,11 +391,11 @@ async fn test_network_resilience() {
             // Inject potential network fault
             if let Some(fault) = chaos.inject_fault().await {
                 match chaos.apply_fault(fault).await {
-                    Ok(_) => {}
+                    Ok(_) => {},
                     Err(e) => {
                         metrics.record_error(&e);
                         return Err(e);
-                    }
+                    },
                 }
             }
 
@@ -404,14 +407,14 @@ async fn test_network_resilience() {
                     Ok(threats) => {
                         metrics.record_scan_success();
                         return Ok(threats.len());
-                    }
+                    },
                     Err(e) => {
                         if attempts >= 3 {
                             metrics.record_error(&e);
                             return Err(KindlyError::from(e));
                         }
                         sleep(Duration::from_millis(100 * attempts)).await;
-                    }
+                    },
                     Err(_) => {
                         if attempts >= 3 {
                             let e = KindlyError::TimeoutError(30);
@@ -419,7 +422,7 @@ async fn test_network_resilience() {
                             return Err(e);
                         }
                         sleep(Duration::from_millis(100 * attempts)).await;
-                    }
+                    },
                 }
             }
         });
@@ -495,21 +498,21 @@ async fn test_storage_consistency() {
                     match storage.retrieve(&key).await {
                         Ok(Some(stored)) => {
                             consistency.verify_operation(&key, Some(&stored)).await;
-                        }
+                        },
                         Ok(None) => {
                             error!("Key not found immediately after write: {}", key);
                             false
-                        }
+                        },
                         Err(e) => {
                             warn!("Read failed after write: {}", e);
                             false
-                        }
+                        },
                     }
-                }
+                },
                 Err(e) => {
                     warn!("Write failed: {}", e);
                     false
-                }
+                },
             }
         });
     }
@@ -574,7 +577,7 @@ async fn test_resource_exhaustion() {
                         resource: "permit".to_string(),
                         limit: "exhausted".to_string(),
                     })
-                }
+                },
             };
 
             // Simulate resource-intensive operation
@@ -604,9 +607,9 @@ async fn test_resource_exhaustion() {
             Ok(Err(e)) => match &e {
                 KindlyError::ResourceError { .. } => resource_errors += 1,
                 KindlyError::TimeoutError(_) => timeouts += 1,
-                _ => {}
+                _ => {},
             },
-            _ => {}
+            _ => {},
         }
     }
 
@@ -668,7 +671,7 @@ async fn test_circuit_breaker_chaos() {
             match cb.call("test_operation", operation).await {
                 Ok(_) => {
                     success_count.fetch_add(1, Ordering::Relaxed);
-                }
+                },
                 Err(e) => {
                     // Circuit breaker errors would be Internal errors
                     if matches!(&e, KindlyError::Internal(msg) if msg.contains("circuit")) {
@@ -746,8 +749,8 @@ async fn test_security_under_chaos() {
                     match fault {
                         FaultType::RandomDelay | FaultType::CpuSpike => {
                             let _ = chaos.apply_fault(fault).await;
-                        }
-                        _ => {} // Skip faults that would prevent scanning
+                        },
+                        _ => {}, // Skip faults that would prevent scanning
                     }
                 }
 
@@ -772,10 +775,10 @@ async fn test_security_under_chaos() {
                                 );
                             }
                         }
-                    }
+                    },
                     Err(e) => {
                         warn!("Scan error for payload {} #{}: {}", i, j, e);
-                    }
+                    },
                 }
             });
         }
@@ -832,8 +835,8 @@ async fn test_graceful_degradation() {
                     full_service.fetch_add(1, Ordering::Relaxed);
                     metrics.record_scan_success();
                     return;
-                }
-                _ => {}
+                },
+                _ => {},
             }
 
             // Fallback to basic pattern matching (degraded mode)
@@ -899,10 +902,10 @@ async fn test_recovery_after_chaos() {
             Ok(_) => {
                 phase1_success += 1;
                 metrics.record_scan_success();
-            }
+            },
             _ => {
                 metrics.record_error(&KindlyError::Internal("Scan failed".to_string()));
-            }
+            },
         }
 
         sleep(Duration::from_millis(50)).await;
@@ -928,10 +931,10 @@ async fn test_recovery_after_chaos() {
             Ok(_) => {
                 phase2_success += 1;
                 metrics.record_scan_success();
-            }
+            },
             _ => {
                 metrics.record_error(&KindlyError::Internal("Scan failed".to_string()));
-            }
+            },
         }
 
         sleep(Duration::from_millis(50)).await;
@@ -993,7 +996,7 @@ async fn test_multi_component_chaos() {
                 Err(e) => {
                     metrics.record_error(&e);
                     return Err(e);
-                }
+                },
             };
 
             // Step 2: Store scan results
@@ -1004,11 +1007,11 @@ async fn test_multi_component_chaos() {
                         .record_operation(key.clone(), result_data.clone())
                         .await;
                     metrics.record_storage_success();
-                }
+                },
                 Err(e) => {
                     metrics.record_error(&e);
                     return Err(e);
-                }
+                },
             }
 
             // Step 3: Verify storage
@@ -1022,14 +1025,14 @@ async fn test_multi_component_chaos() {
                             "Data consistency violation: mismatch".to_string(),
                         ))
                     }
-                }
+                },
                 Ok(None) => Err(KindlyError::Internal(
                     "Data not found after storage".to_string(),
                 )),
                 Err(e) => {
                     metrics.record_error(&e);
                     Err(e)
-                }
+                },
             }
         });
     }
@@ -1044,11 +1047,11 @@ async fn test_multi_component_chaos() {
             Ok(Err(_e)) => {
                 // Count errors by type (simplified without ErrorKind)
                 *failures.entry("error".to_string()).or_insert(0) += 1;
-            }
+            },
             Err(_) => {
                 // Count as generic failure
                 *failures.entry("panic".to_string()).or_insert(0) += 1;
-            }
+            },
         }
     }
 
@@ -1173,11 +1176,11 @@ async fn test_monitoring_during_chaos() {
 
             if let Some(fault) = chaos.inject_fault().await {
                 match chaos.apply_fault(fault).await {
-                    Ok(_) => {}
+                    Ok(_) => {},
                     Err(e) => {
                         metrics.record_error(&e);
                         return Err(e);
-                    }
+                    },
                 }
             }
 
@@ -1185,11 +1188,11 @@ async fn test_monitoring_during_chaos() {
                 Ok(_) => {
                     metrics.record_scan_success();
                     Ok(())
-                }
+                },
                 Err(e) => {
                     metrics.record_error(&KindlyError::from(e));
                     Err(KindlyError::from(e))
-                }
+                },
             }
         });
     }

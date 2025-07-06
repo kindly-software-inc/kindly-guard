@@ -42,7 +42,7 @@ fn main() {
         for _ in 0..1000 {
             match unicode_scanner.scan_text(text) {
                 Ok(threats) => total_threats += threats.len(),
-                Err(_) => {} // Ignore errors for benchmark
+                Err(_) => {}, // Ignore errors for benchmark
             }
         }
 
@@ -66,7 +66,7 @@ fn main() {
         Err(e) => {
             println!("Failed to create injection scanner: {}", e);
             return;
-        }
+        },
     };
 
     for (i, text) in test_texts.iter().enumerate() {
@@ -77,7 +77,7 @@ fn main() {
         for _ in 0..1000 {
             match injection_scanner.scan_text(text) {
                 Ok(threats) => total_threats += threats.len(),
-                Err(_) => {} // Ignore errors for benchmark
+                Err(_) => {}, // Ignore errors for benchmark
             }
         }
 

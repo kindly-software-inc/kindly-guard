@@ -264,7 +264,7 @@ impl NeutralizationMetricsSummary {
                             successful_recoveries += value;
                         }
                     }
-                }
+                },
                 Metric::Histogram {
                     name, sum, count, ..
                 } => {
@@ -275,14 +275,14 @@ impl NeutralizationMetricsSummary {
                         total_content_size += sum;
                         content_size_count += count;
                     }
-                }
+                },
                 Metric::Gauge { name, value, .. } => {
                     if name == "kindlyguard_neutralization_enhanced_mode" {
                         enhanced_mode = *value > 0.5;
                     } else if name == "kindlyguard_neutralization_circuit_breaker_state" {
                         circuit_breaker_state = *value;
                     }
-                }
+                },
             }
         }
 
@@ -373,7 +373,7 @@ mod tests {
         match success_rate {
             Some(Metric::Gauge { value, .. }) => {
                 assert!((value - 80.0).abs() < 0.01);
-            }
+            },
             _ => panic!("Expected success rate gauge"),
         }
     }

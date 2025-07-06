@@ -309,7 +309,7 @@ pub fn create_telemetry_provider(config: &crate::config::Config) -> Arc<dyn Tele
     // For now, use default telemetry config
     // TODO: Add telemetry config to main Config struct
     let telemetry_config = TelemetryConfig::default();
-    
+
     if telemetry_config.enabled {
         Arc::new(StandardTelemetryProvider::new(telemetry_config))
     } else {

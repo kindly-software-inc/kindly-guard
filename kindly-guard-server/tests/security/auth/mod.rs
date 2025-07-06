@@ -339,35 +339,35 @@ mod auth_security_tests {
             match attack.expected_result {
                 AuthResult::Success => {
                     assert!(result.is_ok(), "Expected success for {}", attack.name);
-                }
+                },
                 AuthResult::InvalidSignature => {
                     assert!(
                         result.is_err() || !result.as_ref().unwrap().authenticated,
                         "Expected invalid signature for {}",
                         attack.name
                     );
-                }
+                },
                 AuthResult::ExpiredToken => {
                     assert!(
                         result.is_err(),
                         "Expected expired token for {}",
                         attack.name
                     );
-                }
+                },
                 AuthResult::InvalidClaims => {
                     assert!(
                         result.is_err(),
                         "Expected invalid claims for {}",
                         attack.name
                     );
-                }
+                },
                 AuthResult::MalformedToken => {
                     assert!(
                         result.is_err() || !result.as_ref().unwrap().authenticated,
                         "Expected malformed token for {}",
                         attack.name
                     );
-                }
+                },
             }
         }
     }

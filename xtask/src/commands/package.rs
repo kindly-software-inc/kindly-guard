@@ -14,9 +14,9 @@ use walkdir::WalkDir;
 
 use crate::utils::{
     archive::{create_tar_gz, create_zip, CreateOptions},
-    npm,
+    ensure_command_exists, npm, spinner,
     version::get_version,
-    Context, ensure_command_exists, spinner, workspace_root,
+    workspace_root, Context,
 };
 
 #[derive(Args)]
@@ -74,9 +74,10 @@ pub async fn run(cmd: PackageCmd, ctx: Context) -> Result<()> {
 
     let targets = cmd.targets.clone().unwrap_or_else(default_targets);
     let output_dir = PathBuf::from(&cmd.output_dir);
-    let version = cmd.version.clone().unwrap_or_else(|| {
-        get_version(None).unwrap_or_else(|_| "0.1.0".to_string())
-    });
+    let version = cmd
+        .version
+        .clone()
+        .unwrap_or_else(|| get_version(None).unwrap_or_else(|_| "0.1.0".to_string()));
 
     ctx.info(&format!(
         "Packaging {} targets for version {}",
@@ -121,11 +122,7 @@ pub async fn run(cmd: PackageCmd, ctx: Context) -> Result<()> {
     Ok(())
 }
 
-async fn build_all_targets(
-    targets: &[String],
-    cmd: &PackageCmd,
-    ctx: &Context,
-) -> Result<()> {
+async fn build_all_targets(targets: &[String], cmd: &PackageCmd, ctx: &Context) -> Result<()> {
     let multi_progress = Arc::new(MultiProgress::new());
     let semaphore = Arc::new(Semaphore::new(num_cpus::get()));
     let mut handles = vec![];
@@ -416,14 +413,8 @@ async fn create_platform_npm_package(
     // Binary mapping
     let mut bin = serde_json::Map::new();
     for artifact in &artifacts {
-        let bin_name = artifact
-            .binary_name
-            .trim_end_matches(".exe")
-            .to_string();
-        bin.insert(
-            bin_name,
-            json!(format!("./bin/{}", artifact.binary_name)),
-        );
+        let bin_name = artifact.binary_name.trim_end_matches(".exe").to_string();
+        bin.insert(bin_name, json!(format!("./bin/{}", artifact.binary_name)));
     }
     package["bin"] = json!(bin);
 
@@ -431,13 +422,10 @@ async fn create_platform_npm_package(
     npm::write_package_json(&package_dir, &package)?;
 
     // Create .npmignore
-    npm::create_npmignore(&package_dir, &[
-        "*.tar.gz",
-        "*.zip",
-        "*.log",
-        ".DS_Store",
-        "Thumbs.db",
-    ])?;
+    npm::create_npmignore(
+        &package_dir,
+        &["*.tar.gz", "*.zip", "*.log", ".DS_Store", "Thumbs.db"],
+    )?;
 
     // Add README
     let readme_content = format!(

@@ -75,14 +75,14 @@ pub fn check_json_depth(value: &serde_json::Value, max_depth: usize) -> Result<(
                     max_child = max_child.max(measure_depth(v, current + 1, max)?);
                 }
                 Ok(max_child)
-            }
+            },
             serde_json::Value::Array(arr) => {
                 let mut max_child = current;
                 for v in arr {
                     max_child = max_child.max(measure_depth(v, current + 1, max)?);
                 }
                 Ok(max_child)
-            }
+            },
             _ => Ok(current),
         }
     }

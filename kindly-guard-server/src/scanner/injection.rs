@@ -231,7 +231,7 @@ impl InjectionScanner {
                 Err(e) => {
                     error!("Failed to compile session pattern regex: {}", e);
                     return threats;
-                }
+                },
             };
         if let Some(m) = session_pattern.find(text) {
             threats.push(Threat {

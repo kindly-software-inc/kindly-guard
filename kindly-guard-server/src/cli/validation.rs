@@ -171,10 +171,10 @@ pub fn sanitize_output(text: &str) -> String {
                         }
                     }
                 }
-            }
+            },
             _ if ch.is_control() => {
                 // Skip other control characters
-            }
+            },
             _ => result.push(ch),
         }
     }

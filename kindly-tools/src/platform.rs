@@ -90,7 +90,7 @@ impl Platform {
                 } else {
                     None
                 }
-            }
+            },
             Platform::MacOS => Some("brew"),
             Platform::Windows => Some("winget"),
             Platform::Unknown => None,
@@ -214,9 +214,7 @@ impl PlatformInfo {
         Self {
             platform: Platform::detect(),
             architecture: Architecture::detect(),
-            hostname: hostname::get()
-                .ok()
-                .and_then(|h| h.into_string().ok()),
+            hostname: hostname::get().ok().and_then(|h| h.into_string().ok()),
             username: std::env::var("USER")
                 .or_else(|_| std::env::var("USERNAME"))
                 .ok(),

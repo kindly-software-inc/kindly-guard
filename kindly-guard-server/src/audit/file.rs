@@ -24,8 +24,8 @@ use tokio::sync::Mutex;
 use tracing::{debug, info, warn};
 
 use super::{
-    AuditConfig, AuditEvent, AuditEventId, AuditFilter, AuditLogger,
-    AuditSeverity, AuditStats, ExportFormat, IntegrityReport, RotationStrategy,
+    AuditConfig, AuditEvent, AuditEventId, AuditFilter, AuditLogger, AuditSeverity, AuditStats,
+    ExportFormat, IntegrityReport, RotationStrategy,
 };
 
 /// File-based audit logger with rotation
@@ -396,7 +396,7 @@ impl AuditLogger for FileAuditLogger {
             ExportFormat::Json => {
                 let json = serde_json::to_string_pretty(&events)?;
                 Ok(json.into_bytes())
-            }
+            },
             ExportFormat::Csv => {
                 let mut wtr = csv::Writer::from_writer(vec![]);
 
@@ -425,7 +425,7 @@ impl AuditLogger for FileAuditLogger {
                 }
 
                 Ok(wtr.into_inner()?)
-            }
+            },
             ExportFormat::Syslog => {
                 // Same as memory implementation
                 let mut output = Vec::new();
@@ -452,7 +452,7 @@ impl AuditLogger for FileAuditLogger {
                 }
 
                 Ok(output)
-            }
+            },
             ExportFormat::Cef => {
                 // Same as memory implementation
                 let mut output = Vec::new();
@@ -478,7 +478,7 @@ impl AuditLogger for FileAuditLogger {
                 }
 
                 Ok(output)
-            }
+            },
         }
     }
 
@@ -506,9 +506,9 @@ impl AuditLogger for FileAuditLogger {
                                     self.file_path.file_name(),
                                     e
                                 ));
-                            }
+                            },
                         }
-                    }
+                    },
                     Err(e) => {
                         issues.push(format!(
                             "Line {} in {:?}: Read error: {}",
@@ -516,7 +516,7 @@ impl AuditLogger for FileAuditLogger {
                             self.file_path.file_name(),
                             e
                         ));
-                    }
+                    },
                 }
             }
         }

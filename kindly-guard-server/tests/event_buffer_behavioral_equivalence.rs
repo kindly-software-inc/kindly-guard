@@ -159,9 +159,6 @@ async fn test_invalid_endpoint_handling() -> Result<()> {
 
 #[tokio::test]
 async fn test_concurrent_access() -> Result<()> {
-    
-    
-
     // Only test if we have the enhanced feature
     #[cfg(feature = "enhanced")]
     {

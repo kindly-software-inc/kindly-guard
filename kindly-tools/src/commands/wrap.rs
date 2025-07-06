@@ -19,8 +19,8 @@ use colored::Colorize;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Command, Stdio};
 
-use kindly_guard_server::{Config as ServerConfig, SecurityScanner, Severity};
 use crate::config::{WrapConfig, WrapMode};
+use kindly_guard_server::{Config as ServerConfig, SecurityScanner, Severity};
 
 /// Wrap and protect any AI CLI command
 pub async fn wrap_command(command: Vec<String>, server: String, block: bool) -> Result<()> {
@@ -28,10 +28,7 @@ pub async fn wrap_command(command: Vec<String>, server: String, block: bool) -> 
         anyhow::bail!("No command specified");
     }
 
-    println!(
-        "{} Active",
-        "🛡️ KindlyGuard Protection:".green().bold()
-    );
+    println!("{} Active", "🛡️ KindlyGuard Protection:".green().bold());
     println!("{} {}", "Server:".dimmed(), server);
     println!(
         "{} {}",
@@ -97,7 +94,8 @@ pub async fn wrap_command(command: Vec<String>, server: String, block: bool) -> 
                 let threats = scanner.scan_text(&stdin_buf)?;
 
                 // Determine the highest severity level
-                let max_severity = threats.iter()
+                let max_severity = threats
+                    .iter()
                     .map(|t| t.severity)
                     .max()
                     .unwrap_or(Severity::Low);
@@ -107,15 +105,15 @@ pub async fn wrap_command(command: Vec<String>, server: String, block: bool) -> 
                     (true, _) => {
                         // No threats - display in green to indicate safe
                         format!("▶ {}", stdin_buf.trim()).green().to_string()
-                    }
+                    },
                     (false, Severity::Low | Severity::Medium) => {
                         // Low/Medium threats - display in yellow
                         format!("▶ {}", stdin_buf.trim()).yellow().to_string()
-                    }
+                    },
                     (false, Severity::High | Severity::Critical) => {
                         // High/Critical threats - display in red
                         format!("▶ {}", stdin_buf.trim()).red().to_string()
-                    }
+                    },
                 };
                 eprintln!("{}", colored_input);
 
@@ -139,11 +137,11 @@ pub async fn wrap_command(command: Vec<String>, server: String, block: bool) -> 
                 // Pass through to command
                 stdin.write_all(stdin_buf.as_bytes())?;
                 stdin.flush()?;
-            }
+            },
             Err(e) => {
                 eprintln!("Error reading input: {}", e);
                 break;
-            }
+            },
         }
     }
 
@@ -171,7 +169,10 @@ pub async fn wrap_command(command: Vec<String>, server: String, block: bool) -> 
 }
 
 /// Wrap command using configuration
-pub async fn wrap_command_with_config(command: Vec<String>, config: Option<WrapConfig>) -> Result<()> {
+pub async fn wrap_command_with_config(
+    command: Vec<String>,
+    config: Option<WrapConfig>,
+) -> Result<()> {
     if command.is_empty() {
         anyhow::bail!("No command specified");
     }
@@ -190,7 +191,7 @@ pub async fn wrap_command_with_config(command: Vec<String>, config: Option<WrapC
             .args(&command[1..])
             .status()
             .context("Failed to execute command")?;
-        
+
         if !status.success() {
             std::process::exit(status.code().unwrap_or(1));
         }
@@ -200,7 +201,7 @@ pub async fn wrap_command_with_config(command: Vec<String>, config: Option<WrapC
     // Use configuration settings
     let block = matches!(config.mode, WrapMode::Blocking);
     let server = config.server.clone();
-    
+
     wrap_command(command, server, block).await
 }
 
@@ -212,19 +213,35 @@ pub async fn init_wrap_config() -> Result<()> {
 /// Show current wrap configuration
 pub async fn show_wrap_config() -> Result<()> {
     let config = WrapConfig::load()?;
-    
+
     println!("{}", "KindlyGuard Wrap Configuration".green().bold());
     println!();
-    println!("{}: {}", "Enabled".dimmed(), if config.enabled { "Yes".green() } else { "No".red() });
+    println!(
+        "{}: {}",
+        "Enabled".dimmed(),
+        if config.enabled {
+            "Yes".green()
+        } else {
+            "No".red()
+        }
+    );
     println!("{}: {}", "Mode".dimmed(), config.mode_string());
     println!("{}: {}", "Server".dimmed(), config.server);
-    println!("{}: {}", "Verbose".dimmed(), if config.verbose { "Yes" } else { "No" });
-    println!("{}: {}", "Log Sessions".dimmed(), if config.log_sessions { "Yes" } else { "No" });
-    
+    println!(
+        "{}: {}",
+        "Verbose".dimmed(),
+        if config.verbose { "Yes" } else { "No" }
+    );
+    println!(
+        "{}: {}",
+        "Log Sessions".dimmed(),
+        if config.log_sessions { "Yes" } else { "No" }
+    );
+
     if let Some(log_dir) = &config.log_directory {
         println!("{}: {}", "Log Directory".dimmed(), log_dir.display());
     }
-    
+
     println!();
     println!("{}", "Wrapped Commands:".dimmed());
     let mut commands: Vec<_> = config.commands.iter().cloned().collect();
@@ -237,36 +254,44 @@ pub async fn show_wrap_config() -> Result<()> {
             println!("  • {}", cmd);
         }
     }
-    
+
     Ok(())
 }
 
 /// Add a command to the wrap list
 pub async fn add_wrap_command(command: String) -> Result<()> {
     let mut config = WrapConfig::load()?;
-    
+
     if config.commands.contains(&command) {
         println!("{} {} is already in the wrap list", "ℹ".blue(), command);
         return Ok(());
     }
-    
+
     config.add_command(command.clone());
     config.save()?;
-    
-    println!("{} Added {} to wrap list", "✓".green(), command.green().bold());
+
+    println!(
+        "{} Added {} to wrap list",
+        "✓".green(),
+        command.green().bold()
+    );
     Ok(())
 }
 
 /// Remove a command from the wrap list
 pub async fn remove_wrap_command(command: String) -> Result<()> {
     let mut config = WrapConfig::load()?;
-    
+
     if config.remove_command(&command) {
         config.save()?;
-        println!("{} Removed {} from wrap list", "✓".green(), command.green().bold());
+        println!(
+            "{} Removed {} from wrap list",
+            "✓".green(),
+            command.green().bold()
+        );
     } else {
         println!("{} {} is not in the wrap list", "ℹ".blue(), command);
     }
-    
+
     Ok(())
 }

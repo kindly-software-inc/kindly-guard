@@ -282,23 +282,23 @@ impl KindlyError {
             Self::ThreatDetected { .. } => {
                 // NEVER expose threat details to avoid information leakage
                 "Security threat detected: policy violation".to_string()
-            }
+            },
             Self::AuthError { .. } => {
                 // Generic message - don't reveal why auth failed
                 "Authentication failed. Please check your credentials.".to_string()
-            }
+            },
             Self::Unauthorized { .. } => {
                 // Don't reveal what action was attempted
                 "Unauthorized access".to_string()
-            }
+            },
             Self::TimeoutError(_) => {
                 // Don't reveal exact timeout to prevent timing attacks
                 "Operation timed out".to_string()
-            }
+            },
             Self::ResourceError { .. } => {
                 // Don't reveal specific resource or limits
                 "Resource limit exceeded".to_string()
-            }
+            },
             _ => self.to_string(),
         }
     }
@@ -399,11 +399,11 @@ pub mod recovery {
                         max_attempts,
                         e
                     ));
-                }
+                },
                 Err(_) => {
                     sleep(Duration::from_millis(delay)).await;
                     delay = (delay * 2).min(30_000); // Cap at 30 seconds
-                }
+                },
             }
         }
     }
@@ -441,16 +441,16 @@ pub mod handlers {
         let hint = match error.kind() {
             io::ErrorKind::NotFound => {
                 format!("File '{path}' not found. Check the path and try again.")
-            }
+            },
             io::ErrorKind::PermissionDenied => {
                 format!("Permission denied for '{path}'. Check file permissions.")
-            }
+            },
             io::ErrorKind::InvalidData => {
                 "File contains invalid data. It may be corrupted.".to_string()
-            }
+            },
             _ => {
                 format!("Failed to access '{path}': {error}")
-            }
+            },
         };
 
         ErrorContext::new(
@@ -468,7 +468,7 @@ pub mod handlers {
             "feature" => "Valid features: unicode, injection, path, advanced.".to_string(),
             _ => {
                 format!("Check the {field} value and try again.")
-            }
+            },
         };
 
         ErrorContext::new(

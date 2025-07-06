@@ -256,12 +256,12 @@ impl<N> AuditedNeutralizer<N> {
                     .log_completion(threat, &result, start.elapsed())
                     .await?;
                 Ok(result)
-            }
+            },
             Err(e) => {
                 // Log failure
                 context.log_failure(threat, &e.to_string()).await?;
                 Err(e)
-            }
+            },
         }
     }
 }

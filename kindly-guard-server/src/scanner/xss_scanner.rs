@@ -64,13 +64,13 @@ impl StandardXssScanner {
                     } else {
                         compiled_patterns.push(regex);
                     }
-                }
+                },
                 Err(e) => {
                     return Err(ScanError::InvalidInput(format!(
                         "Invalid XSS regex pattern '{}': {}",
                         pattern, e
                     )));
-                }
+                },
             }
         }
 

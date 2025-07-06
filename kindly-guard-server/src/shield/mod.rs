@@ -180,18 +180,17 @@ impl Shield {
         // Calculate recent threat rate (threats per minute in last 5 minutes)
         let recent_rate = match self.recent_threats.lock() {
             Ok(recent) => {
-                let five_mins_ago = now.checked_sub(Duration::from_secs(300))
-                    .unwrap_or(now); // If subtraction fails (shouldn't happen), use current time
+                let five_mins_ago = now.checked_sub(Duration::from_secs(300)).unwrap_or(now); // If subtraction fails (shouldn't happen), use current time
                 let recent_count = recent
                     .iter()
                     .filter(|t| t.timestamp > five_mins_ago)
                     .count() as f64;
                 recent_count / 5.0 // per minute
-            }
+            },
             Err(e) => {
                 error!("Failed to acquire recent threats lock: {}", e);
                 0.0 // Default to 0 on error
-            }
+            },
         };
 
         // Check for attack patterns if processor is available
@@ -228,7 +227,7 @@ impl Shield {
             Err(e) => {
                 error!("Failed to acquire recent threats lock: {}", e);
                 vec![]
-            }
+            },
         }
     }
 
@@ -243,11 +242,11 @@ impl Shield {
                     *stats.entry(item.threat.threat_type.clone()).or_insert(0) += 1;
                 }
                 stats
-            }
+            },
             Err(e) => {
                 error!("Failed to acquire recent threats lock: {}", e);
                 HashMap::new()
-            }
+            },
         }
     }
 
@@ -281,7 +280,7 @@ impl Shield {
             Err(e) => {
                 error!("Failed to acquire recent threats lock: {}", e);
                 None
-            }
+            },
         }
     }
 
@@ -299,14 +298,14 @@ impl Shield {
                                 | crate::scanner::ThreatType::UnicodeBiDi
                                 | crate::scanner::ThreatType::UnicodeHomograph => {
                                     (unicode + 1, injection)
-                                }
+                                },
 
                                 crate::scanner::ThreatType::SqlInjection
                                 | crate::scanner::ThreatType::CommandInjection
                                 | crate::scanner::ThreatType::PromptInjection
                                 | crate::scanner::ThreatType::PathTraversal => {
                                     (unicode, injection + 1)
-                                }
+                                },
 
                                 _ => (unicode, injection),
                             }
@@ -317,7 +316,7 @@ impl Shield {
                     injection_threats_detected: injection_count,
                     total_scans: self.threats_blocked.load(Ordering::Relaxed),
                 }
-            }
+            },
             Err(_) => crate::scanner::ScannerStats {
                 unicode_threats_detected: 0,
                 injection_threats_detected: 0,

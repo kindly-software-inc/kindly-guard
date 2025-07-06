@@ -41,13 +41,18 @@ pub fn create_enhanced_event_buffer(
         buffer_size_mb: usize,
         max_endpoints: u32,
     }
-    
+
     impl EventBufferTrait for EnhancedEventBuffer {
-        fn enqueue_event(&self, _endpoint_id: u32, _data: &[u8], _priority: crate::traits::Priority) -> Result<u64> {
+        fn enqueue_event(
+            &self,
+            _endpoint_id: u32,
+            _data: &[u8],
+            _priority: crate::traits::Priority,
+        ) -> Result<u64> {
             // Simple implementation - just return a sequential ID
             Ok(0) // In production, this would maintain state
         }
-        
+
         fn get_endpoint_stats(&self, _endpoint_id: u32) -> Result<crate::traits::EndpointStats> {
             // Return default stats for enhanced implementation
             Ok(crate::traits::EndpointStats {
@@ -58,7 +63,7 @@ pub fn create_enhanced_event_buffer(
             })
         }
     }
-    
+
     Ok(EnhancedEventBuffer {
         buffer_size_mb,
         max_endpoints,
@@ -166,13 +171,10 @@ impl ResilienceFactory for EnhancedComponentFactory {
             crate::resilience::standard::StandardRecoveryStrategy::new(),
         ))
     }
-    
-    fn create_bulkhead(
-        &self,
-        config: &Config,
-    ) -> Result<Arc<dyn crate::resilience::DynBulkhead>> {
+
+    fn create_bulkhead(&self, config: &Config) -> Result<Arc<dyn crate::resilience::DynBulkhead>> {
         use crate::resilience::bulkhead::{BulkheadWrapper, StandardBulkhead};
-        
+
         #[cfg(feature = "enhanced")]
         {
             use crate::resilience::bulkhead::EnhancedBulkhead;

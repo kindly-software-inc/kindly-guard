@@ -1,0 +1,167 @@
+# KindlyGuard Parallel CI/CD Configuration
+# This file configures the parallel CI system for maximum hardware utilization
+
+[parallel_ci]
+# Maximum number of parallel tasks (defaults to CPU count)
+max_parallel_builds = 4
+max_parallel_tests = 8
+
+# Enable real-time TUI dashboard
+enable_dashboard = true
+
+# Fail fast on first error
+fail_fast = false
+
+# Timeout for individual tasks (in seconds)
+task_timeout = 600
+
+[targets]
+# Target platforms to build and test
+# Format: ["triple", "triple", ...]
+linux = ["x86_64-unknown-linux-gnu", "aarch64-unknown-linux-gnu"]
+macos = ["x86_64-apple-darwin", "aarch64-apple-darwin"]
+windows = ["x86_64-pc-windows-msvc"]
+wasm = ["wasm32-unknown-unknown"]
+
+# Default targets for local development
+default = ["x86_64-unknown-linux-gnu"]
+
+[smoke_tests]
+# Quick smoke tests for rapid validation
+quick = [
+    "--version",
+    "--help",
+    "scan --help",
+    "server --help"
+]
+
+# Integration smoke tests
+integration = [
+    "server --test --timeout 5s",
+    "scan test-files/simple.json",
+    "config --validate"
+]
+
+# Platform-specific smoke tests
+[smoke_tests.platform]
+linux = ["server --stdio --test"]
+macos = ["server --stdio --test"]
+windows = ["server.exe --stdio --test"]
+
+[cache]
+# Cache backend configuration
+backend = "sccache"
+
+# Sccache configuration
+[cache.sccache]
+# Storage backend: "local", "redis", "s3", "gha"
+storage = "local"
+
+# Maximum cache size
+max_size = "10GB"
+
+# Local storage directory (if storage = "local")
+local_dir = ".ci/cache/sccache"
+
+# Redis configuration (if storage = "redis")
+# redis_url = "redis://localhost:6379"
+
+# S3 configuration (if storage = "s3")
+# s3_bucket = "my-sccache-bucket"
+# s3_region = "us-east-1"
+
+[pipelines]
+# Pipeline-specific configuration
+
+[pipelines.format]
+enabled = true
+priority = 100
+# Check-only mode (don't fix automatically)
+check_only = true
+
+[pipelines.build]
+enabled = true
+priority = 90
+# Build in release mode
+release_mode = true
+# Features to enable
+features = "all"
+
+[pipelines.test]
+enabled = true
+priority = 80
+# Use nextest if available
+use_nextest = true
+# Nextest profile to use
+nextest_profile = "ci"
+# Generate coverage report
+coverage = true
+# Retry flaky tests
+retry_count = 2
+
+[pipelines.security]
+enabled = true
+priority = 70
+# Generate SARIF output for GitHub
+generate_sarif = true
+# Fail on critical vulnerabilities
+fail_on_critical = true
+# Security tools to run
+tools = ["cargo-audit", "cargo-deny", "cargo-geiger"]
+
+[pipelines.benchmark]
+enabled = true
+priority = 50
+# Compare against baseline
+baseline = "main"
+# Fail on performance regression
+fail_on_regression = true
+# Regression threshold (percentage)
+regression_threshold = 10.0
+
+[pipelines.package]
+enabled = true
+priority = 40
+# Create NPM packages
+create_npm = true
+# Generate checksums
+create_checksums = true
+# Compression level (1-9)
+compression_level = 6
+
+[monitoring]
+# System resource monitoring
+cpu_threshold = 90.0
+memory_threshold = 85.0
+disk_io_threshold = 80.0
+
+# Alert when thresholds exceeded
+enable_alerts = true
+
+[reporting]
+# Report generation
+generate_html = true
+generate_json = true
+generate_junit = true
+
+# Report locations
+reports_dir = ".ci/reports"
+logs_dir = ".ci/logs"
+artifacts_dir = ".ci/artifacts"
+
+# Keep last N reports
+keep_reports = 10
+
+[github_actions]
+# GitHub Actions specific configuration
+# Use matrix strategy for parallel jobs
+use_matrix = true
+
+# Upload artifacts
+upload_artifacts = true
+
+# Cache dependencies
+cache_dependencies = true
+
+# Generate job summaries
+generate_summaries = true

@@ -1,13 +1,13 @@
 use anyhow::Result;
+use chrono::Utc;
 use clap::Args;
 use colored::*;
+use serde_json;
 use std::path::Path;
 use std::time::Duration;
-use chrono::Utc;
-use serde_json;
 
 use crate::test::{FlakyTestManager, TestExecution};
-use crate::utils::{Context, ensure_command_exists, spinner};
+use crate::utils::{ensure_command_exists, spinner, Context};
 
 #[derive(Args)]
 pub struct TestCmd {
@@ -84,7 +84,9 @@ pub async fn run(cmd: TestCmd, ctx: Context) -> Result<()> {
     // Handle flaky test management commands
     if let Some(test_name) = &cmd.quarantine {
         ctx.info(&format!("Quarantining test: {}", test_name));
-        flaky_manager.quarantine_test(test_name, "Manually quarantined via xtask".to_string()).await?;
+        flaky_manager
+            .quarantine_test(test_name, "Manually quarantined via xtask".to_string())
+            .await?;
         ctx.success("Test quarantined successfully");
         return Ok(());
     }
@@ -104,9 +106,12 @@ pub async fn run(cmd: TestCmd, ctx: Context) -> Result<()> {
             println!("\n{}", "Quarantined Tests:".bold());
             println!("{}", "=".repeat(50));
             for (name, stats) in quarantined {
-                println!("{} - {}", 
-                    name.red(), 
-                    stats.quarantine_reason.unwrap_or_else(|| "No reason provided".to_string())
+                println!(
+                    "{} - {}",
+                    name.red(),
+                    stats
+                        .quarantine_reason
+                        .unwrap_or_else(|| "No reason provided".to_string())
                 );
             }
         }
@@ -117,64 +122,73 @@ pub async fn run(cmd: TestCmd, ctx: Context) -> Result<()> {
         ctx.info("Generating nextest configuration for flaky tests...");
         let config = flaky_manager.generate_nextest_config().await?;
         let config_path = workspace_root.join(".config").join("nextest.toml");
-        
+
         // Ensure directory exists
         if let Some(parent) = config_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
-        
+
         std::fs::write(&config_path, config)?;
-        ctx.success(&format!("Nextest configuration written to {}", config_path.display()));
+        ctx.success(&format!(
+            "Nextest configuration written to {}",
+            config_path.display()
+        ));
         return Ok(());
     }
 
     if cmd.flaky_report {
         ctx.info("Generating flaky test report...");
         let report = flaky_manager.generate_report(&ctx).await?;
-        
+
         // Save JSON report
         let json_path = workspace_root.join("target").join("flaky-tests.json");
         report.save_to_file(&json_path).await?;
-        
+
         // Save HTML report
         let html_path = workspace_root.join("target").join("flaky-tests.html");
         report.save_as_html(&html_path).await?;
-        
+
         ctx.success("Flaky test reports generated:");
         ctx.info(&format!("  JSON: {}", json_path.display()));
         ctx.info(&format!("  HTML: {}", html_path.display()));
-        
+
         // Print summary
         println!("\n{}", "Summary:".bold());
         println!("Total tests tracked: {}", report.total_tests);
         println!("Flaky tests: {}", report.flaky_tests.to_string().yellow());
-        println!("Quarantined tests: {}", report.quarantined_tests.to_string().red());
-        
+        println!(
+            "Quarantined tests: {}",
+            report.quarantined_tests.to_string().red()
+        );
+
         return Ok(());
     }
 
     // If using nextest, ensure it's installed and configured
     if cmd.nextest {
         ensure_command_exists("cargo-nextest")?;
-        
+
         // Apply flaky test configuration if requested
         if cmd.flaky_retries {
             ctx.info("Applying flaky test retry policies to nextest...");
             let config = flaky_manager.generate_nextest_config().await?;
             let config_path = workspace_root.join(".config").join("nextest.toml");
-            
+
             if let Some(parent) = config_path.parent() {
                 std::fs::create_dir_all(parent)?;
             }
-            
+
             std::fs::write(&config_path, config)?;
-            ctx.debug(&format!("Nextest config written to {}", config_path.display()));
+            ctx.debug(&format!(
+                "Nextest config written to {}",
+                config_path.display()
+            ));
         }
     }
 
     // Determine which test suites to run
     let run_all = !cmd.unit && !cmd.integration && !cmd.bench && !cmd.security;
-    
+
     let mut test_results = TestResults::new();
 
     // Unit tests
@@ -250,11 +264,15 @@ impl TestResults {
     }
 }
 
-async fn run_unit_tests(cmd: &TestCmd, ctx: &Context, flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
+async fn run_unit_tests(
+    cmd: &TestCmd,
+    ctx: &Context,
+    flaky_manager: std::sync::Arc<FlakyTestManager>,
+) -> Result<TestResult> {
     let spinner = spinner("Running unit tests");
-    
+
     let start = std::time::Instant::now();
-    
+
     let output = if cmd.nextest {
         ensure_command_exists("cargo-nextest")?;
         run_nextest_tests_with_output(cmd, ctx, false).await?
@@ -267,7 +285,7 @@ async fn run_unit_tests(cmd: &TestCmd, ctx: &Context, flaky_manager: std::sync::
 
     // Parse and record test results
     let result = parse_test_output(&output, duration)?;
-    
+
     // Record executions for flaky test tracking
     if let Ok(test_events) = parse_detailed_test_results(&output) {
         for event in test_events {
@@ -287,9 +305,13 @@ async fn run_unit_tests(cmd: &TestCmd, ctx: &Context, flaky_manager: std::sync::
     Ok(result)
 }
 
-async fn run_integration_tests(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
+async fn run_integration_tests(
+    cmd: &TestCmd,
+    ctx: &Context,
+    _flaky_manager: std::sync::Arc<FlakyTestManager>,
+) -> Result<TestResult> {
     let spinner = spinner("Running integration tests");
-    
+
     let start = std::time::Instant::now();
 
     // Check if integration tests exist
@@ -320,22 +342,26 @@ async fn run_integration_tests(cmd: &TestCmd, ctx: &Context, _flaky_manager: std
     })
 }
 
-async fn run_security_tests(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
+async fn run_security_tests(
+    cmd: &TestCmd,
+    ctx: &Context,
+    _flaky_manager: std::sync::Arc<FlakyTestManager>,
+) -> Result<TestResult> {
     let spinner = spinner("Running security tests");
-    
+
     let start = std::time::Instant::now();
 
     // Run specific security test suites
     let mut args = vec!["test"];
-    
+
     // Add package filter if specified
     if let Some(package) = &cmd.package {
         args.extend(&["-p", package]);
     }
-    
+
     // Include all features to ensure all tests can run
     args.push("--all-features");
-    
+
     // Run tests that match security patterns
     args.extend(&["--", "security", "threat", "vulnerability"]);
 
@@ -359,9 +385,13 @@ async fn run_security_tests(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::s
     })
 }
 
-async fn run_benchmarks(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::sync::Arc<FlakyTestManager>) -> Result<TestResult> {
+async fn run_benchmarks(
+    cmd: &TestCmd,
+    ctx: &Context,
+    _flaky_manager: std::sync::Arc<FlakyTestManager>,
+) -> Result<TestResult> {
     let spinner = spinner("Running benchmarks");
-    
+
     let start = std::time::Instant::now();
 
     // Check if benchmarks exist
@@ -376,7 +406,7 @@ async fn run_benchmarks(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::sync:
     }
 
     let mut args = vec!["bench"];
-    
+
     if let Some(package) = &cmd.package {
         args.extend(&["-p", package]);
     }
@@ -402,7 +432,7 @@ async fn run_benchmarks(cmd: &TestCmd, ctx: &Context, _flaky_manager: std::sync:
 
 async fn run_cargo_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> Result<()> {
     let mut args = vec!["test"];
-    
+
     if let Some(package) = &cmd.package {
         args.extend(&["-p", package]);
     }
@@ -433,19 +463,19 @@ async fn run_cargo_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> Res
 
 async fn run_nextest_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> Result<()> {
     let mut nextest_args = crate::utils::nextest::NextestArgs::default();
-    
+
     // Set profile if specified
     nextest_args.profile = cmd.nextest_profile.clone();
-    
+
     // Set package if specified
     nextest_args.package = cmd.package.clone();
-    
+
     // Set features
     nextest_args.all_features = true;
-    
+
     // Set test threads
     nextest_args.jobs = cmd.test_threads;
-    
+
     // Add integration test filter if needed
     if integration {
         nextest_args.filter = Some("test(integration)".to_string());
@@ -454,10 +484,10 @@ async fn run_nextest_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> R
         nextest_args.extra_args.push("--lib".to_string());
         nextest_args.extra_args.push("--bins".to_string());
     }
-    
+
     // Add extra args from command
     nextest_args.extra_args.extend(cmd.args.clone());
-    
+
     // Run tests
     crate::utils::nextest::run_tests(nextest_args).await?;
     Ok(())
@@ -465,20 +495,20 @@ async fn run_nextest_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> R
 
 async fn generate_coverage(cmd: &TestCmd, ctx: &Context) -> Result<()> {
     ensure_command_exists("cargo-llvm-cov")?;
-    
+
     let spinner = spinner("Generating coverage report");
 
     let mut args = vec!["llvm-cov"];
-    
+
     if cmd.nextest {
         args.push("nextest");
     }
 
     args.extend(&["--all-features", "--workspace"]);
-    
+
     // Generate both HTML and lcov reports
     args.extend(&["--html", "--lcov"]);
-    
+
     // Output directory
     args.extend(&["--output-dir", "target/coverage"]);
 
@@ -575,9 +605,13 @@ struct TestEvent {
 }
 
 // Run cargo test with captured output
-async fn run_cargo_tests_with_output(cmd: &TestCmd, _ctx: &Context, integration: bool) -> Result<String> {
+async fn run_cargo_tests_with_output(
+    cmd: &TestCmd,
+    _ctx: &Context,
+    integration: bool,
+) -> Result<String> {
     let mut args = vec!["test"];
-    
+
     if let Some(package) = &cmd.package {
         args.extend(&["-p", package]);
     }
@@ -590,7 +624,7 @@ async fn run_cargo_tests_with_output(cmd: &TestCmd, _ctx: &Context, integration:
     }
 
     args.push("--all-features");
-    
+
     // Add JSON output for parsing
     args.extend(&["--", "--format", "json", "-Z", "unstable-options"]);
 
@@ -609,14 +643,18 @@ async fn run_cargo_tests_with_output(cmd: &TestCmd, _ctx: &Context, integration:
         .args(&args)
         .env("CARGO_TERM_COLOR", "never")
         .output()?;
-    
+
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
 // Run nextest with captured output
-async fn run_nextest_tests_with_output(cmd: &TestCmd, _ctx: &Context, integration: bool) -> Result<String> {
+async fn run_nextest_tests_with_output(
+    cmd: &TestCmd,
+    _ctx: &Context,
+    integration: bool,
+) -> Result<String> {
     let mut args = vec!["nextest", "run"];
-    
+
     if let Some(package) = &cmd.package {
         args.extend(&["-p", package]);
     }
@@ -630,7 +668,7 @@ async fn run_nextest_tests_with_output(cmd: &TestCmd, _ctx: &Context, integratio
     }
 
     args.push("--all-features");
-    
+
     // Add JSON output
     args.extend(&["--message-format", "json"]);
 
@@ -648,7 +686,7 @@ async fn run_nextest_tests_with_output(cmd: &TestCmd, _ctx: &Context, integratio
         .args(&args)
         .env("CARGO_TERM_COLOR", "never")
         .output()?;
-    
+
     Ok(String::from_utf8_lossy(&output.stdout).into_owned())
 }
 
@@ -658,7 +696,7 @@ fn parse_test_output(output: &str, duration: Duration) -> Result<TestResult> {
     let mut passed = 0;
     let mut failed = 0;
     let mut ignored = 0;
-    
+
     // Look for test result summary line
     for line in output.lines() {
         if line.contains("test result:") {
@@ -671,7 +709,10 @@ fn parse_test_output(output: &str, duration: Duration) -> Result<TestResult> {
             if line.contains("failed") {
                 if let Some(failed_match) = line.split("failed").next() {
                     if let Some(num_str) = failed_match.split(';').last() {
-                        failed = num_str.trim().split_whitespace().last()
+                        failed = num_str
+                            .trim()
+                            .split_whitespace()
+                            .last()
                             .and_then(|s| s.parse().ok())
                             .unwrap_or(0);
                     }
@@ -680,7 +721,10 @@ fn parse_test_output(output: &str, duration: Duration) -> Result<TestResult> {
             if line.contains("ignored") {
                 if let Some(ignored_match) = line.split("ignored").next() {
                     if let Some(num_str) = ignored_match.split(';').last() {
-                        ignored = num_str.trim().split_whitespace().last()
+                        ignored = num_str
+                            .trim()
+                            .split_whitespace()
+                            .last()
                             .and_then(|s| s.parse().ok())
                             .unwrap_or(0);
                     }
@@ -688,7 +732,7 @@ fn parse_test_output(output: &str, duration: Duration) -> Result<TestResult> {
             }
         }
     }
-    
+
     Ok(TestResult {
         passed,
         failed,
@@ -700,7 +744,7 @@ fn parse_test_output(output: &str, duration: Duration) -> Result<TestResult> {
 // Parse detailed test results for flaky tracking
 fn parse_detailed_test_results(output: &str) -> Result<Vec<TestEvent>> {
     let mut events = Vec::new();
-    
+
     // Parse JSON lines if available
     for line in output.lines() {
         if let Ok(json) = serde_json::from_str::<serde_json::Value>(line) {
@@ -708,20 +752,23 @@ fn parse_detailed_test_results(output: &str) -> Result<Vec<TestEvent>> {
                 if test_type == "test" {
                     if let (Some(name), Some(event)) = (
                         json.get("name").and_then(|v| v.as_str()),
-                        json.get("event").and_then(|v| v.as_str())
+                        json.get("event").and_then(|v| v.as_str()),
                     ) {
                         let passed = event == "ok";
-                        let duration = json.get("exec_time")
+                        let duration = json
+                            .get("exec_time")
                             .and_then(|v| v.as_f64())
                             .map(|secs| Duration::from_secs_f64(secs))
                             .unwrap_or_default();
-                        
+
                         let error_message = if !passed {
-                            json.get("stdout").and_then(|v| v.as_str()).map(String::from)
+                            json.get("stdout")
+                                .and_then(|v| v.as_str())
+                                .map(String::from)
                         } else {
                             None
                         };
-                        
+
                         events.push(TestEvent {
                             name: name.to_string(),
                             passed,
@@ -734,6 +781,6 @@ fn parse_detailed_test_results(output: &str) -> Result<Vec<TestEvent>> {
             }
         }
     }
-    
+
     Ok(events)
 }

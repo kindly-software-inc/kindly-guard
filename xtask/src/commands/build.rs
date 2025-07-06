@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
-use crate::utils::{Context, ensure_command_exists};
+use crate::utils::{ensure_command_exists, Context};
 
 #[derive(Args)]
 pub struct BuildCmd {
@@ -42,8 +42,7 @@ pub async fn run(cmd: BuildCmd, ctx: Context) -> Result<()> {
     ctx.info(&format!("Building for {} targets", targets.len()));
 
     // Create output directory
-    std::fs::create_dir_all(&output_dir)
-        .context("Failed to create output directory")?;
+    std::fs::create_dir_all(&output_dir).context("Failed to create output directory")?;
 
     // Setup progress tracking
     let multi_progress = Arc::new(MultiProgress::new());
@@ -86,7 +85,7 @@ pub async fn run(cmd: BuildCmd, ctx: Context) -> Result<()> {
             Err(e) => {
                 ctx.error(&format!("✗ {}: {}", target, e));
                 failed = true;
-            }
+            },
         }
     }
 
@@ -137,7 +136,7 @@ async fn build_target(
 
     // Build arguments
     let mut args = vec!["build", "--target", target];
-    
+
     if cmd.release {
         args.push("--release");
     }
@@ -156,7 +155,8 @@ async fn build_target(
 
     // Process each binary
     for binary_path in binary_paths {
-        let binary_name = binary_path.file_name()
+        let binary_name = binary_path
+            .file_name()
             .context("Invalid binary name")?
             .to_string_lossy();
 
@@ -171,8 +171,7 @@ async fn build_target(
 
         // Copy binary
         let dest_path = platform_dir.join(binary_name.as_ref());
-        std::fs::copy(&binary_path, &dest_path)
-            .context("Failed to copy binary")?;
+        std::fs::copy(&binary_path, &dest_path).context("Failed to copy binary")?;
 
         // Create archive if requested
         if cmd.archive {
@@ -186,9 +185,8 @@ async fn build_target(
 
 fn should_use_cross(target: &str) -> bool {
     // Use cross for cross-compilation targets
-    let host = std::env::var("HOST").unwrap_or_else(|_| {
-        std::env::consts::ARCH.to_string() + "-" + std::env::consts::OS
-    });
+    let host = std::env::var("HOST")
+        .unwrap_or_else(|_| std::env::consts::ARCH.to_string() + "-" + std::env::consts::OS);
 
     // Special cases where we always use cross
     let always_cross = [
@@ -205,20 +203,20 @@ fn should_use_cross(target: &str) -> bool {
 
 fn find_binaries(target: &str, build_type: &str) -> Result<Vec<PathBuf>> {
     let target_dir = PathBuf::from("target").join(target).join(build_type);
-    
+
     let mut binaries = vec![];
-    
+
     // Look for known binary names
     let binary_names = ["kindly-guard", "kindly-guard-server", "kindly-tools"];
-    
+
     for name in &binary_names {
         let mut path = target_dir.join(name);
-        
+
         // Add .exe extension for Windows
         if target.contains("windows") {
             path.set_extension("exe");
         }
-        
+
         if path.exists() {
             binaries.push(path);
         }
@@ -262,7 +260,7 @@ fn create_archive(
     binary_name: &str,
 ) -> Result<()> {
     let archive_name = format!("{}-{}", binary_name.trim_end_matches(".exe"), target);
-    
+
     if target.contains("windows") {
         // Create ZIP for Windows
         let archive_path = output_dir.join(format!("{}.zip", archive_name));
@@ -278,21 +276,21 @@ fn create_archive(
 
 fn create_zip_archive(src_dir: &Path, dest_path: &Path) -> Result<()> {
     use crate::utils::archive::{create_zip, CreateOptions};
-    
+
     let mut options = CreateOptions::default();
     options.compression_level = 6;
     options.preserve_permissions = true;
-    
+
     create_zip(dest_path, src_dir, options)
 }
 
 fn create_tar_archive(src_dir: &Path, dest_path: &Path) -> Result<()> {
     use crate::utils::archive::{create_tar_gz, CreateOptions};
-    
+
     let mut options = CreateOptions::default();
     options.compression_level = 6;
     options.preserve_permissions = true;
-    
+
     create_tar_gz(dest_path, src_dir, options)
 }
 

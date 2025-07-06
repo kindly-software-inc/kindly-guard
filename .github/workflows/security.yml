@@ -4,10 +4,9 @@ on:
   schedule:
     - cron: '0 2 * * 1'  # Weekly on Monday
   push:
-    branches: [main, master]
-  pull_request:
-    branches: [main, master]
-  workflow_dispatch:
+    tags:
+      - 'v*.*.*'  # Run on version tags
+  workflow_dispatch:  # Allow manual trigger
 
 permissions:
   contents: read

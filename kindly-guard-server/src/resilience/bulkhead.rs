@@ -30,10 +30,10 @@ use crate::config::Config;
 pub enum BulkheadError {
     #[error("Bulkhead full: {name}")]
     BulkheadFull { name: String },
-    
+
     #[error("Execution failed: {0}")]
     ExecutionFailed(#[from] anyhow::Error),
-    
+
     #[error("Timeout: {name}")]
     Timeout { name: String },
 }
@@ -58,10 +58,10 @@ pub trait BulkheadTrait: Send + Sync {
         F: FnOnce() -> Fut + Send,
         Fut: std::future::Future<Output = Result<T>> + Send,
         T: Send;
-    
+
     /// Get bulkhead statistics
     fn stats(&self, name: &str) -> BulkheadStats;
-    
+
     /// Check if bulkhead has capacity
     fn has_capacity(&self, name: &str) -> bool;
 }
@@ -86,14 +86,14 @@ impl StandardBulkhead {
     pub fn from_config(config: &Config) -> Self {
         let max_concurrent = config.resilience.bulkhead.max_concurrent.unwrap_or(10);
         let timeout_ms = config.resilience.bulkhead.timeout_ms.unwrap_or(5000);
-        
+
         Self {
             semaphores: dashmap::DashMap::new(),
             max_concurrent,
             timeout: std::time::Duration::from_millis(timeout_ms),
         }
     }
-    
+
     /// Get or create bulkhead state
     fn get_or_create_state(&self, name: &str) -> Arc<BulkheadState> {
         self.semaphores
@@ -120,7 +120,7 @@ impl BulkheadTrait for StandardBulkhead {
         T: Send,
     {
         let state = self.get_or_create_state(name);
-        
+
         // Try to acquire permit
         let permit = match state.semaphore.try_acquire() {
             Ok(permit) => permit,
@@ -130,41 +130,49 @@ impl BulkheadTrait for StandardBulkhead {
                 return Err(BulkheadError::BulkheadFull {
                     name: name.to_string(),
                 });
-            }
+            },
         };
-        
+
         state.total_calls.fetch_add(1, Ordering::Relaxed);
         state.active_calls.fetch_add(1, Ordering::Relaxed);
-        
-        debug!("Bulkhead {} acquired, active: {}", name, state.active_calls.load(Ordering::Relaxed));
-        
+
+        debug!(
+            "Bulkhead {} acquired, active: {}",
+            name,
+            state.active_calls.load(Ordering::Relaxed)
+        );
+
         // Execute with timeout
         let result = match tokio::time::timeout(self.timeout, f()).await {
             Ok(Ok(value)) => Ok(value),
             Ok(Err(e)) => {
                 state.failed_calls.fetch_add(1, Ordering::Relaxed);
                 Err(BulkheadError::ExecutionFailed(e))
-            }
+            },
             Err(_) => {
                 state.failed_calls.fetch_add(1, Ordering::Relaxed);
                 warn!("Bulkhead timeout for {}", name);
                 Err(BulkheadError::Timeout {
                     name: name.to_string(),
                 })
-            }
+            },
         };
-        
+
         state.active_calls.fetch_sub(1, Ordering::Relaxed);
         drop(permit);
-        
-        debug!("Bulkhead {} released, active: {}", name, state.active_calls.load(Ordering::Relaxed));
-        
+
+        debug!(
+            "Bulkhead {} released, active: {}",
+            name,
+            state.active_calls.load(Ordering::Relaxed)
+        );
+
         result
     }
-    
+
     fn stats(&self, name: &str) -> BulkheadStats {
         let state = self.get_or_create_state(name);
-        
+
         BulkheadStats {
             name: name.to_string(),
             max_concurrent: self.max_concurrent,
@@ -174,7 +182,7 @@ impl BulkheadTrait for StandardBulkhead {
             failed_calls: state.failed_calls.load(Ordering::Relaxed),
         }
     }
-    
+
     fn has_capacity(&self, name: &str) -> bool {
         let state = self.get_or_create_state(name);
         state.semaphore.available_permits() > 0
@@ -204,26 +212,27 @@ impl EnhancedBulkhead {
             adaptive_limits: dashmap::DashMap::new(),
         }
     }
-    
+
     /// Adjust limits based on performance
     fn adjust_limits(&self, name: &str, success: bool) {
-        let limits = self.adaptive_limits
+        let limits = self
+            .adaptive_limits
             .entry(name.to_string())
             .or_insert_with(|| AdaptiveLimits {
                 current_limit: AtomicU32::new(self.base.max_concurrent),
                 success_rate: std::sync::Mutex::new(1.0),
                 last_adjustment: std::sync::Mutex::new(std::time::Instant::now()),
             });
-        
+
         // Update success rate
         let mut success_rate = limits.success_rate.lock().unwrap();
         *success_rate = (*success_rate * 0.95) + (if success { 0.05 } else { 0.0 });
-        
+
         // Check if we should adjust
         let mut last_adjustment = limits.last_adjustment.lock().unwrap();
         if last_adjustment.elapsed() > std::time::Duration::from_secs(60) {
             let current = limits.current_limit.load(Ordering::Relaxed);
-            
+
             if *success_rate > 0.98 && current < self.base.max_concurrent * 2 {
                 // Increase limit
                 limits.current_limit.store(current + 1, Ordering::Relaxed);
@@ -233,7 +242,7 @@ impl EnhancedBulkhead {
                 limits.current_limit.store(current - 1, Ordering::Relaxed);
                 debug!("Decreased bulkhead limit for {} to {}", name, current - 1);
             }
-            
+
             *last_adjustment = std::time::Instant::now();
         }
     }
@@ -249,24 +258,24 @@ impl BulkheadTrait for EnhancedBulkhead {
         T: Send,
     {
         let result = self.base.execute(name, f).await;
-        
+
         // Adjust limits based on result
         self.adjust_limits(name, result.is_ok());
-        
+
         result
     }
-    
+
     fn stats(&self, name: &str) -> BulkheadStats {
         let mut stats = self.base.stats(name);
-        
+
         // Add adaptive limit if available
         if let Some(limits) = self.adaptive_limits.get(name) {
             stats.max_concurrent = limits.current_limit.load(Ordering::Relaxed);
         }
-        
+
         stats
     }
-    
+
     fn has_capacity(&self, name: &str) -> bool {
         self.base.has_capacity(name)
     }
@@ -281,10 +290,10 @@ pub trait DynBulkhead: Send + Sync {
         name: &str,
         request: serde_json::Value,
     ) -> Result<serde_json::Value, BulkheadError>;
-    
+
     /// Get bulkhead statistics
     fn stats(&self, name: &str) -> BulkheadStats;
-    
+
     /// Check if bulkhead has capacity
     fn has_capacity(&self, name: &str) -> bool;
 }
@@ -317,11 +326,11 @@ impl<T: BulkheadTrait> DynBulkhead for BulkheadWrapper<T> {
             })
             .await
     }
-    
+
     fn stats(&self, name: &str) -> BulkheadStats {
         self.inner.stats(name)
     }
-    
+
     fn has_capacity(&self, name: &str) -> bool {
         self.inner.has_capacity(name)
     }
@@ -330,43 +339,47 @@ impl<T: BulkheadTrait> DynBulkhead for BulkheadWrapper<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[tokio::test]
     async fn test_bulkhead_limits() {
         let config = Config::default();
         let bulkhead = StandardBulkhead::from_config(&config);
-        
+
         // Test capacity enforcement
         let results = futures::future::join_all((0..15).map(|i| {
             let bulkhead = &bulkhead;
             async move {
-                bulkhead.execute("test", || async {
-                    tokio::time::sleep(std::time::Duration::from_millis(100)).await;
-                    Ok::<_, anyhow::Error>(i)
-                }).await
+                bulkhead
+                    .execute("test", || async {
+                        tokio::time::sleep(std::time::Duration::from_millis(100)).await;
+                        Ok::<_, anyhow::Error>(i)
+                    })
+                    .await
             }
-        })).await;
-        
+        }))
+        .await;
+
         // Some should fail due to capacity
-        let rejected = results.iter().filter(|r| {
-            matches!(r, Err(BulkheadError::BulkheadFull { .. }))
-        }).count();
-        
+        let rejected = results
+            .iter()
+            .filter(|r| matches!(r, Err(BulkheadError::BulkheadFull { .. })))
+            .count();
+
         assert!(rejected > 0, "Some requests should be rejected");
     }
-    
+
     #[tokio::test]
     async fn test_bulkhead_stats() {
         let config = Config::default();
         let bulkhead = StandardBulkhead::from_config(&config);
-        
+
         // Execute some operations
         for _ in 0..5 {
-            let _ = bulkhead.execute("test", || async {
-                Ok::<_, anyhow::Error>(())
-            }).await;
+            let _ = bulkhead
+                .execute("test", || async { Ok::<_, anyhow::Error>(()) })
+                .await;
         }
-        
+
         let stats = bulkhead.stats("test");
         assert_eq!(stats.total_calls, 5);
     }

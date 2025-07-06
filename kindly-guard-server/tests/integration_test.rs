@@ -71,7 +71,7 @@ fn test_scanner_without_plugins() {
         enhanced_mode: Some(false),
         crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
-            max_input_size: None,
+        max_input_size: None,
     };
     let scanner = SecurityScanner::new(config).unwrap();
 
@@ -101,7 +101,7 @@ fn test_scanner_threat_detection() {
         enhanced_mode: Some(false),
         crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
-            max_input_size: None,
+        max_input_size: None,
     };
     let scanner = SecurityScanner::new(config).unwrap();
 
@@ -171,7 +171,7 @@ fn test_json_scanning() {
         enhanced_mode: Some(false),
         crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
-            max_input_size: None,
+        max_input_size: None,
     };
     let scanner = SecurityScanner::new(config).unwrap();
 
@@ -194,7 +194,7 @@ fn test_json_scanning() {
         match &threat.location {
             kindly_guard_server::scanner::Location::Json { path } => {
                 assert!(path.starts_with('$'), "JSON path should start with $");
-            }
+            },
             _ => panic!("Expected JSON location for JSON scanning"),
         }
     }

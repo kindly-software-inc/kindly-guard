@@ -3,7 +3,7 @@ use clap::Args;
 use colored::*;
 use std::path::Path;
 
-use crate::utils::{Context, ensure_command_exists, spinner};
+use crate::utils::{ensure_command_exists, spinner, Context};
 
 #[derive(Args)]
 pub struct PublishCmd {
@@ -27,7 +27,7 @@ pub struct PublishCmd {
 pub async fn run(cmd: PublishCmd, ctx: Context) -> Result<()> {
     // Default to publishing all if none specified
     let publish_all = !cmd.crates_io && !cmd.npm && !cmd.docker;
-    
+
     let mut results = PublishResults::default();
 
     // Verify before publishing
@@ -92,7 +92,7 @@ fn verify_before_publish(ctx: &Context) -> Result<()> {
     let branch = std::process::Command::new("git")
         .args(&["branch", "--show-current"])
         .output()?;
-    
+
     let branch = String::from_utf8_lossy(&branch.stdout).trim().to_string();
     if branch != "main" && branch != "master" {
         ctx.warn(&format!("Not on main branch (current: {})", branch));
@@ -101,7 +101,7 @@ fn verify_before_publish(ctx: &Context) -> Result<()> {
     // Verify tags
     let version = get_current_version()?;
     let tag = format!("v{}", version);
-    
+
     let tag_exists = std::process::Command::new("git")
         .args(&["tag", "-l", &tag])
         .output()?;
@@ -117,17 +117,16 @@ fn verify_before_publish(ctx: &Context) -> Result<()> {
 
 async fn publish_to_crates_io(ctx: &Context) -> Result<PublishResult> {
     ensure_command_exists("cargo")?;
-    
+
     let spinner = spinner("Publishing to crates.io");
-    
+
     // Get package info
     let metadata = cargo_metadata::MetadataCommand::new()
         .exec()
         .context("Failed to get cargo metadata")?;
-    
-    let root_package = metadata.root_package()
-        .context("No root package found")?;
-    
+
+    let root_package = metadata.root_package().context("No root package found")?;
+
     let package_name = &root_package.name;
     let version = &root_package.version.to_string();
 
@@ -144,16 +143,12 @@ async fn publish_to_crates_io(ctx: &Context) -> Result<PublishResult> {
     }
 
     // Publish workspace members first
-    let members = vec![
-        "kindly-guard-server",
-        "kindly-tools", 
-        "kindly-guard-shield",
-    ];
+    let members = vec!["kindly-guard-server", "kindly-tools", "kindly-guard-shield"];
 
     for member in members {
         if workspace_has_member(&metadata, member) {
             publish_crate(member, ctx)?;
-            
+
             // Wait a bit between publishes
             tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
         }
@@ -175,7 +170,7 @@ async fn publish_to_crates_io(ctx: &Context) -> Result<PublishResult> {
 
 fn publish_crate(path: &str, ctx: &Context) -> Result<()> {
     let mut args = vec!["publish"];
-    
+
     if path != "." {
         args.extend(&["-p", path]);
     }
@@ -200,25 +195,24 @@ async fn is_crate_published(name: &str, version: &str) -> Result<bool> {
         .args(&["search", "--limit", "1", &format!("{}={}", name, version)])
         .output()
         .context("Failed to run cargo search")?;
-    
+
     let stdout = String::from_utf8_lossy(&output.stdout);
     Ok(stdout.contains(name) && stdout.contains(version))
 }
 
 fn workspace_has_member(metadata: &cargo_metadata::Metadata, member: &str) -> bool {
-    metadata.workspace_members
-        .iter()
-        .any(|pkg_id| {
-            metadata.packages
-                .iter()
-                .find(|pkg| &pkg.id == pkg_id)
-                .map_or(false, |pkg| pkg.name == member)
-        })
+    metadata.workspace_members.iter().any(|pkg_id| {
+        metadata
+            .packages
+            .iter()
+            .find(|pkg| &pkg.id == pkg_id)
+            .map_or(false, |pkg| pkg.name == member)
+    })
 }
 
 async fn publish_to_npm(ctx: &Context) -> Result<PublishResult> {
     ensure_command_exists("npm")?;
-    
+
     let spinner = spinner("Publishing to npm");
 
     // Check if package.json exists
@@ -236,7 +230,7 @@ async fn publish_to_npm(ctx: &Context) -> Result<PublishResult> {
     // Get package info
     let package_json = std::fs::read_to_string("package.json")?;
     let package: serde_json::Value = serde_json::from_str(&package_json)?;
-    
+
     let package_name = package["name"].as_str().unwrap_or("unknown");
     let version = package["version"].as_str().unwrap_or("unknown");
 
@@ -259,7 +253,7 @@ async fn publish_to_npm(ctx: &Context) -> Result<PublishResult> {
 
     // Publish
     let mut args = vec!["publish"];
-    
+
     if ctx.dry_run {
         args.push("--dry-run");
     }
@@ -292,7 +286,7 @@ async fn is_npm_published(name: &str, version: &str) -> Result<bool> {
 
 async fn publish_to_docker(ctx: &Context) -> Result<PublishResult> {
     ensure_command_exists("docker")?;
-    
+
     let spinner = spinner("Publishing to Docker Hub");
 
     // Check if Dockerfile exists
@@ -342,14 +336,20 @@ async fn publish_to_docker(ctx: &Context) -> Result<PublishResult> {
 fn build_docker_image(tag: &str, ctx: &Context) -> Result<()> {
     // Use buildx for multi-platform builds
     let platforms = "linux/amd64,linux/arm64";
-    
-    ctx.run_command("docker", &[
-        "buildx", "build",
-        "--platform", platforms,
-        "--tag", tag,
-        "--push",
-        ".",
-    ])?;
+
+    ctx.run_command(
+        "docker",
+        &[
+            "buildx",
+            "build",
+            "--platform",
+            platforms,
+            "--tag",
+            tag,
+            "--push",
+            ".",
+        ],
+    )?;
 
     Ok(())
 }
@@ -357,7 +357,7 @@ fn build_docker_image(tag: &str, ctx: &Context) -> Result<()> {
 fn get_current_version() -> Result<String> {
     let manifest = std::fs::read_to_string("Cargo.toml")?;
     let manifest: toml::Value = toml::from_str(&manifest)?;
-    
+
     manifest["package"]["version"]
         .as_str()
         .map(|s| s.to_string())
@@ -406,7 +406,7 @@ fn print_publish_result(registry: &str, result: &PublishResult) {
     };
 
     print!("{:<15} {} ", format!("{}:", registry), status);
-    
+
     if result.success && result.error.is_none() {
         println!("{} @ {}", result.package.bold(), result.version);
         if let Some(url) = &result.url {

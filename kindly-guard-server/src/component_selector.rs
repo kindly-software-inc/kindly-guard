@@ -26,8 +26,9 @@ use crate::permissions::{
     ThreatLevel, ToolPermissionManager,
 };
 use crate::plugins::{DefaultPluginManagerFactory, PluginManagerFactory, PluginManagerTrait};
-use crate::resilience::{create_circuit_breaker, create_bulkhead, create_retry_strategy, DynBulkhead};
-use crate::traits::{DynCircuitBreaker, DynRetryStrategy};
+use crate::resilience::{
+    create_bulkhead, create_circuit_breaker, create_retry_strategy, DynBulkhead,
+};
 use crate::standard_impl::StandardFactory;
 use crate::storage::{DefaultStorageFactory, StorageProvider, StorageProviderFactory};
 #[cfg(feature = "enhanced")]
@@ -39,6 +40,7 @@ use crate::traits::{
     CorrelationEngine, EnhancedScanner, RateLimiter, SecurityComponentFactory,
     SecurityEventProcessor,
 };
+use crate::traits::{DynCircuitBreaker, DynRetryStrategy};
 use anyhow::Result;
 use std::sync::Arc;
 
@@ -194,7 +196,7 @@ impl ComponentManager {
         // Create threat neutralizer with rate limiting
         let threat_neutralizer =
             create_neutralizer(&config.neutralization, Some(rate_limiter.clone()));
-            
+
         // Create resilience components
         let circuit_breaker = create_circuit_breaker(config)?;
         let retry_strategy = create_retry_strategy(config)?;
@@ -268,17 +270,17 @@ impl ComponentManager {
     pub fn threat_neutralizer(&self) -> &Arc<dyn ThreatNeutralizer> {
         &self.threat_neutralizer
     }
-    
+
     /// Get circuit breaker
     pub fn circuit_breaker(&self) -> &Arc<dyn DynCircuitBreaker> {
         &self.circuit_breaker
     }
-    
+
     /// Get retry strategy
     pub fn retry_strategy(&self) -> &Arc<dyn DynRetryStrategy> {
         &self.retry_strategy
     }
-    
+
     /// Get bulkhead
     pub fn bulkhead(&self) -> &Arc<dyn DynBulkhead> {
         &self.bulkhead

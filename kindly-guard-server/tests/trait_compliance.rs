@@ -166,14 +166,14 @@ async fn test_neutralizer_compliance(
         match &threat.threat_type {
             ThreatType::Custom(_) => {
                 // Custom threats might not always be supported
-            }
+            },
             _ => {
                 assert!(
                     can_handle,
                     "{test_name} should support {:?}",
                     threat.threat_type
                 );
-            }
+            },
         }
     }
 
@@ -299,10 +299,10 @@ fn validate_neutralize_result(
                 result.sanitized_content.is_none(),
                 "NoAction should not produce sanitized content"
             );
-        }
+        },
         NeutralizeAction::Quarantined => {
             // Quarantined content might not have sanitized version
-        }
+        },
         _ => {
             assert!(
                 result.sanitized_content.is_some(),
@@ -316,17 +316,17 @@ fn validate_neutralize_result(
                 match threat.threat_type {
                     ThreatType::Custom(_) => {
                         // Custom threats might not always modify content
-                    }
+                    },
                     _ => {
                         assert_ne!(
                             sanitized, original_content,
                             "Sanitized content should differ from original for {:?}",
                             threat.threat_type
                         );
-                    }
+                    },
                 }
             }
-        }
+        },
     }
 
     // Validate action matches threat type
@@ -376,7 +376,7 @@ fn validate_action_for_threat(action: &NeutralizeAction, threat_type: &ThreatTyp
                 action, threat_type
             );
             Ok(())
-        }
+        },
     }
 }
 
@@ -514,7 +514,7 @@ async fn test_neutralizer_mode_behavior() -> Result<()> {
                     NeutralizeAction::NoAction,
                     "Report-only mode should not take action"
                 );
-            }
+            },
             SecurityNeutralizationMode::Automatic => {
                 // In automatic mode, action should be taken
                 assert_ne!(
@@ -522,8 +522,8 @@ async fn test_neutralizer_mode_behavior() -> Result<()> {
                     NeutralizeAction::NoAction,
                     "Automatic mode should take action"
                 );
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 

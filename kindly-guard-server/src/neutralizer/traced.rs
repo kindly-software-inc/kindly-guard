@@ -166,7 +166,7 @@ impl ThreatNeutralizer for TracedNeutralizer {
                 }
 
                 (StatusCode::Ok, None)
-            }
+            },
             Err(e) => {
                 // Add error event
                 self.tracing_provider
@@ -181,7 +181,7 @@ impl ThreatNeutralizer for TracedNeutralizer {
                     .await;
 
                 (StatusCode::Error, Some(e.to_string()))
-            }
+            },
         };
 
         // Record metrics via span attributes (before ending span)

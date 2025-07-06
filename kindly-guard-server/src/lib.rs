@@ -87,14 +87,12 @@ pub fn create_event_buffer(
             // Configuration for enhanced buffer
             let buffer_size_mb = config.buffer_size_mb;
             let max_endpoints = config.max_endpoints;
-            
+
             // Create enhanced buffer through factory
-            return Ok(Some(Box::new(
-                enhanced_impl::create_enhanced_event_buffer(
-                    buffer_size_mb,
-                    max_endpoints,
-                )?,
-            )));
+            return Ok(Some(Box::new(enhanced_impl::create_enhanced_event_buffer(
+                buffer_size_mb,
+                max_endpoints,
+            )?)));
         }
     }
 
@@ -110,7 +108,7 @@ pub fn create_event_buffer(
 pub fn create_scanner(config: &Config) -> Arc<scanner::SecurityScanner> {
     Arc::new(
         scanner::SecurityScanner::new(config.scanner.clone())
-            .expect("Failed to create security scanner")
+            .expect("Failed to create security scanner"),
     )
 }
 

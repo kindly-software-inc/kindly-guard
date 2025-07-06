@@ -94,15 +94,15 @@ impl User {
 }
 "#,
     ];
-    
+
     let mut result = String::new();
     let mut rng = thread_rng();
-    
+
     while result.len() < size {
         result.push_str(templates[rng.gen_range(0..templates.len())]);
         result.push_str("\n\n");
     }
-    
+
     result.truncate(size);
     result
 }
@@ -156,15 +156,15 @@ const sanitizeHtml = (html) => {
 };
 "#,
     ];
-    
+
     let mut result = String::new();
     let mut rng = thread_rng();
-    
+
     while result.len() < size {
         result.push_str(templates[rng.gen_range(0..templates.len())]);
         result.push_str("\n\n");
     }
-    
+
     result.truncate(size);
     result
 }
@@ -225,15 +225,15 @@ def create_user():
     return jsonify({'message': 'User created successfully'}), 201
 "#,
     ];
-    
+
     let mut result = String::new();
     let mut rng = thread_rng();
-    
+
     while result.len() < size {
         result.push_str(templates[rng.gen_range(0..templates.len())]);
         result.push_str("\n\n");
     }
-    
+
     result.truncate(size);
     result
 }
@@ -292,13 +292,13 @@ Creates a new user.
 - Rate limiting to prevent abuse
 
 "#;
-    
+
     let mut result = String::new();
     while result.len() < size {
         result.push_str(template);
         result.push_str("\n\n");
     }
-    
+
     result.truncate(size);
     result
 }
@@ -331,7 +331,8 @@ fn generate_json_file() -> String {
             "format": "json",
             "file": "/var/log/myapp.log"
         }
-    }).to_string()
+    })
+    .to_string()
 }
 
 /// Generate a realistic HTML file
@@ -381,13 +382,13 @@ fn generate_html_file(size: usize) -> String {
     </script>
 </body>
 </html>"#;
-    
+
     let mut result = String::new();
     while result.len() < size {
         result.push_str(template);
         result.push_str("\n\n");
     }
-    
+
     result.truncate(size);
     result
 }
@@ -396,7 +397,7 @@ fn generate_html_file(size: usize) -> String {
 fn generate_codebase(total_size: usize) -> Vec<CodebaseFile> {
     let mut files = Vec::new();
     let mut rng = thread_rng();
-    
+
     // Distribution of file types (roughly matching a real project)
     let distributions = vec![
         (FileType::Rust, 0.25),
@@ -408,15 +409,15 @@ fn generate_codebase(total_size: usize) -> Vec<CodebaseFile> {
         (FileType::Config, 0.03),
         (FileType::Text, 0.02),
     ];
-    
+
     let mut current_size = 0;
     let mut file_counter = 0;
-    
+
     while current_size < total_size {
         // Select file type based on distribution
         let mut roll = rng.gen::<f64>();
         let mut selected_type = FileType::Text;
-        
+
         for (file_type, probability) in &distributions {
             if roll < *probability {
                 selected_type = *file_type;
@@ -424,7 +425,7 @@ fn generate_codebase(total_size: usize) -> Vec<CodebaseFile> {
             }
             roll -= probability;
         }
-        
+
         // Generate file content
         let target_file_size = rng.gen_range(1 * KB..50 * KB);
         let content = match selected_type {
@@ -437,7 +438,7 @@ fn generate_codebase(total_size: usize) -> Vec<CodebaseFile> {
             FileType::Config => generate_json_file(),
             FileType::Text => generate_clean_text(target_file_size),
         };
-        
+
         let path = match selected_type {
             FileType::Rust => format!("src/module_{}/file_{}.rs", file_counter / 10, file_counter),
             FileType::JavaScript => format!("frontend/src/file_{}.js", file_counter),
@@ -448,17 +449,17 @@ fn generate_codebase(total_size: usize) -> Vec<CodebaseFile> {
             FileType::Config => format!("config_{}.toml", file_counter),
             FileType::Text => format!("README_{}.txt", file_counter),
         };
-        
+
         current_size += content.len();
         files.push(CodebaseFile {
             path,
             content,
             file_type: selected_type,
         });
-        
+
         file_counter += 1;
     }
-    
+
     files
 }
 
@@ -475,30 +476,28 @@ fn generate_clean_text(size: usize) -> String {
 fn inject_threats(files: &mut Vec<CodebaseFile>, threat_percentage: f64) {
     let mut rng = thread_rng();
     let num_files_to_modify = (files.len() as f64 * threat_percentage) as usize;
-    
+
     let threat_patterns = vec![
         // Unicode threats
-        "\u{200B}",  // Zero-width space
-        "\u{202E}",  // Right-to-left override
-        "\u{200C}",  // Zero-width non-joiner
-        
+        "\u{200B}", // Zero-width space
+        "\u{202E}", // Right-to-left override
+        "\u{200C}", // Zero-width non-joiner
         // Injection patterns
         "'; DROP TABLE users; --",
         "' OR '1'='1",
         "../../../etc/passwd",
         "{{7*7}}",
-        
         // XSS patterns
         "<script>alert('xss')</script>",
         "<img src=x onerror='alert(1)'>",
         "javascript:void(0)",
     ];
-    
+
     for _ in 0..num_files_to_modify {
         let file_idx = rng.gen_range(0..files.len());
         let threat_idx = rng.gen_range(0..threat_patterns.len());
         let threat = threat_patterns[threat_idx];
-        
+
         // Inject threat at a random position
         let file = &mut files[file_idx];
         let position = rng.gen_range(0..file.content.len().saturating_sub(threat.len()));
@@ -510,52 +509,56 @@ fn codebase_scanning_benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("real_world_codebase");
     group.measurement_time(Duration::from_secs(30));
     group.sample_size(10);
-    
+
     let scanner = SecurityScanner::new(Default::default()).unwrap();
-    
+
     // Generate different sized codebases
     for size in [MB, 10 * MB, 50 * MB].iter() {
         // Clean codebase
         let clean_codebase = generate_codebase(*size);
         let total_bytes: usize = clean_codebase.iter().map(|f| f.content.len()).sum();
-        
+
         group.throughput(Throughput::Bytes(total_bytes as u64));
         group.bench_function(format!("clean_codebase_{}MB", size / MB), |b| {
             b.iter(|| {
                 let mut total_threats = 0;
                 for file in &clean_codebase {
-                    let threats = scanner.scan_text(black_box(&file.content)).unwrap_or_default();
+                    let threats = scanner
+                        .scan_text(black_box(&file.content))
+                        .unwrap_or_default();
                     total_threats += threats.len();
                 }
                 black_box(total_threats);
             })
         });
-        
+
         // Codebase with 1% threats
         let mut infected_codebase = clean_codebase.clone();
         inject_threats(&mut infected_codebase, 0.01);
-        
+
         group.bench_function(format!("infected_codebase_{}MB", size / MB), |b| {
             b.iter(|| {
                 let mut total_threats = 0;
                 for file in &infected_codebase {
-                    let threats = scanner.scan_text(black_box(&file.content)).unwrap_or_default();
+                    let threats = scanner
+                        .scan_text(black_box(&file.content))
+                        .unwrap_or_default();
                     total_threats += threats.len();
                 }
                 black_box(total_threats);
             })
         });
     }
-    
+
     group.finish();
 }
 
 fn false_positive_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("false_positive_rates");
     group.measurement_time(Duration::from_secs(20));
-    
+
     let scanner = SecurityScanner::new(Default::default()).unwrap();
-    
+
     // Analyze false positives in different content types
     group.bench_function("legitimate_sql_queries", |b| {
         let queries = vec![
@@ -564,13 +567,16 @@ fn false_positive_analysis(c: &mut Criterion) {
             "UPDATE settings SET value = ? WHERE key = ?",
             "DELETE FROM sessions WHERE expires_at < ?",
         ];
-        
+
         b.iter(|| {
             let mut false_positives = 0;
             for query in &queries {
                 let threats = scanner.scan_text(black_box(query)).unwrap_or_default();
                 // These should not be detected as SQL injection
-                if threats.iter().any(|t| matches!(t.threat_type, ThreatType::SqlInjection)) {
+                if threats
+                    .iter()
+                    .any(|t| matches!(t.threat_type, ThreatType::SqlInjection))
+                {
                     false_positives += 1;
                 }
             }
@@ -578,7 +584,7 @@ fn false_positive_analysis(c: &mut Criterion) {
             black_box(false_positives);
         })
     });
-    
+
     group.bench_function("legitimate_html_content", |b| {
         let html_samples = vec![
             "<p>The price is less than $50</p>",
@@ -586,52 +592,51 @@ fn false_positive_analysis(c: &mut Criterion) {
             "<code>if (x < y) { return x; }</code>",
             "<pre>Use &lt;script&gt; tags carefully</pre>",
         ];
-        
+
         b.iter(|| {
             let mut false_positives = 0;
             for html in &html_samples {
                 let threats = scanner.scan_text(black_box(html)).unwrap_or_default();
                 // These should not be detected as XSS
-                if threats.iter().any(|t| matches!(t.threat_type, ThreatType::CrossSiteScripting)) {
+                if threats
+                    .iter()
+                    .any(|t| matches!(t.threat_type, ThreatType::CrossSiteScripting))
+                {
                     false_positives += 1;
                 }
             }
             black_box(false_positives);
         })
     });
-    
+
     group.bench_function("unicode_in_names", |b| {
-        let names = vec![
-            "François",
-            "José",
-            "Björn",
-            "Владимир",
-            "محمد",
-            "李明",
-        ];
-        
+        let names = vec!["François", "José", "Björn", "Владимир", "محمد", "李明"];
+
         b.iter(|| {
             let mut false_positives = 0;
             for name in &names {
                 let threats = scanner.scan_text(black_box(name)).unwrap_or_default();
                 // Legitimate Unicode names should not be flagged
-                if threats.iter().any(|t| matches!(t.threat_type, ThreatType::UnicodeHomograph)) {
+                if threats
+                    .iter()
+                    .any(|t| matches!(t.threat_type, ThreatType::UnicodeHomograph))
+                {
                     false_positives += 1;
                 }
             }
             black_box(false_positives);
         })
     });
-    
+
     group.finish();
 }
 
 fn mixed_content_analysis(c: &mut Criterion) {
     let mut group = c.benchmark_group("mixed_content_types");
     group.measurement_time(Duration::from_secs(15));
-    
+
     let scanner = SecurityScanner::new(Default::default()).unwrap();
-    
+
     // Real-world API payloads
     group.bench_function("api_payload_batch", |b| {
         let payloads = vec![
@@ -658,7 +663,7 @@ fn mixed_content_analysis(c: &mut Criterion) {
                 }
             }),
         ];
-        
+
         b.iter(|| {
             let mut total_threats = 0;
             for payload in &payloads {
@@ -668,7 +673,7 @@ fn mixed_content_analysis(c: &mut Criterion) {
             black_box(total_threats);
         })
     });
-    
+
     // Log file analysis
     group.bench_function("log_file_scanning", |b| {
         let log_entries = vec![
@@ -677,8 +682,9 @@ fn mixed_content_analysis(c: &mut Criterion) {
             "[2025-01-01 10:24:15] WARN: Invalid input detected: '; DROP TABLE users; --",
             "[2025-01-01 10:24:30] INFO: Request processed successfully in 125ms",
             "[2025-01-01 10:24:45] DEBUG: Cache hit for key='user:12345:profile'",
-        ].join("\n");
-        
+        ]
+        .join("\n");
+
         b.iter(|| {
             let threats = scanner.scan_text(black_box(&log_entries)).unwrap();
             // Should detect the SQL injection in the log but not flag normal logs
@@ -686,30 +692,30 @@ fn mixed_content_analysis(c: &mut Criterion) {
             black_box(threats);
         })
     });
-    
+
     group.finish();
 }
 
 fn threat_detection_accuracy(c: &mut Criterion) {
     let mut group = c.benchmark_group("detection_accuracy");
     group.measurement_time(Duration::from_secs(10));
-    
+
     let scanner = SecurityScanner::new(Default::default()).unwrap();
-    
+
     // Measure detection rates for different severity levels
     group.bench_function("severity_classification", |b| {
         let test_cases = vec![
-            ("Hello\u{200B}World", Severity::Low),          // Invisible unicode
-            ("admin\u{202E}txt.exe", Severity::High),       // BiDi override
+            ("Hello\u{200B}World", Severity::Low),    // Invisible unicode
+            ("admin\u{202E}txt.exe", Severity::High), // BiDi override
             ("'; DROP TABLE users; --", Severity::Critical), // SQL injection
-            ("<script>alert(1)</script>", Severity::High),  // XSS
-            ("../../../etc/passwd", Severity::High),        // Path traversal
+            ("<script>alert(1)</script>", Severity::High), // XSS
+            ("../../../etc/passwd", Severity::High),  // Path traversal
         ];
-        
+
         b.iter(|| {
             let mut correct_severities = 0;
             let total = test_cases.len();
-            
+
             for (input, expected_severity) in &test_cases {
                 let threats = scanner.scan_text(black_box(input)).unwrap_or_default();
                 if let Some(threat) = threats.first() {
@@ -718,13 +724,13 @@ fn threat_detection_accuracy(c: &mut Criterion) {
                     }
                 }
             }
-            
+
             let accuracy = correct_severities as f64 / total as f64;
             assert!(accuracy >= 0.8, "Severity classification accuracy too low");
             black_box(accuracy);
         })
     });
-    
+
     group.finish();
 }
 

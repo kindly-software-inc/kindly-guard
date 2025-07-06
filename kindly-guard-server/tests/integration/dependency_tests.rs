@@ -1,5 +1,5 @@
-use std::process::Command;
 use std::path::Path;
+use std::process::Command;
 
 /// Verify the project can build without enhanced features
 #[test]
@@ -37,7 +37,7 @@ fn test_no_enhanced_symbols_exposed() {
         .expect("Failed to generate docs");
 
     let doc_content = String::from_utf8_lossy(&doc_output.stdout);
-    
+
     // These implementation names should not appear in public API
     let forbidden_names = [
         "EnhancedEventBuffer",
@@ -66,7 +66,11 @@ fn test_no_missing_libraries() {
         .output()
         .expect("Failed to build binary");
 
-    assert!(build_output.status.success(), "Binary build failed: {}", String::from_utf8_lossy(&build_output.stderr));
+    assert!(
+        build_output.status.success(),
+        "Binary build failed: {}",
+        String::from_utf8_lossy(&build_output.stderr)
+    );
 
     // Find the built binary
     let target_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../target/debug");
@@ -80,7 +84,7 @@ fn test_no_missing_libraries() {
             .expect("Failed to run ldd");
 
         let ldd_result = String::from_utf8_lossy(&ldd_output.stdout);
-        
+
         // Ensure no missing libraries
         assert!(
             !ldd_result.contains("not found"),
@@ -133,7 +137,7 @@ fn test_dependency_tree_privacy() {
         .expect("Failed to run cargo tree");
 
     let tree_output = String::from_utf8_lossy(&output.stdout);
-    
+
     // Enhanced implementations should not appear as public dependencies
     // (it's okay if they appear as internal/feature-gated dependencies)
     let lines: Vec<&str> = tree_output.lines().collect();

@@ -7,15 +7,13 @@ use crate::utils::Context;
 
 /// Run a command and return its stdout as a string
 fn run_command_output(mut cmd: Command) -> Result<String> {
-    let output = cmd
-        .output()
-        .context("Failed to execute command")?;
-    
+    let output = cmd.output().context("Failed to execute command")?;
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         anyhow::bail!("Command failed:\n{}", stderr);
     }
-    
+
     Ok(String::from_utf8(output.stdout)?.trim().to_string())
 }
 
@@ -62,11 +60,8 @@ pub fn changed_files() -> Result<Vec<String>> {
     let mut cmd = Command::new("git");
     cmd.args(&["status", "--porcelain"]);
     let output = run_command_output(cmd)?;
-    
-    Ok(output
-        .lines()
-        .map(|line| line[3..].to_string())
-        .collect())
+
+    Ok(output.lines().map(|line| line[3..].to_string()).collect())
 }
 
 /// Create a git tag
@@ -83,10 +78,8 @@ pub fn push_tag(ctx: &Context, tag: &str) -> Result<()> {
 
 /// Check if a tag exists
 pub fn tag_exists(tag: &str) -> Result<bool> {
-    let output = Command::new("git")
-        .args(&["tag", "-l", tag])
-        .output()?;
-    
+    let output = Command::new("git").args(&["tag", "-l", tag]).output()?;
+
     Ok(!output.stdout.is_empty())
 }
 
@@ -95,7 +88,7 @@ pub fn latest_tag() -> Result<Option<String>> {
     let output = Command::new("git")
         .args(&["describe", "--tags", "--abbrev=0"])
         .output()?;
-    
+
     if output.status.success() {
         Ok(Some(String::from_utf8(output.stdout)?.trim().to_string()))
     } else {
@@ -108,7 +101,7 @@ pub fn commits_since_tag(tag: &str) -> Result<Vec<String>> {
     let mut cmd = Command::new("git");
     cmd.args(&["log", "--oneline", &format!("{}..HEAD", tag)]);
     let output = run_command_output(cmd)?;
-    
+
     Ok(output.lines().map(|s| s.to_string()).collect())
 }
 
@@ -116,7 +109,7 @@ pub fn commits_since_tag(tag: &str) -> Result<Vec<String>> {
 pub fn stage_files(ctx: &Context, files: &[&str]) -> Result<()> {
     let mut args = vec!["add"];
     args.extend(files);
-    
+
     ctx.run_command("git", &args)?;
     Ok(())
 }

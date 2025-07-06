@@ -162,7 +162,7 @@ where
                     debug!("{} succeeded after {} attempts", operation_name, attempt);
                 }
                 return Ok(result);
-            }
+            },
             Err(error) => {
                 // Check if error is retryable
                 if !policy.is_retryable(&error) {
@@ -197,7 +197,7 @@ where
                     );
                     return Err(error);
                 }
-            }
+            },
         }
     }
 }

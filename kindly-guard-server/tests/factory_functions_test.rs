@@ -1,12 +1,7 @@
 // Test the factory functions we just created
 use kindly_guard_server::{
-    config::Config,
-    create_scanner,
-    create_storage,
-    create_rate_limiter,
-    create_transport,
-    create_telemetry,
-    create_audit_logger,
+    config::Config, create_audit_logger, create_rate_limiter, create_scanner, create_storage,
+    create_telemetry, create_transport,
 };
 
 #[test]
@@ -60,8 +55,11 @@ fn test_create_audit_logger() {
 async fn test_rate_limiter_basic() {
     let config = Config::default();
     let rate_limiter = create_rate_limiter(&config);
-    
+
     // Basic check_limit test
-    let result = rate_limiter.check_limit("test_client", None, 1.0).await.unwrap();
+    let result = rate_limiter
+        .check_limit("test_client", None, 1.0)
+        .await
+        .unwrap();
     assert!(result.allowed); // Should allow first request
 }

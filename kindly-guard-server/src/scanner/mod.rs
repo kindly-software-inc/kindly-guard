@@ -530,8 +530,9 @@ impl SecurityScanner {
     /// scanning modes without exposing implementation details.
     pub fn with_processor(
         config: crate::config::ScannerConfig,
-        #[allow(unused_variables)]
-        event_processor: Option<Arc<dyn crate::traits::SecurityEventProcessor>>,
+        #[allow(unused_variables)] event_processor: Option<
+            Arc<dyn crate::traits::SecurityEventProcessor>,
+        >,
     ) -> Result<Self, ScanError> {
         let patterns = if let Some(path) = &config.custom_patterns {
             ThreatPatterns::load_from_file(path)?
@@ -555,7 +556,7 @@ impl SecurityScanner {
         let mut unicode_scanner = UnicodeScanner::with_config(config.allow_text_control_chars);
         #[cfg(not(feature = "enhanced"))]
         let unicode_scanner = UnicodeScanner::with_config(config.allow_text_control_chars);
-        
+
         #[cfg(feature = "enhanced")]
         let mut injection_scanner = InjectionScanner::new(&patterns)?;
         #[cfg(not(feature = "enhanced"))]
@@ -595,7 +596,10 @@ impl SecurityScanner {
 
         // Check for oversized content to prevent DoS
         // Use max_input_size if set, otherwise fall back to max_content_size
-        let max_size = self.config.max_input_size.unwrap_or(self.config.max_content_size);
+        let max_size = self
+            .config
+            .max_input_size
+            .unwrap_or(self.config.max_content_size);
         if text.len() > max_size {
             threats.push(Threat {
                 threat_type: ThreatType::DosPotential,
@@ -677,7 +681,7 @@ impl SecurityScanner {
                         Ok(s) => s,
                         Err(_) => continue, // Skip invalid chunk
                     }
-                }
+                },
             };
 
             // Scan this chunk
@@ -757,12 +761,12 @@ impl SecurityScanner {
                         if self.config.path_traversal_detection {
                             threats.push(threat);
                         }
-                    }
+                    },
                     _ => {
                         if self.config.injection_detection {
                             threats.push(threat);
                         }
-                    }
+                    },
                 }
             }
         }
@@ -830,10 +834,10 @@ impl SecurityScanner {
                         for (_plugin_id, plugin_threats) in plugin_results {
                             threats.extend(plugin_threats);
                         }
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!("Plugin scan error: {}", e);
-                    }
+                    },
                 }
             } else {
                 tracing::debug!("Plugin scanning skipped in async context");
@@ -1000,10 +1004,10 @@ impl SecurityScanner {
                                 threats.push(threat);
                             }
                         }
-                    }
+                    },
                     Err(e) => {
                         tracing::warn!("Plugin scan error: {}", e);
-                    }
+                    },
                 }
             } else {
                 tracing::debug!("Plugin scanning skipped in async context");
@@ -1045,7 +1049,7 @@ impl SecurityScanner {
                     };
                     threats.push(threat);
                 }
-            }
+            },
             serde_json::Value::Object(map) => {
                 for (key, val) in map {
                     // Check the key itself
@@ -1062,14 +1066,14 @@ impl SecurityScanner {
                     let sub_path = format!("{path}.{key}");
                     threats.extend(self.scan_json_recursive(val, &sub_path, depth + 1)?);
                 }
-            }
+            },
             serde_json::Value::Array(arr) => {
                 for (i, val) in arr.iter().enumerate() {
                     let sub_path = format!("{path}[{i}]");
                     threats.extend(self.scan_json_recursive(val, &sub_path, depth + 1)?);
                 }
-            }
-            _ => {} // Numbers, booleans, null are safe
+            },
+            _ => {}, // Numbers, booleans, null are safe
         }
 
         Ok(threats)
@@ -1103,7 +1107,7 @@ impl SecurityScanner {
             injection_threats_detected: self.injection_scanner.threats_detected(),
             total_scans: self.unicode_scanner.total_scans() + self.injection_scanner.total_scans(),
         };
-        
+
         #[cfg(not(feature = "enhanced"))]
         let stats = ScannerStats {
             unicode_threats_detected: self.unicode_scanner.threats_detected(),
@@ -1201,7 +1205,7 @@ pub fn create_security_scanner(
                 Ok(scanner) => {
                     tracing::warn!("Created scanner with default configuration as fallback");
                     Arc::new(scanner)
-                }
+                },
                 Err(default_err) => {
                     tracing::error!(
                         "FATAL: Cannot create default scanner: {}. Using no-op scanner that denies all requests",
@@ -1209,9 +1213,9 @@ pub fn create_security_scanner(
                     );
                     // Return a no-op scanner that denies everything for safety
                     Arc::new(NoOpScanner::new())
-                }
+                },
             }
-        }
+        },
     }
 }
 
@@ -1266,8 +1270,12 @@ impl crate::traits::SecurityScannerTrait for NoOpScanner {
                     offset: 0,
                     length: text.len(),
                 },
-                description: "Security scanner failed to initialize. All requests denied for safety.".to_string(),
-                remediation: Some("Contact system administrator to fix scanner initialization".to_string()),
+                description:
+                    "Security scanner failed to initialize. All requests denied for safety."
+                        .to_string(),
+                remediation: Some(
+                    "Contact system administrator to fix scanner initialization".to_string(),
+                ),
             }]
         } else {
             vec![]
@@ -1283,8 +1291,12 @@ impl crate::traits::SecurityScannerTrait for NoOpScanner {
                 location: Location::Json {
                     path: "$".to_string(),
                 },
-                description: "Security scanner failed to initialize. All requests denied for safety.".to_string(),
-                remediation: Some("Contact system administrator to fix scanner initialization".to_string()),
+                description:
+                    "Security scanner failed to initialize. All requests denied for safety."
+                        .to_string(),
+                remediation: Some(
+                    "Contact system administrator to fix scanner initialization".to_string(),
+                ),
             }]
         } else {
             vec![]

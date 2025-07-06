@@ -19,28 +19,22 @@
 
 use futures::stream::{FuturesUnordered, StreamExt};
 use kindly_guard_server::{
+    audit::AuditLogger,
     config::Config,
-    create_neutralizer,
-    create_scanner,
-    create_storage,
-    create_rate_limiter,
-    create_transport,
-    create_telemetry,
-    create_audit_logger,
+    create_audit_logger, create_neutralizer, create_rate_limiter, create_scanner, create_storage,
+    create_telemetry, create_transport,
     error::KindlyError,
     neutralizer::{NeutralizeAction, NeutralizeResult, ThreatNeutralizer},
-    scanner::{Location, Severity, Threat, ThreatType, SecurityScanner},
-    McpServer,
-    ComponentManager,
-    resilience::{create_circuit_breaker, create_retry_strategy},
-    storage::{InMemoryStorage, StorageProvider},
-    audit::AuditLogger,
     protocol::{JsonRpcRequest, JsonRpcResponse},
+    resilience::{create_circuit_breaker, create_retry_strategy},
+    scanner::{Location, SecurityScanner, Severity, Threat, ThreatType},
+    storage::{InMemoryStorage, StorageProvider},
+    ComponentManager, McpServer,
 };
 use serde_json::{json, Value};
+use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
 
@@ -182,7 +176,10 @@ async fn test_rate_limiting_under_load() {
     let mut denied = 0;
 
     for _ in 0..30 {
-        let result = rate_limiter.check_limit(client_id, None, 1.0).await.unwrap();
+        let result = rate_limiter
+            .check_limit(client_id, None, 1.0)
+            .await
+            .unwrap();
         if result.allowed {
             allowed += 1;
         } else {
@@ -199,7 +196,10 @@ async fn test_rate_limiting_under_load() {
     sleep(Duration::from_secs(2)).await;
 
     // Should allow requests again
-    let result = rate_limiter.check_limit(client_id, None, 1.0).await.unwrap();
+    let result = rate_limiter
+        .check_limit(client_id, None, 1.0)
+        .await
+        .unwrap();
     assert!(result.allowed);
 }
 
@@ -547,10 +547,10 @@ async fn test_concurrent_request_handling() {
                     if response.error.is_some() {
                         error_count.fetch_add(1, Ordering::Relaxed);
                     }
-                }
+                },
                 Err(_) => {
                     error_count.fetch_add(1, Ordering::Relaxed);
-                }
+                },
             }
         }));
     }

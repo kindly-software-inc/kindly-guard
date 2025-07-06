@@ -107,7 +107,7 @@ impl NeutralizationValidator {
                     length,
                     self.config.max_location_range
                 );
-            }
+            },
             crate::scanner::Location::Json { path } => {
                 ensure!(
                     path.len() <= self.config.max_pattern_length,
@@ -122,7 +122,7 @@ impl NeutralizationValidator {
                     "Invalid JSON path format: {}",
                     path
                 );
-            }
+            },
             crate::scanner::Location::Binary { offset } => {
                 ensure!(
                     *offset < content.len(),
@@ -130,7 +130,7 @@ impl NeutralizationValidator {
                     offset,
                     content.len()
                 );
-            }
+            },
         }
 
         // Validate threat description
@@ -211,7 +211,7 @@ impl NeutralizationValidator {
                     result.sanitized_content.is_none(),
                     "NoAction should not produce sanitized content"
                 );
-            }
+            },
             NeutralizeAction::Removed => {
                 if let Some(ref content) = result.sanitized_content {
                     ensure!(
@@ -219,7 +219,7 @@ impl NeutralizationValidator {
                         "Removed action should reduce content size"
                     );
                 }
-            }
+            },
             _ => {
                 // Other actions should produce output
                 ensure!(
@@ -227,7 +227,7 @@ impl NeutralizationValidator {
                     "Action {:?} should produce sanitized content",
                     result.action_taken
                 );
-            }
+            },
         }
 
         // Validate extracted parameters
@@ -292,32 +292,32 @@ impl NeutralizationValidator {
                     !Self::contains_invisible_unicode(sanitized),
                     "Sanitized content still contains invisible unicode"
                 );
-            }
+            },
             ThreatType::UnicodeBiDi => {
                 // Check no BiDi characters remain
                 ensure!(
                     !Self::contains_bidi_chars(sanitized),
                     "Sanitized content still contains BiDi override characters"
                 );
-            }
+            },
             ThreatType::SqlInjection => {
                 // Basic check - no raw SQL keywords in unsafe context
                 ensure!(
                     !Self::contains_unsafe_sql(sanitized),
                     "Sanitized content may still contain SQL injection"
                 );
-            }
+            },
             ThreatType::PathTraversal => {
                 // Check no path traversal patterns
                 ensure!(
                     !sanitized.contains("..") && !sanitized.contains('~'),
                     "Sanitized content still contains path traversal patterns"
                 );
-            }
+            },
             _ => {
                 // For other types, trust the neutralizer
                 // Could add more specific checks
-            }
+            },
         }
 
         Ok(())

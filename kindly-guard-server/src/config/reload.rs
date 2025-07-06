@@ -225,7 +225,7 @@ async fn reload_config(
 
             notify_handlers(handlers, event).await;
             return Err(e);
-        }
+        },
     };
 
     // Validate with all handlers
@@ -241,7 +241,7 @@ async fn reload_config(
                         message: e.to_string(),
                         severity: ValidationSeverity::Error,
                     });
-                }
+                },
             }
         }
     }
@@ -402,18 +402,18 @@ impl ConfigChangeHandler for DefaultConfigChangeHandler {
                 // Would log to audit system here
 
                 Ok(())
-            }
+            },
             ConfigReloadEvent::Failed { error, .. } => {
                 error!("Configuration reload failed: {}", error);
                 Ok(())
-            }
+            },
             ConfigReloadEvent::ValidationFailed { errors, .. } => {
                 error!("Configuration validation failed:");
                 for err in errors {
                     error!("  {}: {} ({:?})", err.field, err.message, err.severity);
                 }
                 Ok(())
-            }
+            },
         }
     }
 

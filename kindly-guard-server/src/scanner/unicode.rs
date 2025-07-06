@@ -315,59 +315,82 @@ mod text_control_tests {
     fn test_allow_text_control_chars() {
         // Test with text control chars allowed
         let scanner = UnicodeScanner::with_config(true);
-        
+
         // Newline should not be flagged
         let threats = scanner.scan_text("Hello\nWorld").unwrap();
-        assert_eq!(threats.len(), 0, "Newline should not be flagged when allowed");
-        
+        assert_eq!(
+            threats.len(),
+            0,
+            "Newline should not be flagged when allowed"
+        );
+
         // Tab should not be flagged
         let threats = scanner.scan_text("Hello\tWorld").unwrap();
         assert_eq!(threats.len(), 0, "Tab should not be flagged when allowed");
-        
+
         // Carriage return should not be flagged
         let threats = scanner.scan_text("Hello\rWorld").unwrap();
-        assert_eq!(threats.len(), 0, "Carriage return should not be flagged when allowed");
-        
+        assert_eq!(
+            threats.len(),
+            0,
+            "Carriage return should not be flagged when allowed"
+        );
+
         // But other control chars should still be flagged
         let threats = scanner.scan_text("Hello\0World").unwrap();
         assert_eq!(threats.len(), 1, "Null byte should still be flagged");
         assert_eq!(threats[0].threat_type, ThreatType::UnicodeControl);
-        
+
         let threats = scanner.scan_text("Hello\u{0001}World").unwrap();
-        assert_eq!(threats.len(), 1, "Other control chars should still be flagged");
+        assert_eq!(
+            threats.len(),
+            1,
+            "Other control chars should still be flagged"
+        );
         assert_eq!(threats[0].threat_type, ThreatType::UnicodeControl);
     }
-    
+
     #[test]
     fn test_strict_control_char_detection() {
         // Test with default (strict) mode
         let scanner = UnicodeScanner::new();
-        
+
         // All control chars should be flagged
         let threats = scanner.scan_text("Hello\nWorld").unwrap();
         assert_eq!(threats.len(), 1, "Newline should be flagged in strict mode");
         assert_eq!(threats[0].threat_type, ThreatType::UnicodeControl);
-        
+
         let threats = scanner.scan_text("Hello\tWorld").unwrap();
         assert_eq!(threats.len(), 1, "Tab should be flagged in strict mode");
         assert_eq!(threats[0].threat_type, ThreatType::UnicodeControl);
-        
+
         let threats = scanner.scan_text("Hello\rWorld").unwrap();
-        assert_eq!(threats.len(), 1, "Carriage return should be flagged in strict mode");
+        assert_eq!(
+            threats.len(),
+            1,
+            "Carriage return should be flagged in strict mode"
+        );
         assert_eq!(threats[0].threat_type, ThreatType::UnicodeControl);
     }
-    
+
     #[test]
     fn test_mixed_control_chars() {
         let scanner = UnicodeScanner::with_config(true);
-        
+
         // Text with both allowed and dangerous control chars
         let text = "Line1\nLine2\0Line3\tColumn";
         let threats = scanner.scan_text(text).unwrap();
-        
+
         // Only the null byte should be flagged
-        assert_eq!(threats.len(), 1, "Only dangerous control chars should be flagged");
+        assert_eq!(
+            threats.len(),
+            1,
+            "Only dangerous control chars should be flagged"
+        );
         assert_eq!(threats[0].threat_type, ThreatType::UnicodeControl);
-        assert!(threats[0].description.contains("U+0000"), "Should identify null byte");
+        assert!(
+            threats[0].description.contains("U+0000"),
+            "Should identify null byte"
+        );
     }
 }

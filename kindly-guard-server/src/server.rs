@@ -202,7 +202,7 @@ impl McpServer {
 
             let audit_logger = self.component_manager.audit_logger();
             let retry_strategy = self.component_manager.retry_strategy();
-            
+
             // Wrap audit logging with retry logic
             let audit_event_json = serde_json::to_value(&audit_event).unwrap_or(Value::Null);
             match retry_strategy
@@ -214,10 +214,10 @@ impl McpServer {
                     if let Err(e) = audit_logger.log(audit_event).await {
                         warn!("Failed to log audit event: {}", e);
                     }
-                }
+                },
                 Err(e) => {
                     error!("Failed to log audit event after retries: {}", e);
-                }
+                },
             }
         }
 
@@ -326,10 +326,10 @@ impl McpServer {
                         Err(e) => {
                             error!("Failed to serialize batch response: {}", e);
                             None
-                        }
+                        },
                     }
                 }
-            }
+            },
             Ok(value) => self.handle_value(value).await,
             Err(_) => {
                 // Invalid JSON
@@ -344,9 +344,9 @@ impl McpServer {
                     Err(e) => {
                         error!("Failed to serialize error response: {}", e);
                         None
-                    }
+                    },
                 }
-            }
+            },
         }
     }
 
@@ -392,7 +392,7 @@ impl McpServer {
                         Err(e) => {
                             error!("Failed to serialize error response: {}", e);
                             None
-                        }
+                        },
                     };
                 }
             }
@@ -436,7 +436,7 @@ impl McpServer {
                     Err(e) => {
                         error!("Failed to serialize error response: {}", e);
                         return None;
-                    }
+                    },
                 }
             }
         }
@@ -454,12 +454,12 @@ impl McpServer {
             Err(e) => {
                 error!("Failed to serialize error response: {}", e);
                 None
-            }
+            },
         }
     }
 
     /// Handle JSON-RPC request
-    /// 
+    ///
     /// This is public for testing purposes only.
     /// In production, use the transport layer methods.
     pub async fn handle_request(&self, request: JsonRpcRequest) -> JsonRpcResponse {
@@ -519,7 +519,7 @@ impl McpServer {
                     ],
                 });
                 ctx
-            }
+            },
             Err(e) => {
                 warn!("Authentication failed: {}", e);
 
@@ -551,7 +551,7 @@ impl McpServer {
                     "Authentication required".to_string(),
                     None,
                 );
-            }
+            },
         };
 
         // Check rate limit
@@ -570,7 +570,7 @@ impl McpServer {
                     tokens_remaining: 0.0,
                     reset_after: Duration::ZERO,
                 }
-            }
+            },
         };
 
         // Track rate limit event
@@ -638,7 +638,7 @@ impl McpServer {
                 } else {
                     true
                 }
-            }
+            },
             _ => true,
         };
 
@@ -693,12 +693,12 @@ impl McpServer {
                         "Security threat detected".to_string(),
                         Some(serde_json::to_value(&threats).unwrap_or(Value::Null)),
                     );
-                }
+                },
                 Err(e) => {
                     error!("Failed to scan request: {}", e);
                     // Continue processing but log the error
-                }
-                _ => {}
+                },
+                _ => {},
             }
         }
 
@@ -747,17 +747,17 @@ impl McpServer {
             "tools/list" => {
                 self.handle_tools_list(Some(request.params), &auth_context)
                     .await
-            }
+            },
             "tools/call" => {
                 self.handle_tools_call(Some(request.params), &auth_context)
                     .await
-            }
+            },
 
             "resources/list" => self.handle_resources_list(Some(request.params)).await,
             "resources/read" => {
                 self.handle_resources_read(Some(request.params), &auth_context)
                     .await
-            }
+            },
 
             "prompts/list" => self.handle_prompts_list(Some(request.params)).await,
             "prompts/get" => self.handle_prompts_get(Some(request.params)).await,
@@ -770,7 +770,7 @@ impl McpServer {
             "security/rate_limit_status" => {
                 self.handle_rate_limit_status(Some(request.params), &auth_context)
                     .await
-            }
+            },
 
             // Cancel request
             "$/cancelRequest" => self.handle_cancel_request(Some(request.params)).await,
@@ -789,7 +789,7 @@ impl McpServer {
                     error.to_json_rpc_error().message,
                     error.to_json_rpc_error().data,
                 )
-            }
+            },
         };
 
         // Add version metadata to successful responses
@@ -842,7 +842,7 @@ impl McpServer {
     }
 
     /// Handle JSON-RPC notification
-    /// 
+    ///
     /// This is public for testing purposes only.
     /// In production, use the transport layer methods.
     pub async fn handle_notification(&self, notification: JsonRpcNotification) {
@@ -852,7 +852,7 @@ impl McpServer {
             "initialized" => {
                 info!("Client sent initialized notification");
                 self.shield.set_active(true);
-            }
+            },
             "$/cancelRequest" => {
                 if !notification.params.is_null() {
                     if let Some(id) = notification.params.get("id") {
@@ -860,10 +860,10 @@ impl McpServer {
                         // TODO: Implement request cancellation
                     }
                 }
-            }
+            },
             _ => {
                 debug!("Unknown notification: {}", notification.method);
-            }
+            },
         }
     }
 
@@ -888,13 +888,13 @@ impl McpServer {
                     Ok(threats) => all_threats.extend(threats),
                     Err(e) => {
                         error!("Failed to scan method: {}", e);
-                    }
+                    },
                 }
-            }
+            },
             Err(e) => {
                 warn!("Circuit breaker open for scanner.scan_text: {}", e);
                 // Continue without scanning if circuit is open
-            }
+            },
         }
 
         // Scan parameters if present with circuit breaker protection
@@ -914,13 +914,13 @@ impl McpServer {
                     Ok(threats) => all_threats.extend(threats),
                     Err(e) => {
                         error!("Failed to scan params: {}", e);
-                    }
+                    },
                 }
-            }
+            },
             Err(e) => {
                 warn!("Circuit breaker open for scanner.scan_json: {}", e);
                 // Continue without scanning if circuit is open
-            }
+            },
         }
 
         Ok(all_threats)
@@ -1156,7 +1156,7 @@ impl McpServer {
         let bulkhead = self.component_manager.bulkhead();
         let tool_name = params.name.clone();
         let arguments = params.arguments;
-        
+
         let _bulkhead_result = bulkhead
             .execute_json(
                 &format!("tool.{}", tool_name),
@@ -1170,7 +1170,7 @@ impl McpServer {
                 warn!("Bulkhead rejected tool execution for {}: {}", tool_name, e);
                 ServerError::InternalError(format!("Tool execution rejected: {}", e))
             })?;
-        
+
         // Now execute with timeout
         let result = tokio::time::timeout(
             Duration::from_secs(self.config.server.request_timeout_secs),
@@ -1308,15 +1308,15 @@ impl McpServer {
                                     crate::neutralizer::NeutralizeAction::Sanitized => "sanitized",
                                     crate::neutralizer::NeutralizeAction::Parameterized => {
                                         "parameterized"
-                                    }
+                                    },
                                     crate::neutralizer::NeutralizeAction::Normalized => {
                                         "normalized"
-                                    }
+                                    },
                                     crate::neutralizer::NeutralizeAction::Escaped => "escaped",
                                     crate::neutralizer::NeutralizeAction::Removed => "removed",
                                     crate::neutralizer::NeutralizeAction::Quarantined => {
                                         "quarantined"
-                                    }
+                                    },
                                     crate::neutralizer::NeutralizeAction::NoAction => "no_action",
                                 };
 
@@ -1391,7 +1391,7 @@ impl McpServer {
                                     "confidence": result.confidence_score,
                                     "time_us": duration.as_micros() as u64,
                                 }));
-                            }
+                            },
                             Err(e) => {
                                 // Log neutralization failure
                                 if let Some(ref logger) = audit_logger {
@@ -1451,7 +1451,7 @@ impl McpServer {
                                 );
 
                                 tracing::warn!("Neutralization failed for threat: {}", e);
-                            }
+                            },
                         }
                     }
 
@@ -1538,7 +1538,7 @@ impl McpServer {
                             .unwrap_or_else(|_| r#"{"error": "Failed to serialize response"}"#.to_string())
                     }]
                 }))
-            }
+            },
 
             "scan_file" => {
                 let path = arguments
@@ -1611,7 +1611,7 @@ impl McpServer {
                             .unwrap_or_else(|_| r#"{"error": "Failed to serialize response"}"#.to_string())
                     }]
                 }))
-            }
+            },
 
             "scan_json" => {
                 let data = arguments.get("data").ok_or_else(|| {
@@ -1671,7 +1671,7 @@ impl McpServer {
                             .unwrap_or_else(|_| r#"{"error": "Failed to serialize response"}"#.to_string())
                     }]
                 }))
-            }
+            },
 
             "get_security_info" => {
                 // Get current security statistics
@@ -1711,7 +1711,7 @@ impl McpServer {
                             .unwrap_or_else(|_| "Failed to serialize security info".to_string())
                     }]
                 }))
-            }
+            },
 
             "verify_signature" => {
                 let message = arguments
@@ -1768,7 +1768,7 @@ impl McpServer {
                             .unwrap_or_else(|_| "Failed to serialize verification result".to_string())
                     }]
                 }))
-            }
+            },
 
             "get_shield_status" => {
                 let shield_info = self.shield.get_info();
@@ -1789,7 +1789,7 @@ impl McpServer {
                             .unwrap_or_else(|_| "Failed to serialize shield status".to_string())
                     }]
                 }))
-            }
+            },
 
             _ => Err(ServerError::InvalidParams(format!("Unknown tool: {name}"))),
         }
@@ -1862,7 +1862,7 @@ impl McpServer {
                 };
                 Ok(serde_json::to_value(content)
                     .map_err(|e| ServerError::InternalError(e.to_string()))?)
-            }
+            },
 
             "security-report://latest" => {
                 let shield_info = self.shield.get_info();
@@ -1895,7 +1895,7 @@ impl McpServer {
                 };
                 Ok(serde_json::to_value(content)
                     .map_err(|e| ServerError::InternalError(e.to_string()))?)
-            }
+            },
 
             _ => Err(ServerError::InvalidParams(format!(
                 "Unknown resource URI: {}",
@@ -2061,7 +2061,7 @@ impl McpServer {
                 Ok(serde_json::json!({
                     "messages": messages
                 }))
-            }
+            },
 
             "threat-report" => {
                 let scope = arguments
@@ -2080,7 +2080,7 @@ impl McpServer {
                 Ok(serde_json::json!({
                     "messages": messages
                 }))
-            }
+            },
 
             "security-best-practices" => {
                 let context = arguments
@@ -2101,7 +2101,7 @@ impl McpServer {
                 Ok(serde_json::json!({
                     "messages": messages
                 }))
-            }
+            },
 
             _ => Err(ServerError::InvalidParams(format!(
                 "Unknown prompt: {name}"
@@ -2130,13 +2130,13 @@ impl McpServer {
                     Ok(transport) => {
                         info!("Adding transport: {:?}", transport_config.transport_type);
                         transport_manager.add_transport(transport)?;
-                    }
+                    },
                     Err(e) => {
                         warn!(
                             "Failed to create transport {:?}: {}",
                             transport_config.transport_type, e
                         );
-                    }
+                    },
                 }
             }
         }
@@ -2381,11 +2381,11 @@ impl McpServer {
                         stdout.flush().await?;
                         debug!("Sent: {}", response);
                     }
-                }
+                },
                 Err(e) => {
                     error!("Error reading from stdin: {}", e);
                     break;
-                }
+                },
             }
         }
 
@@ -2436,14 +2436,14 @@ impl McpServer {
                             r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":null}"#.to_string()
                         })
                     }))
-                }
+                },
                 Err(e) => {
                     error!("Failed to sign response: {}", e);
                     // Fall back to unsigned response
                     Some(serde_json::to_string(&response).unwrap_or_else(|_| {
                         r#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"Internal error"},"id":null}"#.to_string()
                     }))
-                }
+                },
             }
         } else {
             Some(serde_json::to_string(&response).unwrap_or_else(|e| {
@@ -2610,11 +2610,11 @@ impl crate::config::reload::ConfigChangeHandler for ServerConfigReloadHandler {
                                     "disabled"
                                 }
                             );
-                        }
+                        },
                         "shield.update_interval_ms" => {
                             // Shield would need a method to update interval
                             debug!("Shield update interval changed");
-                        }
+                        },
                         "rate_limit.enabled" => {
                             // Rate limiter would need to support enable/disable
                             info!(
@@ -2625,24 +2625,24 @@ impl crate::config::reload::ConfigChangeHandler for ServerConfigReloadHandler {
                                     "disabled"
                                 }
                             );
-                        }
+                        },
                         "rate_limit.default_rpm" => {
                             // Rate limiter would need to support updating limits
                             info!(
                                 "Rate limit updated to {} requests/minute",
                                 new_config.rate_limit.default_rpm
                             );
-                        }
+                        },
                         field if field.starts_with("scanner.") => {
                             // Scanner config changes would require scanner rebuild
                             warn!(
                                 "Scanner configuration changed ({}), restart required",
                                 field
                             );
-                        }
+                        },
                         _ => {
                             debug!("Configuration field {} changed", field);
-                        }
+                        },
                     }
                 }
 
@@ -2663,7 +2663,7 @@ impl crate::config::reload::ConfigChangeHandler for ServerConfigReloadHandler {
                         .log(audit_event)
                         .await;
                 }
-            }
+            },
             ConfigReloadEvent::Failed { error, .. } => {
                 error!("Configuration reload failed: {}", error);
 
@@ -2684,13 +2684,13 @@ impl crate::config::reload::ConfigChangeHandler for ServerConfigReloadHandler {
                         .log(audit_event)
                         .await;
                 }
-            }
+            },
             ConfigReloadEvent::ValidationFailed { errors, .. } => {
                 error!(
                     "Configuration validation failed with {} errors",
                     errors.len()
                 );
-            }
+            },
         }
 
         Ok(())

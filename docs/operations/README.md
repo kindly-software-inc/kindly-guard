@@ -37,6 +37,7 @@ This directory contains all operational documentation for the KindlyGuard projec
 ### Testing & Quality
 - [`TESTING_GUIDE.md`](../TESTING_GUIDE.md) - Testing strategies and commands
 - [`CI_SETUP.md`](../CI_SETUP.md) - GitHub Actions configuration
+- [`LOCAL_CI_GUIDE.md`](LOCAL_CI_GUIDE.md) - 🆕 Local CI/CD with cargo xtask
 - [`PRE_COMMIT_HOOKS.md`](../PRE_COMMIT_HOOKS.md) - Git hooks for quality control
 
 ## 🤖 Claude Integration

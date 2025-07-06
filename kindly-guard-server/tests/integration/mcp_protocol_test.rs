@@ -1,7 +1,7 @@
 use kindly_guard_server::{
     config::Config,
+    protocol::{JsonRpcNotification, JsonRpcRequest},
     server::McpServer,
-    protocol::{JsonRpcRequest, JsonRpcNotification},
 };
 use serde_json::json;
 use std::sync::Arc;
@@ -9,8 +9,7 @@ use std::sync::Arc;
 /// Helper to create a test server
 async fn create_test_server() -> Arc<McpServer> {
     let config = Config::default();
-    let server = McpServer::new(config)
-        .expect("Failed to create server");
+    let server = McpServer::new(config).expect("Failed to create server");
     Arc::new(server)
 }
 
@@ -18,7 +17,7 @@ async fn create_test_server() -> Arc<McpServer> {
 #[tokio::test]
 async fn test_mcp_handshake() {
     let server = create_test_server().await;
-    
+
     // Initialize request
     let init_request = json!({
         "jsonrpc": "2.0",
@@ -36,12 +35,16 @@ async fn test_mcp_handshake() {
         "id": 1
     });
 
-    let response = server.handle_request(
-        serde_json::from_value(init_request).unwrap()
-    ).await;
+    let response = server
+        .handle_request(serde_json::from_value(init_request).unwrap())
+        .await;
 
     // Verify response
-    assert!(response.error.is_none(), "Initialize failed: {:?}", response.error);
+    assert!(
+        response.error.is_none(),
+        "Initialize failed: {:?}",
+        response.error
+    );
     assert!(response.result.is_some());
     let result = response.result.unwrap();
     assert!(result.get("capabilities").is_some());
@@ -55,16 +58,16 @@ async fn test_mcp_handshake() {
     });
 
     // Notifications don't return responses
-    server.handle_notification(
-        serde_json::from_value(initialized_notification).unwrap()
-    ).await;
+    server
+        .handle_notification(serde_json::from_value(initialized_notification).unwrap())
+        .await;
 }
 
 /// Test that all tool methods work correctly
 #[tokio::test]
 async fn test_all_tool_methods() {
     let server = create_test_server().await;
-    
+
     // Initialize first
     let init_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
@@ -80,8 +83,9 @@ async fn test_all_tool_methods() {
             }
         },
         "id": 1
-    })).unwrap();
-    
+    }))
+    .unwrap();
+
     let response = server.handle_request(init_request).await;
     assert!(response.error.is_none(), "Initialize failed");
 
@@ -91,17 +95,23 @@ async fn test_all_tool_methods() {
         "method": "tools/list",
         "params": {},
         "id": 2
-    })).unwrap();
+    }))
+    .unwrap();
 
     let response = server.handle_request(list_tools_request).await;
-    
-    assert!(response.error.is_none(), "List tools failed: {:?}", response.error);
+
+    assert!(
+        response.error.is_none(),
+        "List tools failed: {:?}",
+        response.error
+    );
     assert!(response.result.is_some());
     let result = response.result.unwrap();
     let tools = result["tools"].as_array().expect("Expected tools array");
 
     // Verify we have the expected tools
-    let tool_names: Vec<&str> = tools.iter()
+    let tool_names: Vec<&str> = tools
+        .iter()
         .filter_map(|t| t.get("name").and_then(|n| n.as_str()))
         .collect();
     assert!(tool_names.contains(&"scan_text"));
@@ -120,14 +130,21 @@ async fn test_all_tool_methods() {
             }
         },
         "id": 3
-    })).unwrap();
+    }))
+    .unwrap();
 
     let response = server.handle_request(scan_request).await;
-    
-    assert!(response.error.is_none(), "Scan text failed: {:?}", response.error);
+
+    assert!(
+        response.error.is_none(),
+        "Scan text failed: {:?}",
+        response.error
+    );
     assert!(response.result.is_some());
     let result = response.result.unwrap();
-    let content = result["content"].as_array().expect("Expected content array");
+    let content = result["content"]
+        .as_array()
+        .expect("Expected content array");
     assert!(!content.is_empty());
     assert_eq!(content[0]["type"], "text");
 }
@@ -136,7 +153,7 @@ async fn test_all_tool_methods() {
 #[tokio::test]
 async fn test_malformed_request_handling() {
     let server = create_test_server().await;
-    
+
     // Missing required fields
     let bad_request = json!({
         "jsonrpc": "2.0",
@@ -153,7 +170,8 @@ async fn test_malformed_request_handling() {
         "method": "invalid/method",
         "params": {},
         "id": 1
-    })).unwrap();
+    }))
+    .unwrap();
 
     let response = server.handle_request(invalid_method).await;
     assert!(response.error.is_some(), "Should fail on invalid method");
@@ -167,7 +185,8 @@ async fn test_malformed_request_handling() {
             "arguments": {}
         },
         "id": 2
-    })).unwrap();
+    }))
+    .unwrap();
 
     let response = server.handle_request(wrong_tool).await;
     assert!(response.error.is_some(), "Should fail on nonexistent tool");
@@ -177,7 +196,7 @@ async fn test_malformed_request_handling() {
 #[tokio::test]
 async fn test_concurrent_requests() {
     let server = create_test_server().await;
-    
+
     // Initialize first
     let init_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
@@ -189,14 +208,15 @@ async fn test_concurrent_requests() {
             }
         },
         "id": 0
-    })).unwrap();
-    
+    }))
+    .unwrap();
+
     let response = server.handle_request(init_request).await;
     assert!(response.error.is_none(), "Initialize failed");
 
     // Create multiple concurrent requests
     let mut handles = vec![];
-    
+
     for i in 1..=10 {
         let server_clone = Arc::clone(&server);
         let handle = tokio::spawn(async move {
@@ -210,10 +230,15 @@ async fn test_concurrent_requests() {
                     }
                 },
                 "id": i
-            })).unwrap();
-            
+            }))
+            .unwrap();
+
             let response = server_clone.handle_request(request).await;
-            assert!(response.error.is_none(), "Request failed: {:?}", response.error);
+            assert!(
+                response.error.is_none(),
+                "Request failed: {:?}",
+                response.error
+            );
             Ok::<_, anyhow::Error>(response)
         });
         handles.push(handle);
@@ -221,7 +246,7 @@ async fn test_concurrent_requests() {
 
     // Wait for all requests to complete
     let results = futures::future::join_all(handles).await;
-    
+
     // Verify all succeeded
     for (i, result) in results.iter().enumerate() {
         assert!(
@@ -230,7 +255,7 @@ async fn test_concurrent_requests() {
             i + 1,
             result
         );
-        
+
         let response = result.as_ref().unwrap().as_ref().unwrap();
         assert!(
             response.error.is_none(),
@@ -245,7 +270,7 @@ async fn test_concurrent_requests() {
 #[tokio::test]
 async fn test_scan_file_tool() {
     let server = create_test_server().await;
-    
+
     // Initialize
     let init_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
@@ -261,8 +286,9 @@ async fn test_scan_file_tool() {
             }
         },
         "id": 1
-    })).unwrap();
-    
+    }))
+    .unwrap();
+
     let response = server.handle_request(init_request).await;
     assert!(response.error.is_none(), "Initialize failed");
 
@@ -281,14 +307,21 @@ async fn test_scan_file_tool() {
             }
         },
         "id": 2
-    })).unwrap();
+    }))
+    .unwrap();
 
     let response = server.handle_request(scan_request).await;
-    
-    assert!(response.error.is_none(), "Scan file failed: {:?}", response.error);
+
+    assert!(
+        response.error.is_none(),
+        "Scan file failed: {:?}",
+        response.error
+    );
     assert!(response.result.is_some());
     let result = response.result.unwrap();
-    let content = result["content"].as_array().expect("Expected content array");
+    let content = result["content"]
+        .as_array()
+        .expect("Expected content array");
     assert!(!content.is_empty());
     // Should detect SQL pattern
     let result_text = content[0]["text"].as_str().unwrap();
@@ -305,7 +338,7 @@ async fn test_scan_file_tool() {
 #[tokio::test]
 async fn test_get_stats_tool() {
     let server = create_test_server().await;
-    
+
     // Initialize
     let init_request: JsonRpcRequest = serde_json::from_value(json!({
         "jsonrpc": "2.0",
@@ -321,8 +354,9 @@ async fn test_get_stats_tool() {
             }
         },
         "id": 1
-    })).unwrap();
-    
+    }))
+    .unwrap();
+
     let response = server.handle_request(init_request).await;
     assert!(response.error.is_none(), "Initialize failed");
 
@@ -337,7 +371,8 @@ async fn test_get_stats_tool() {
             }
         },
         "id": 2
-    })).unwrap();
+    }))
+    .unwrap();
 
     let response = server.handle_request(scan_request).await;
     assert!(response.error.is_none(), "Scan failed");
@@ -351,14 +386,21 @@ async fn test_get_stats_tool() {
             "arguments": {}
         },
         "id": 3
-    })).unwrap();
+    }))
+    .unwrap();
 
     let response = server.handle_request(stats_request).await;
-    
-    assert!(response.error.is_none(), "Get stats failed: {:?}", response.error);
+
+    assert!(
+        response.error.is_none(),
+        "Get stats failed: {:?}",
+        response.error
+    );
     assert!(response.result.is_some());
     let result = response.result.unwrap();
-    let content = result["content"].as_array().expect("Expected content array");
+    let content = result["content"]
+        .as_array()
+        .expect("Expected content array");
     assert!(!content.is_empty());
     let stats_text = content[0]["text"].as_str().unwrap();
     assert!(stats_text.contains("scanned"));
@@ -369,10 +411,10 @@ async fn test_get_stats_tool() {
 #[tokio::test]
 async fn test_protocol_version_negotiation() {
     let server = create_test_server().await;
-    
+
     // Try with different protocol versions
     let versions = ["2024-11-05", "2024-10-01", "2023-01-01"];
-    
+
     for version in &versions {
         let init_request: JsonRpcRequest = serde_json::from_value(json!({
             "jsonrpc": "2.0",
@@ -384,10 +426,11 @@ async fn test_protocol_version_negotiation() {
                 }
             },
             "id": 1
-        })).unwrap();
-        
+        }))
+        .unwrap();
+
         let response = server.handle_request(init_request).await;
-        
+
         // Should handle all versions gracefully
         assert!(
             response.error.is_none(),

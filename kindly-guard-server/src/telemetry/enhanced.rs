@@ -159,14 +159,14 @@ impl TelemetryProvider for EnhancedTelemetryProvider {
             MetricValue::Counter(value) => {
                 self.buffer
                     .increment_counter(&metric.name, value, metric.labels);
-            }
+            },
             MetricValue::Gauge(value) => {
                 self.buffer.record_gauge(&metric.name, value, metric.labels);
-            }
+            },
             MetricValue::Histogram(value) => {
                 self.buffer
                     .record_histogram(&metric.name, value, metric.labels);
-            }
+            },
         }
     }
 

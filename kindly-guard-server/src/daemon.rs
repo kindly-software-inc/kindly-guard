@@ -114,10 +114,10 @@ impl DaemonHandle {
                 Ok(()) => {
                     info!("Received SIGINT, shutting down gracefully");
                     handle1.shutdown();
-                }
+                },
                 Err(e) => {
                     error!("Failed to listen for SIGINT: {}", e);
-                }
+                },
             }
         });
 
@@ -131,7 +131,7 @@ impl DaemonHandle {
                     Err(e) => {
                         error!("Failed to listen for SIGTERM: {}", e);
                         return;
-                    }
+                    },
                 };
 
                 loop {
@@ -150,7 +150,7 @@ impl DaemonHandle {
                     Err(e) => {
                         warn!("Failed to listen for SIGHUP: {}", e);
                         return;
-                    }
+                    },
                 };
 
                 loop {

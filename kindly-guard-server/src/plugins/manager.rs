@@ -96,10 +96,10 @@ impl DefaultPluginManager {
             match self.load_plugin(&path).await {
                 Ok(id) => {
                     info!("Loaded plugin {} from {:?}", id.0, path);
-                }
+                },
                 Err(e) => {
                     warn!("Failed to load plugin from {:?}: {}", path, e);
-                }
+                },
             }
         }
 
@@ -174,7 +174,7 @@ impl PluginManagerTrait for DefaultPluginManager {
 
                     let plugin = loader.load_plugin(path).await?;
                     return self.register_plugin(plugin).await;
-                }
+                },
                 Err(_) => continue,
             }
         }
@@ -266,7 +266,7 @@ impl PluginManagerTrait for DefaultPluginManager {
                     }
 
                     results.insert(id.clone(), threats);
-                }
+                },
                 Ok(Err(e)) => {
                     error!("Plugin {} scan error: {}", handle.metadata.name, e);
 
@@ -275,7 +275,7 @@ impl PluginManagerTrait for DefaultPluginManager {
                         let mut metrics = handle.metrics.write().await;
                         metrics.errors += 1;
                     }
-                }
+                },
                 Err(_) => {
                     error!("Plugin {} scan timeout", handle.metadata.name);
 
@@ -284,7 +284,7 @@ impl PluginManagerTrait for DefaultPluginManager {
                         let mut metrics = handle.metrics.write().await;
                         metrics.errors += 1;
                     }
-                }
+                },
             }
         }
 

@@ -416,18 +416,18 @@ impl AuthManager {
                     } else {
                         anyhow::bail!("JWT secret not configured for signature verification");
                     }
-                }
+                },
                 Some("none") => {
                     anyhow::bail!(
                         "Unsigned tokens not allowed when signature verification is required"
                     );
-                }
+                },
                 Some(alg) => {
                     anyhow::bail!("Unsupported algorithm: {}. Only HS256 is supported", alg);
-                }
+                },
                 None => {
                     anyhow::bail!("Missing algorithm in JWT header");
-                }
+                },
             }
         }
 

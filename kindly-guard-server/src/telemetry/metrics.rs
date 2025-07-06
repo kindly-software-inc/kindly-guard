@@ -226,26 +226,17 @@ impl MetricsCollector {
 
     /// Record a service unavailable event
     pub fn record_service_unavailable(&self) {
-        self.increment_counter(
-            "kindlyguard_service_unavailable_total",
-            HashMap::new(),
-        );
+        self.increment_counter("kindlyguard_service_unavailable_total", HashMap::new());
     }
 
     /// Record a degraded service event
     pub fn record_degraded_service(&self) {
-        self.increment_counter(
-            "kindlyguard_service_degraded_total",
-            HashMap::new(),
-        );
+        self.increment_counter("kindlyguard_service_degraded_total", HashMap::new());
     }
 
     /// Record a successful verification
     pub fn record_verification_success(&self) {
-        self.increment_counter(
-            "kindlyguard_verifications_success_total",
-            HashMap::new(),
-        );
+        self.increment_counter("kindlyguard_verifications_success_total", HashMap::new());
     }
 
     /// Get a snapshot of current metrics
@@ -358,7 +349,7 @@ impl MetricsSnapshot {
                     } else if name == "kindlyguard_threats_detected_total" {
                         total_threats += value;
                     }
-                }
+                },
                 Metric::Histogram {
                     name, sum, count, ..
                 } => {
@@ -366,12 +357,12 @@ impl MetricsSnapshot {
                         total_duration += sum;
                         duration_count += count;
                     }
-                }
+                },
                 Metric::Gauge { name, value, .. } => {
                     if name == "kindlyguard_active_connections" {
                         active_connections = *value as u64;
                     }
-                }
+                },
             }
         }
 
@@ -412,7 +403,7 @@ mod tests {
             Metric::Counter { name, value, .. } => {
                 assert_eq!(name, "test_counter");
                 assert_eq!(*value, 5);
-            }
+            },
             _ => panic!("Expected counter metric"),
         }
     }
@@ -435,7 +426,7 @@ mod tests {
                 assert_eq!(name, "test_histogram");
                 assert_eq!(*count, 3);
                 assert!((sum - 0.222).abs() < 0.0001);
-            }
+            },
             _ => panic!("Expected histogram metric"),
         }
     }
@@ -469,9 +460,9 @@ mod tests {
 
         // Verify specific counters exist
         let metrics = collector.get_metrics();
-        let error_counter = metrics.iter().find(|m| {
-            matches!(m, Metric::Counter { name, .. } if name == "kindlyguard_errors_total")
-        });
+        let error_counter = metrics.iter().find(
+            |m| matches!(m, Metric::Counter { name, .. } if name == "kindlyguard_errors_total"),
+        );
         assert!(error_counter.is_some());
 
         let scan_counter = metrics.iter().find(|m| {

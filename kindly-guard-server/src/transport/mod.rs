@@ -432,7 +432,7 @@ impl TransportFactory for DefaultTransportFactory {
             TransportType::Http => Ok(Box::new(HttpTransport::new(config.config.clone())?)),
             TransportType::WebSocket => {
                 Ok(Box::new(WebSocketTransport::new(config.config.clone())?))
-            }
+            },
             #[cfg(feature = "enhanced")]
             TransportType::Grpc => Ok(Box::new(enhanced::GrpcTransport::new(
                 config.config.clone(),
@@ -454,9 +454,10 @@ pub fn create_transport(config: &crate::config::Config) -> Arc<dyn Transport> {
         enabled: true,
         config: serde_json::json!({}),
     };
-    
+
     let factory = DefaultTransportFactory;
-    factory.create(&transport_config)
+    factory
+        .create(&transport_config)
         .unwrap_or_else(|_| Box::new(StdioTransport::new(serde_json::json!({})).unwrap()))
         .into()
 }

@@ -5,13 +5,8 @@ use tracing_subscriber::EnvFilter;
 // Platform-specific code will be added here if needed
 
 use kindly_tools::{
-    dev::DevCommand,
-    install::InstallCommand,
-    mcp::McpCommand,
-    monitor::MonitorCommand,
-    shield::ShieldCommand,
-    wrap::WrapCommand,
-    Execute,
+    dev::DevCommand, install::InstallCommand, mcp::McpCommand, monitor::MonitorCommand,
+    shield::ShieldCommand, wrap::WrapCommand, Execute,
 };
 
 #[derive(Parser)]
@@ -104,7 +99,7 @@ async fn main() -> Result<()> {
         } => {
             use kindly_tools::commands::scan;
             scan::execute(path, format, recursive, extensions, max_size_mb, config).await
-        }
+        },
         Commands::Install(cmd) => cmd.execute().await,
         Commands::Mcp(cmd) => cmd.execute().await,
         Commands::Dev(cmd) => cmd.execute().await,

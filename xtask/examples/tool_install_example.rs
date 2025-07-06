@@ -3,8 +3,8 @@
 //! Run with: cargo run -p xtask --example tool_install_example
 
 use anyhow::Result;
-use xtask::utils::{Context, ensure_tool_installed, ensure_tools_installed};
-use xtask::utils::tools::{ToolInstallConfig, common_tools};
+use xtask::utils::tools::{common_tools, ToolInstallConfig};
+use xtask::utils::{ensure_tool_installed, ensure_tools_installed, Context};
 
 fn main() -> Result<()> {
     // Create a context for the examples
@@ -26,11 +26,11 @@ fn main() -> Result<()> {
     // Example 2: Install with custom configuration
     println!("Example 2: Installing with custom config (no auto-install in CI)");
     let config = ToolInstallConfig {
-        ci_auto_install: false,  // Don't auto-install in CI
-        interactive: true,       // Still prompt in interactive mode
-        install_command: None,   // Use default cargo install
+        ci_auto_install: false, // Don't auto-install in CI
+        interactive: true,      // Still prompt in interactive mode
+        install_command: None,  // Use default cargo install
     };
-    
+
     match ensure_tool_installed(&ctx, "cargo-nextest", Some(config)) {
         Ok(true) => println!("✅ cargo-nextest is available"),
         Ok(false) => println!("❌ Installation was not performed"),
@@ -41,12 +41,8 @@ fn main() -> Result<()> {
 
     // Example 3: Install multiple tools at once
     println!("Example 3: Installing multiple security tools");
-    let results = ensure_tools_installed(
-        &ctx,
-        common_tools::SECURITY_TOOLS,
-        None,
-    )?;
-    
+    let results = ensure_tools_installed(&ctx, common_tools::SECURITY_TOOLS, None)?;
+
     println!("\nInstallation results:");
     for (tool, success) in results {
         if success {
@@ -70,7 +66,7 @@ fn main() -> Result<()> {
             "cargo-outdated".to_string(),
         ]),
     };
-    
+
     match ensure_tool_installed(&ctx, "cargo-outdated", Some(custom_config)) {
         Ok(true) => println!("✅ cargo-outdated is available"),
         Ok(false) => println!("❌ Installation was not performed"),

@@ -48,7 +48,7 @@ pub async fn run(cmd: CiCmd, ctx: Context) -> Result<()> {
             Err(e) => {
                 ctx.error(&format!("Code formatting check failed: {}", e));
                 all_passed = false;
-            }
+            },
         }
     }
 
@@ -60,7 +60,7 @@ pub async fn run(cmd: CiCmd, ctx: Context) -> Result<()> {
             Err(e) => {
                 ctx.error(&format!("Clippy checks failed: {}", e));
                 all_passed = false;
-            }
+            },
         }
     }
 
@@ -72,7 +72,7 @@ pub async fn run(cmd: CiCmd, ctx: Context) -> Result<()> {
             Err(e) => {
                 ctx.error(&format!("Tests failed: {}", e));
                 all_passed = false;
-            }
+            },
         }
     }
 
@@ -87,14 +87,14 @@ pub async fn run(cmd: CiCmd, ctx: Context) -> Result<()> {
 
 async fn run_fmt_check(ctx: &Context) -> Result<()> {
     let args = vec!["fmt", "--", "--check"];
-    
+
     ctx.run_command("cargo", &args)?;
     Ok(())
 }
 
 async fn run_clippy(ctx: &Context, ci_rust: &Option<String>) -> Result<()> {
     let mut args = vec!["clippy", "--all-targets", "--all-features"];
-    
+
     // Add CI-specific clippy flags
     args.push("--");
     args.push("-D");
@@ -103,7 +103,7 @@ async fn run_clippy(ctx: &Context, ci_rust: &Option<String>) -> Result<()> {
     args.push("clippy::all");
     args.push("-D");
     args.push("clippy::pedantic");
-    
+
     // Allow certain lints that might be too strict for general use
     args.push("-A");
     args.push("clippy::module_name_repetitions");
@@ -111,7 +111,7 @@ async fn run_clippy(ctx: &Context, ci_rust: &Option<String>) -> Result<()> {
     args.push("clippy::must_use_candidate");
     args.push("-A");
     args.push("clippy::missing_errors_doc");
-    
+
     // For older Rust versions, we might need to allow more lints
     if let Some(rust_version) = ci_rust {
         if rust_version.starts_with("1.7") && !rust_version.starts_with("1.79") {
@@ -120,7 +120,7 @@ async fn run_clippy(ctx: &Context, ci_rust: &Option<String>) -> Result<()> {
             args.push("clippy::needless_pass_by_value");
         }
     }
-    
+
     ctx.run_command("cargo", &args)?;
     Ok(())
 }
@@ -128,9 +128,9 @@ async fn run_clippy(ctx: &Context, ci_rust: &Option<String>) -> Result<()> {
 async fn run_tests(ctx: &Context, test_args: &[String], ci_os: &Option<String>) -> Result<()> {
     // Use cargo xtask test with nextest for 3x faster execution
     let mut args = vec!["xtask", "test", "--nextest", "--nextest-profile", "ci"];
-    
+
     ctx.debug(&format!("Running test command: cargo {}", args.join(" ")));
-    
+
     // Add OS-specific test configuration
     if let Some(os) = ci_os {
         match os.as_str() {
@@ -139,21 +139,21 @@ async fn run_tests(ctx: &Context, test_args: &[String], ci_os: &Option<String>) 
                 // Windows might need different test thread count
                 args.push("--test-threads");
                 args.push("1");
-            }
+            },
             "macos-latest" => {
                 ctx.debug("Configuring tests for macOS");
                 // macOS specific settings if needed
-            }
+            },
             "ubuntu-latest" => {
                 ctx.debug("Configuring tests for Ubuntu");
                 // Linux specific settings if needed
-            }
+            },
             _ => {
                 ctx.warn(&format!("Unknown CI_OS: {}", os));
-            }
+            },
         }
     }
-    
+
     // Add any additional test arguments
     if !test_args.is_empty() {
         args.push("--");
@@ -161,7 +161,7 @@ async fn run_tests(ctx: &Context, test_args: &[String], ci_os: &Option<String>) 
             args.push(arg);
         }
     }
-    
+
     ctx.run_command("cargo", &args)?;
     Ok(())
 }
@@ -178,7 +178,7 @@ mod tests {
             skip_tests: false,
             test_args: vec![],
         };
-        
+
         assert!(!cmd.skip_fmt);
         assert!(!cmd.skip_clippy);
         assert!(!cmd.skip_tests);
@@ -193,12 +193,12 @@ mod tests {
             skip_tests: false,
             test_args: vec![],
         };
-        
+
         let ctx = Context {
             dry_run: true,
             verbose: false,
         };
-        
+
         // In dry run mode, this should succeed without actually running commands
         let result = run(cmd, ctx).await;
         assert!(result.is_ok());

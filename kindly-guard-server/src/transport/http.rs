@@ -191,13 +191,13 @@ impl Transport for HttpTransport {
                 if let Some(size) = value.as_u64() {
                     self.config.max_body_size = size as usize;
                 }
-            }
+            },
             "request_timeout_ms" => {
                 if let Some(timeout) = value.as_u64() {
                     self.config.request_timeout_ms = timeout;
                 }
-            }
-            _ => {}
+            },
+            _ => {},
         }
         Ok(())
     }
@@ -284,7 +284,7 @@ impl TransportConnection for HttpConnection {
                 drop(transport_stats);
 
                 Ok(Some(message))
-            }
+            },
             None => Ok(None),
         }
     }

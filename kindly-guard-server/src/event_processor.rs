@@ -226,21 +226,21 @@ impl SecurityEventProcessor {
             | SecurityEventType::TokenValidated { client_id, .. }
             | SecurityEventType::TokenExpired { client_id } => {
                 format!("auth:{client_id}")
-            }
+            },
             SecurityEventType::MessageSigned { client_id, .. }
             | SecurityEventType::SignatureVerified { client_id, .. }
             | SecurityEventType::SignatureReplay { client_id, .. } => {
                 format!("signing:{client_id}")
-            }
+            },
             SecurityEventType::RateLimitCheck {
                 client_id, method, ..
             }
             | SecurityEventType::RateLimitExceeded { client_id, method } => {
                 format!("ratelimit:{client_id}:{method}")
-            }
+            },
             SecurityEventType::RateLimitPenalty { client_id, .. } => {
                 format!("ratelimit:{client_id}")
-            }
+            },
             SecurityEventType::RequestReceived {
                 client_id, method, ..
             }
@@ -248,10 +248,10 @@ impl SecurityEventProcessor {
                 client_id, method, ..
             } => {
                 format!("mcp:{client_id}:{method}")
-            }
+            },
             SecurityEventType::ThreatDetected { client_id, .. } => {
                 format!("threat:{client_id}")
-            }
+            },
             SecurityEventType::CircuitOpened { endpoint, .. }
             | SecurityEventType::CircuitClosed { endpoint } => endpoint.clone(),
         };
@@ -478,12 +478,7 @@ impl SimpleEventBuffer {
 }
 
 impl EventBufferTrait for SimpleEventBuffer {
-    fn enqueue_event(
-        &self,
-        _endpoint_id: u32,
-        _data: &[u8],
-        _priority: Priority,
-    ) -> Result<u64> {
+    fn enqueue_event(&self, _endpoint_id: u32, _data: &[u8], _priority: Priority) -> Result<u64> {
         // Simple implementation - just return a sequential ID
         Ok(0) // In production, this would maintain state
     }

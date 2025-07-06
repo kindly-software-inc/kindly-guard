@@ -44,7 +44,7 @@ pub fn get_version_locations() -> Vec<VersionLocation> {
 pub fn get_current_version() -> Result<Version> {
     let manifest = fs::read_to_string("Cargo.toml")?;
     let version_regex = Regex::new(r#"version = "([0-9]+\.[0-9]+\.[0-9]+)""#)?;
-    
+
     if let Some(caps) = version_regex.captures(&manifest) {
         let version_str = caps.get(1).unwrap().as_str();
         Ok(Version::parse(version_str)?)
@@ -63,7 +63,7 @@ pub fn update_version_in_file(
     let content = fs::read_to_string(file_path)?;
     let replacement = replacement_template.replace("{}", &new_version.to_string());
     let new_content = pattern.replace_all(&content, replacement.as_str());
-    
+
     fs::write(file_path, new_content.as_ref())?;
     Ok(())
 }
@@ -71,7 +71,7 @@ pub fn update_version_in_file(
 /// Update version in all locations
 pub fn update_all_versions(new_version: &Version) -> Result<()> {
     let locations = get_version_locations();
-    
+
     for location in locations {
         if Path::new(&location.file).exists() {
             update_version_in_file(
@@ -82,30 +82,30 @@ pub fn update_all_versions(new_version: &Version) -> Result<()> {
             )?;
         }
     }
-    
+
     Ok(())
 }
 
 /// Bump version according to the specified level
 pub fn bump_version(current: &Version, level: &str) -> Result<Version> {
     let mut new_version = current.clone();
-    
+
     match level {
         "major" => {
             new_version.major += 1;
             new_version.minor = 0;
             new_version.patch = 0;
-        }
+        },
         "minor" => {
             new_version.minor += 1;
             new_version.patch = 0;
-        }
+        },
         "patch" => {
             new_version.patch += 1;
-        }
+        },
         _ => anyhow::bail!("Invalid version bump level: {}", level),
     }
-    
+
     Ok(new_version)
 }
 
@@ -126,12 +126,12 @@ pub fn get_version(dir: Option<&Path>) -> Result<String> {
     } else {
         Path::new("Cargo.toml").to_path_buf()
     };
-    
+
     let manifest = fs::read_to_string(&cargo_toml_path)
         .with_context(|| format!("Failed to read {}", cargo_toml_path.display()))?;
-    
+
     let version_regex = Regex::new(r#"version = "([0-9]+\.[0-9]+\.[0-9]+)""#)?;
-    
+
     if let Some(caps) = version_regex.captures(&manifest) {
         Ok(caps.get(1).unwrap().as_str().to_string())
     } else {
@@ -146,13 +146,13 @@ mod tests {
     #[test]
     fn test_bump_version() {
         let version = Version::parse("1.2.3").unwrap();
-        
+
         let major = bump_version(&version, "major").unwrap();
         assert_eq!(major.to_string(), "2.0.0");
-        
+
         let minor = bump_version(&version, "minor").unwrap();
         assert_eq!(minor.to_string(), "1.3.0");
-        
+
         let patch = bump_version(&version, "patch").unwrap();
         assert_eq!(patch.to_string(), "1.2.4");
     }

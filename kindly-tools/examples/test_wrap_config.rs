@@ -18,7 +18,11 @@ fn main() -> anyhow::Result<()> {
     println!("2. Should wrap tests:");
     let commands_to_test = vec!["claude", "openai", "ls", "cat", "/usr/bin/claude"];
     for cmd in commands_to_test {
-        println!("   Should wrap '{}': {}", cmd, default_config.should_wrap(cmd));
+        println!(
+            "   Should wrap '{}': {}",
+            cmd,
+            default_config.should_wrap(cmd)
+        );
     }
     println!();
 
@@ -42,7 +46,10 @@ fn main() -> anyhow::Result<()> {
     config.add_command("my-custom-ai".to_string());
     println!("   Changed mode to: {:?}", config.mode);
     println!("   Added custom command: my-custom-ai");
-    println!("   Should wrap 'my-custom-ai': {}", config.should_wrap("my-custom-ai"));
+    println!(
+        "   Should wrap 'my-custom-ai': {}",
+        config.should_wrap("my-custom-ai")
+    );
 
     Ok(())
 }

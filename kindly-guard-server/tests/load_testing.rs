@@ -61,19 +61,8 @@ impl LoadTestStats {
         self.total_latency_us
             .fetch_add(latency_us, Ordering::Relaxed);
 
-        // Update max latency
-        let mut current_max = self.max_latency_us.load(Ordering::Relaxed);
-        while latency_us > current_max {
-            match self.max_latency_us.compare_exchange_weak(
-                current_max,
-                latency_us,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ) {
-                Ok(_) => break,
-                Err(actual) => current_max = actual,
-            }
-        }
+        // Update max latency using atomic max operation
+        self.max_latency_us.fetch_max(latency_us, Ordering::Relaxed);
     }
 
     fn record_threat_detected(&self) {
@@ -89,18 +78,8 @@ impl LoadTestStats {
     }
 
     fn update_memory_peak(&self, bytes: u64) {
-        let mut current_peak = self.memory_peak_bytes.load(Ordering::Relaxed);
-        while bytes > current_peak {
-            match self.memory_peak_bytes.compare_exchange_weak(
-                current_peak,
-                bytes,
-                Ordering::Relaxed,
-                Ordering::Relaxed,
-            ) {
-                Ok(_) => break,
-                Err(actual) => current_peak = actual,
-            }
-        }
+        // Update peak memory using atomic max operation
+        self.memory_peak_bytes.fetch_max(bytes, Ordering::Relaxed);
     }
 
     fn get_average_latency_ms(&self) -> f64 {
@@ -162,7 +141,7 @@ fn create_test_payload(include_threat: bool, threat_type: &str) -> Value {
         match threat_type {
             "sql_injection" => {
                 "SELECT * FROM users WHERE id = '1' OR '1'='1'; DROP TABLE users; --"
-            }
+            },
             "xss" => "<script>alert('XSS')</script><img src=x onerror=alert(1)>",
             "unicode" => "Hello\u{202E}World\u{200B}\u{200C}\u{200D}",
             "command_injection" => "echo 'safe' && rm -rf / || cat /etc/passwd",
@@ -249,14 +228,14 @@ async fn test_steady_load() {
                             }
                         }
                     }
-                }
+                },
                 Ok(Err(_)) => {
                     stats_clone.record_request(false, request_start.elapsed());
-                }
+                },
                 Err(_) => {
                     // Timeout
                     stats_clone.record_request(false, Duration::from_secs(5));
-                }
+                },
             }
 
             drop(permit);
@@ -336,16 +315,16 @@ async fn test_burst_load() {
                                 }
                             }
                         }
-                    }
+                    },
                     Ok(Err(e)) => {
                         stats_clone.record_request(false, request_start.elapsed());
                         if e.to_string().contains("rate limit") {
                             stats_clone.record_rate_limited();
                         }
-                    }
+                    },
                     Err(_) => {
                         stats_clone.record_request(false, Duration::from_secs(10));
-                    }
+                    },
                 }
             });
 
@@ -426,13 +405,13 @@ async fn test_gradual_ramp() {
                 {
                     Ok(Ok(_)) => {
                         stats_clone.record_request(true, request_start.elapsed());
-                    }
+                    },
                     Ok(Err(_)) => {
                         stats_clone.record_request(false, request_start.elapsed());
-                    }
+                    },
                     Err(_) => {
                         stats_clone.record_request(false, Duration::from_secs(5));
-                    }
+                    },
                 }
             });
 
@@ -465,22 +444,17 @@ async fn test_gradual_ramp() {
                 }),
             };
 
-            match timeout(
-                Duration::from_secs(5),
-                server_clone.handle_request(request),
-            )
-            .await
-            {
+            match timeout(Duration::from_secs(5), server_clone.handle_request(request)).await {
                 Ok(response) => {
                     if response.error.is_none() {
                         stats_clone.record_request(true, request_start.elapsed());
                     } else {
                         stats_clone.record_request(false, request_start.elapsed());
                     }
-                }
+                },
                 Err(_) => {
                     stats_clone.record_request(false, Duration::from_secs(5));
-                }
+                },
             }
         });
 
@@ -554,12 +528,7 @@ async fn test_mixed_workload() {
                 }),
             };
 
-            match timeout(
-                Duration::from_secs(5),
-                server_clone.handle_request(request),
-            )
-            .await
-            {
+            match timeout(Duration::from_secs(5), server_clone.handle_request(request)).await {
                 Ok(response) => {
                     if response.error.is_none() {
                         stats_clone.record_request(true, request_start.elapsed());
@@ -581,10 +550,10 @@ async fn test_mixed_workload() {
                     } else {
                         stats_clone.record_request(false, request_start.elapsed());
                     }
-                }
+                },
                 Err(_) => {
                     stats_clone.record_request(false, Duration::from_secs(5));
-                }
+                },
             }
         });
 
@@ -651,13 +620,13 @@ async fn test_rate_limiting_under_load() {
                 match send_request(&server_clone, "tools/call", payload).await {
                     Ok(_) => {
                         stats_clone.record_request(true, request_start.elapsed());
-                    }
+                    },
                     Err(e) => {
                         stats_clone.record_request(false, request_start.elapsed());
                         if e.to_string().contains("rate limit") {
                             stats_clone.record_rate_limited();
                         }
-                    }
+                    },
                 }
             });
         }
@@ -737,13 +706,13 @@ async fn test_sustained_load() {
                 {
                     Ok(Ok(_)) => {
                         stats_clone.record_request(true, request_start.elapsed());
-                    }
+                    },
                     Ok(Err(_)) => {
                         stats_clone.record_request(false, request_start.elapsed());
-                    }
+                    },
                     Err(_) => {
                         stats_clone.record_request(false, Duration::from_secs(5));
-                    }
+                    },
                 }
             });
         }
@@ -822,13 +791,13 @@ async fn test_performance_degradation() {
                     {
                         Ok(Ok(_)) => {
                             stats_clone.record_request(true, request_start.elapsed());
-                        }
+                        },
                         Ok(Err(_)) => {
                             stats_clone.record_request(false, request_start.elapsed());
-                        }
+                        },
                         Err(_) => {
                             stats_clone.record_request(false, Duration::from_secs(5));
-                        }
+                        },
                     }
                 });
 

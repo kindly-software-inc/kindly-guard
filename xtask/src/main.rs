@@ -7,7 +7,10 @@ mod interactive;
 mod test;
 mod utils;
 
-use commands::{build, cache, ci, coverage, doctor, package, publish, release, security, test as test_cmd, validate_dist, version};
+use commands::{
+    build, cache, ci, coverage, doctor, local_ci, parallel_ci, package, publish, release, security,
+    test as test_cmd, validate_dist, version,
+};
 
 #[derive(Parser)]
 #[command(name = "xtask")]
@@ -38,39 +41,45 @@ struct Cli {
 enum Commands {
     /// Release a new version
     Release(release::ReleaseCmd),
-    
+
     /// Build the project for multiple platforms
     Build(build::BuildCmd),
-    
+
     /// Run CI pipeline locally
     Ci(ci::CiCmd),
-    
+
     /// Generate code coverage reports
     Coverage(coverage::CoverageCmd),
-    
+
     /// Manage build cache
     Cache(cache::CacheCmd),
-    
+
     /// Run tests and benchmarks
     Test(test_cmd::TestCmd),
-    
+
     /// Run security audits
     Security(security::SecurityCmd),
-    
+
     /// Manage project versions
     Version(version::VersionCmd),
-    
+
     /// Publish to registries
     Publish(publish::PublishCmd),
-    
+
     /// Package binaries for distribution
     Package(package::PackageCmd),
-    
+
     /// Check development environment health
     Doctor(doctor::DoctorCmd),
-    
+
     /// Validate dist configuration
     ValidateDist(validate_dist::ValidateDistCmd),
+
+    /// Run local CI pipeline
+    LocalCi(local_ci::LocalCiCmd),
+
+    /// Run parallel CI pipeline
+    ParallelCi(parallel_ci::ParallelCiCmd),
 }
 
 #[tokio::main]
@@ -113,5 +122,7 @@ async fn main() -> Result<()> {
         Commands::Package(cmd) => package::run(cmd, ctx).await,
         Commands::Doctor(cmd) => doctor::run(cmd, ctx).await,
         Commands::ValidateDist(cmd) => validate_dist::run(cmd, ctx).await,
+        Commands::LocalCi(cmd) => cmd.run(&ctx).await,
+        Commands::ParallelCi(cmd) => cmd.run(&ctx).await,
     }
 }

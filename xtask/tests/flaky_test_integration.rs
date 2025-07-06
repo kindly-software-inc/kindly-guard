@@ -26,7 +26,7 @@ async fn test_flaky_detection() {
             },
             output: None,
         };
-        
+
         manager.record_execution(execution).await.unwrap();
     }
 
@@ -106,13 +106,13 @@ async fn test_nextest_config_generation() {
             error_message: None,
             output: None,
         };
-        
+
         manager.record_execution(execution).await.unwrap();
     }
 
     // Generate nextest config
     let config = manager.generate_nextest_config().await.unwrap();
-    
+
     // Verify it contains proper configuration
     assert!(config.contains("[profile.default]"));
     assert!(config.contains("retries"));
@@ -122,11 +122,11 @@ async fn test_nextest_config_generation() {
 #[tokio::test]
 async fn test_persistence() {
     let temp_dir = TempDir::new().unwrap();
-    
+
     // Create manager and record data
     {
         let manager = FlakyTestManager::new(temp_dir.path()).await.unwrap();
-        
+
         let execution = TestExecution {
             test_name: "persistent::test".to_string(),
             timestamp: Utc::now(),
@@ -136,7 +136,7 @@ async fn test_persistence() {
             error_message: Some("Test failed".to_string()),
             output: None,
         };
-        
+
         manager.record_execution(execution).await.unwrap();
     }
 
@@ -144,9 +144,11 @@ async fn test_persistence() {
     {
         let manager = FlakyTestManager::new(temp_dir.path()).await.unwrap();
         let flaky_tests = manager.get_flaky_tests().await;
-        
+
         // Should have the test data
-        assert!(flaky_tests.iter().any(|(name, _)| name == "persistent::test"));
+        assert!(flaky_tests
+            .iter()
+            .any(|(name, _)| name == "persistent::test"));
     }
 }
 
@@ -157,7 +159,7 @@ fn test_backoff_strategies() {
         base: Duration::from_millis(100),
         max: Duration::from_secs(10),
     };
-    
+
     assert_eq!(
         FlakyTestManager::calculate_backoff(&strategy, 1),
         Duration::from_millis(100)
@@ -170,18 +172,18 @@ fn test_backoff_strategies() {
         FlakyTestManager::calculate_backoff(&strategy, 3),
         Duration::from_millis(400)
     );
-    
+
     // Test max limit
     assert_eq!(
         FlakyTestManager::calculate_backoff(&strategy, 20),
         Duration::from_secs(10)
     );
-    
+
     // Test linear backoff
     let linear = BackoffStrategy::Linear {
         base: Duration::from_millis(50),
     };
-    
+
     assert_eq!(
         FlakyTestManager::calculate_backoff(&linear, 1),
         Duration::from_millis(50)

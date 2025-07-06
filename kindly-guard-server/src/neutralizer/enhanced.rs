@@ -157,7 +157,7 @@ impl EnhancedNeutralizer {
                     correlation_data: None,
                     extracted_params: None,
                 })
-            }
+            },
         };
 
         // Pre-calculate output size for single allocation
@@ -178,16 +178,16 @@ impl EnhancedNeutralizer {
                         BiDiReplacement::Remove => continue,
                         BiDiReplacement::Marker => {
                             output.push_str(&format!("[BIDI:U+{:04X}]", ch as u32));
-                        }
+                        },
                         BiDiReplacement::Escape => {
                             output.push_str(&format!("\\u{{{:04X}}}", ch as u32));
-                        }
+                        },
                     },
                     ThreatType::UnicodeInvisible => match self.config.unicode.zero_width_action {
                         ZeroWidthAction::Remove => continue,
                         ZeroWidthAction::Escape => {
                             output.push_str(&format!("\\u{{{:04X}}}", ch as u32));
-                        }
+                        },
                     },
                     ThreatType::UnicodeHomograph => {
                         if let Some(&ascii) = self.unicode_scanner.homograph_map.get(&ch) {
@@ -195,7 +195,7 @@ impl EnhancedNeutralizer {
                         } else {
                             output.push(ch);
                         }
-                    }
+                    },
                     _ => output.push(ch),
                 }
             } else {
@@ -242,7 +242,7 @@ impl EnhancedNeutralizer {
                     BiDiReplacement::Marker => text.len() + 20, // "[BIDI:U+XXXX]"
                     BiDiReplacement::Escape => text.len() + 10, // "\u{XXXX}"
                 }
-            }
+            },
             _ => text.len() + 50, // Conservative estimate
         }
     }
@@ -339,7 +339,7 @@ impl ThreatNeutralizer for EnhancedNeutralizer {
                 // Fall back to standard for other types
                 let standard = StandardNeutralizer::new(self.config.clone());
                 standard.neutralize(threat, content).await
-            }
+            },
         }
     }
 
@@ -386,7 +386,7 @@ impl ThreatNeutralizer for EnhancedNeutralizer {
             enable_event_buffer: true, // Enhanced uses event buffer
             xss_detection: Some(true),
             enhanced_mode: Some(true), // Use enhanced mode for better performance
-            crypto_detection: true, // Enable crypto detection for security
+            crypto_detection: true,    // Enable crypto detection for security
             max_content_size: 5_242_880, // 5MB default
             max_input_size: None,
             allow_text_control_chars: false,
@@ -566,7 +566,7 @@ impl SqlNeutralizer {
                     params.push(value);
                     template.push_str(&format!("${}", param_idx));
                     param_idx += 1;
-                }
+                },
                 '0'..='9' => {
                     let mut num = String::new();
                     num.push(ch);
@@ -587,7 +587,7 @@ impl SqlNeutralizer {
                     } else {
                         template.push_str(&num);
                     }
-                }
+                },
                 _ => template.push(ch),
             }
         }

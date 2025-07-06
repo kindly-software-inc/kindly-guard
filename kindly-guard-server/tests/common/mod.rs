@@ -32,6 +32,8 @@ pub fn test_scanner_config() -> ScannerConfig {
         enhanced_mode: Some(false),
         crypto_detection: true,
         max_content_size: 10_485_760, // 10MB for tests
+        allow_text_control_chars: false,
+        max_input_size: None,
     }
 }
 

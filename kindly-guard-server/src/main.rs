@@ -108,8 +108,8 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     // Check if running in command mode with JSON output
-    let is_json_command = args.command.is_some() && 
-        args.format.as_ref().map(|f| f == "json").unwrap_or(false);
+    let is_json_command =
+        args.command.is_some() && args.format.as_ref().map(|f| f == "json").unwrap_or(false);
 
     // Initialize logging - suppress for JSON command output
     if is_json_command {
@@ -209,11 +209,11 @@ async fn main() -> Result<()> {
         match server.run_http(&args.bind).await {
             Ok(()) => {
                 info!("HTTP server shutting down gracefully");
-            }
+            },
             Err(e) => {
                 error!("HTTP server error: {}", e);
                 return Err(e);
-            }
+            },
         }
 
         // Stop telemetry flush task
@@ -230,11 +230,11 @@ async fn main() -> Result<()> {
         match server.run_proxy(&args.bind).await {
             Ok(()) => {
                 info!("Proxy server shutting down gracefully");
-            }
+            },
             Err(e) => {
                 error!("Proxy server error: {}", e);
                 return Err(e);
-            }
+            },
         }
 
         // Stop telemetry flush task
@@ -252,11 +252,11 @@ async fn main() -> Result<()> {
         match server.run_stdio().await {
             Ok(()) => {
                 info!("KindlyGuard server shutting down gracefully");
-            }
+            },
             Err(e) => {
                 error!("Server error: {}", e);
                 return Err(e);
-            }
+            },
         }
 
         // Stop telemetry flush task
@@ -275,7 +275,6 @@ async fn main() -> Result<()> {
 
 #[cfg(test)]
 mod tests {
-    
 
     #[test]
     fn test_main_compiles() {

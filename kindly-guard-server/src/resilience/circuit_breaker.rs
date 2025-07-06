@@ -141,15 +141,15 @@ impl CircuitBreaker {
             Ok(Ok(value)) => {
                 self.on_success();
                 Ok(value)
-            }
+            },
             Ok(Err(e)) => {
                 self.on_failure();
                 Err(CircuitBreakerError::ServiceError(e.to_string()))
-            }
+            },
             Err(_) => {
                 self.on_failure();
                 Err(CircuitBreakerError::Timeout(self.config.request_timeout))
-            }
+            },
         }
     }
 
@@ -168,12 +168,12 @@ impl CircuitBreaker {
                 } else {
                     false
                 }
-            }
+            },
             CircuitState::HalfOpen => {
                 // Allow limited requests in half-open state
                 let current = self.half_open_requests.fetch_add(1, Ordering::SeqCst);
                 current < self.config.half_open_max_requests
-            }
+            },
         }
     }
 
@@ -218,12 +218,12 @@ impl CircuitBreaker {
                         }
                     }
                 }
-            }
+            },
             CircuitState::HalfOpen => {
                 // Any failure in half-open state opens the circuit
                 self.transition_to(CircuitState::Open);
-            }
-            _ => {}
+            },
+            _ => {},
         }
     }
 

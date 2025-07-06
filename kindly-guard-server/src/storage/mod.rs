@@ -288,5 +288,7 @@ pub fn create_storage_provider(config: &crate::config::Config) -> Arc<dyn Storag
     // For now, use a default storage config
     // TODO: Add storage config to main Config struct
     let storage_config = StorageConfig::default();
-    factory.create(&storage_config).unwrap_or_else(|_| Arc::new(InMemoryStorage::new()))
+    factory
+        .create(&storage_config)
+        .unwrap_or_else(|_| Arc::new(InMemoryStorage::new()))
 }

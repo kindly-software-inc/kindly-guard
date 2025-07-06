@@ -8,18 +8,18 @@ use walkdir::WalkDir;
 /// Copy a directory recursively
 pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> {
     fs::create_dir_all(&dst)?;
-    
+
     for entry in fs::read_dir(src)? {
         let entry = entry?;
         let ty = entry.file_type()?;
-        
+
         if ty.is_dir() {
             copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
         } else {
             fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
         }
     }
-    
+
     Ok(())
 }
 
@@ -27,7 +27,7 @@ pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<()> 
 pub fn find_files(root: impl AsRef<Path>, pattern: &str) -> Result<Vec<PathBuf>> {
     let re = regex::Regex::new(pattern)?;
     let mut files = Vec::new();
-    
+
     for entry in WalkDir::new(root).into_iter().filter_map(|e| e.ok()) {
         if entry.file_type().is_file() {
             if let Some(name) = entry.file_name().to_str() {
@@ -37,7 +37,7 @@ pub fn find_files(root: impl AsRef<Path>, pattern: &str) -> Result<Vec<PathBuf>>
             }
         }
     }
-    
+
     Ok(files)
 }
 
@@ -90,16 +90,14 @@ pub struct TempDir {
 
 impl TempDir {
     pub fn new(prefix: &str) -> Result<Self> {
-        let dir = tempfile::Builder::new()
-            .prefix(prefix)
-            .tempdir()?;
-        
+        let dir = tempfile::Builder::new().prefix(prefix).tempdir()?;
+
         // Keep the temporary directory from being deleted
         let path = dir.path().to_path_buf();
-        let _ = dir.keep();  // Keep returns the path, we already have it
+        let _ = dir.keep(); // Keep returns the path, we already have it
         Ok(Self { path })
     }
-    
+
     pub fn path(&self) -> &Path {
         &self.path
     }

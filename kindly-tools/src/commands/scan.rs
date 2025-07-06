@@ -85,7 +85,7 @@ pub async fn execute(
             custom_patterns: None,
             max_scan_depth: 10,
             enable_event_buffer: false,
-            max_content_size: 5 * 1024 * 1024, // 5MB default
+            max_content_size: 5 * 1024 * 1024,      // 5MB default
             max_input_size: Some(10 * 1024 * 1024), // 10MB default
             allow_text_control_chars: false,
         };
@@ -102,19 +102,18 @@ pub async fn execute(
     }
 
     // Create progress bar
-    let progress =
-        if output_format == OutputFormat::Json {
-            None
-        } else {
-            let pb = ProgressBar::new(files_to_scan.len() as u64);
-            // Use unwrap_or_else to fall back to default style if template parsing fails
-            let style = ProgressStyle::default_bar()
-                .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
-                .unwrap_or_else(|_| ProgressStyle::default_bar())
-                .progress_chars("#>-");
-            pb.set_style(style);
-            Some(pb)
-        };
+    let progress = if output_format == OutputFormat::Json {
+        None
+    } else {
+        let pb = ProgressBar::new(files_to_scan.len() as u64);
+        // Use unwrap_or_else to fall back to default style if template parsing fails
+        let style = ProgressStyle::default_bar()
+            .template("{spinner:.green} [{elapsed_precise}] [{bar:40.cyan/blue}] {pos}/{len} {msg}")
+            .unwrap_or_else(|_| ProgressStyle::default_bar())
+            .progress_chars("#>-");
+        pb.set_style(style);
+        Some(pb)
+    };
 
     // Scan files
     let mut all_results = Vec::new();
@@ -134,10 +133,10 @@ pub async fn execute(
                     total_threats += threats.len();
                     all_results.push((file_path.clone(), threats));
                 }
-            }
+            },
             Err(e) => {
                 tracing::warn!("Failed to scan {}: {}", file_path.display(), e);
-            }
+            },
         }
 
         if let Some(pb) = &progress {

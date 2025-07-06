@@ -9,8 +9,8 @@ use colored::Colorize;
 use serde::Deserialize;
 use serde_json::Value;
 
-use crate::utils::Context;
 use crate::utils::cargo::workspace_root;
+use crate::utils::Context;
 
 /// Command arguments for validate-dist
 #[derive(Args)]
@@ -18,11 +18,11 @@ pub struct ValidateDistCmd {
     /// Check a specific package only
     #[arg(long)]
     package: Option<String>,
-    
+
     /// Fix issues automatically if possible
     #[arg(long)]
     fix: bool,
-    
+
     /// Show detailed validation output
     #[arg(short, long)]
     detailed: bool,
@@ -33,7 +33,7 @@ pub async fn run(cmd: ValidateDistCmd, ctx: Context) -> Result<()> {
     if cmd.fix && ctx.dry_run {
         ctx.warn("Cannot fix issues in dry-run mode");
     }
-    
+
     validate_dist_with_options(cmd, ctx)
 }
 
@@ -68,16 +68,16 @@ struct ValidationResult {
 /// Validates the dist configuration with options
 fn validate_dist_with_options(cmd: ValidateDistCmd, ctx: Context) -> Result<()> {
     ctx.info("🔍 Validating dist configuration...");
-    
+
     let workspace_root = workspace_root()?;
     let metadata = MetadataCommand::new()
         .current_dir(&workspace_root)
         .exec()
         .with_context(|| "Failed to read workspace metadata")?;
-    
+
     let mut all_results = Vec::new();
     let mut has_errors = false;
-    
+
     // Check each workspace member
     for package in &metadata.packages {
         // Skip if a specific package was requested and this isn't it
@@ -86,7 +86,7 @@ fn validate_dist_with_options(cmd: ValidateDistCmd, ctx: Context) -> Result<()> 
                 continue;
             }
         }
-        
+
         if should_validate_package(package) {
             let result = validate_package(package, &workspace_root, &ctx)?;
             if !result.issues.is_empty() {
@@ -95,7 +95,7 @@ fn validate_dist_with_options(cmd: ValidateDistCmd, ctx: Context) -> Result<()> 
             all_results.push(result);
         }
     }
-    
+
     // Only run cargo dist plan if not checking a specific package
     if cmd.package.is_none() {
         let dist_plan_result = validate_dist_plan(&workspace_root, &ctx)?;
@@ -104,10 +104,10 @@ fn validate_dist_with_options(cmd: ValidateDistCmd, ctx: Context) -> Result<()> 
         }
         all_results.push(dist_plan_result);
     }
-    
+
     // Print results
     print_validation_results(&all_results, cmd.detailed, &ctx);
-    
+
     if has_errors {
         Err(anyhow!("Dist configuration validation failed"))
     } else {
@@ -124,19 +124,23 @@ fn should_validate_package(package: &Package) -> bool {
 }
 
 /// Validates a single package's dist configuration
-fn validate_package(package: &Package, workspace_root: &Path, ctx: &Context) -> Result<ValidationResult> {
+fn validate_package(
+    package: &Package,
+    workspace_root: &Path,
+    ctx: &Context,
+) -> Result<ValidationResult> {
     let mut issues = Vec::new();
     let mut warnings = Vec::new();
-    
+
     // Check if package has any binaries
     let has_binaries = package.targets.iter().any(|t| t.is_bin());
-    
+
     if has_binaries {
         // Validate binary names
         for target in &package.targets {
             if target.is_bin() {
                 let binary_name = &target.name;
-                
+
                 // Check naming convention
                 if !is_valid_binary_name(binary_name, &package.name) {
                     issues.push(format!(
@@ -144,7 +148,7 @@ fn validate_package(package: &Package, workspace_root: &Path, ctx: &Context) -> 
                         binary_name, package.name
                     ));
                 }
-                
+
                 // Check for hyphens vs underscores
                 if binary_name.contains('_') {
                     warnings.push(format!(
@@ -154,7 +158,7 @@ fn validate_package(package: &Package, workspace_root: &Path, ctx: &Context) -> 
                 }
             }
         }
-        
+
         // Check if package has dist metadata
         match &package.metadata {
             Value::Object(metadata) => {
@@ -164,33 +168,33 @@ fn validate_package(package: &Package, workspace_root: &Path, ctx: &Context) -> 
                         package.name
                     ));
                 }
-            }
+            },
             Value::Null => {
                 warnings.push(format!(
                     "Package '{}' has binaries but no metadata section",
                     package.name
                 ));
-            }
+            },
             _ => {
                 // metadata is not an object or null, which is unexpected
                 warnings.push(format!(
                     "Package '{}' has unexpected metadata type",
                     package.name
                 ));
-            }
+            },
         }
-        
+
         // Check Cargo.toml for required fields
         let cargo_toml_path = workspace_root
             .join(&package.manifest_path)
             .parent()
             .unwrap()
             .join("Cargo.toml");
-            
+
         if cargo_toml_path.exists() {
             let cargo_toml = std::fs::read_to_string(&cargo_toml_path)
                 .with_context(|| format!("Failed to read Cargo.toml for {}", package.name))?;
-            
+
             // Check for explicit binary definitions
             if has_binaries && !cargo_toml.contains("[[bin]]") {
                 warnings.push(format!(
@@ -200,7 +204,7 @@ fn validate_package(package: &Package, workspace_root: &Path, ctx: &Context) -> 
             }
         }
     }
-    
+
     Ok(ValidationResult {
         package_name: package.name.clone(),
         issues,
@@ -214,14 +218,14 @@ fn is_valid_binary_name(binary_name: &str, package_name: &str) -> bool {
     // 1. Binary name matches package name (e.g., kindly-guard-server)
     // 2. Binary name is a shortened version (e.g., kindly-server for kindly-guard-server)
     // 3. Binary name is the main command (e.g., kindlyguard for the CLI)
-    
+
     let valid_patterns = [
         package_name,
         &package_name.replace("-guard", ""),
         "kindlyguard",
         "kindly",
     ];
-    
+
     valid_patterns.contains(&binary_name)
 }
 
@@ -229,7 +233,7 @@ fn is_valid_binary_name(binary_name: &str, package_name: &str) -> bool {
 fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<ValidationResult> {
     let mut issues = Vec::new();
     let mut warnings = Vec::new();
-    
+
     // Check if cargo-dist is installed
     if !is_cargo_dist_installed()? {
         issues.push("cargo-dist is not installed. Run 'cargo install cargo-dist'".to_string());
@@ -239,14 +243,14 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
             warnings,
         });
     }
-    
+
     // Run cargo dist plan
     let output = Command::new("cargo")
         .args(&["dist", "plan", "--output-format=json"])
         .current_dir(workspace_root)
         .output()
         .with_context(|| "Failed to run cargo dist plan")?;
-    
+
     if !output.status.success() {
         let stderr = String::from_utf8_lossy(&output.stderr);
         issues.push(format!("cargo dist plan failed: {}", stderr));
@@ -256,19 +260,19 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
             warnings,
         });
     }
-    
+
     // Parse the JSON output
     let stdout = String::from_utf8_lossy(&output.stdout);
-    let plan: Value = serde_json::from_str(&stdout)
-        .with_context(|| "Failed to parse cargo dist plan output")?;
-    
+    let plan: Value =
+        serde_json::from_str(&stdout).with_context(|| "Failed to parse cargo dist plan output")?;
+
     // Validate the plan structure
     if let Some(dist_plan) = plan.as_object() {
         // Check for expected fields
         if !dist_plan.contains_key("announcement_tag") {
             warnings.push("No announcement_tag found in dist plan".to_string());
         }
-        
+
         if let Some(releases) = dist_plan.get("releases").and_then(|v| v.as_array()) {
             if releases.is_empty() {
                 issues.push("No releases found in dist plan".to_string());
@@ -283,9 +287,10 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
                                 app_name
                             ));
                         }
-                        
+
                         // Check artifacts
-                        if let Some(artifacts) = release.get("artifacts").and_then(|v| v.as_array()) {
+                        if let Some(artifacts) = release.get("artifacts").and_then(|v| v.as_array())
+                        {
                             if artifacts.is_empty() {
                                 issues.push(format!("No artifacts defined for app '{}'", app_name));
                             }
@@ -296,23 +301,24 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
         } else {
             issues.push("No releases array found in dist plan".to_string());
         }
-        
+
         // Check for installer configurations
         if let Some(installers) = dist_plan.get("installers").and_then(|v| v.as_array()) {
             let expected_installers = ["shell", "powershell", "npm", "homebrew", "msi"];
-            let found_installers: HashSet<_> = installers
-                .iter()
-                .filter_map(|v| v.as_str())
-                .collect();
-            
+            let found_installers: HashSet<_> =
+                installers.iter().filter_map(|v| v.as_str()).collect();
+
             for expected in &expected_installers {
                 if !found_installers.contains(expected) {
-                    warnings.push(format!("Expected installer '{}' not found in plan", expected));
+                    warnings.push(format!(
+                        "Expected installer '{}' not found in plan",
+                        expected
+                    ));
                 }
             }
         }
     }
-    
+
     Ok(ValidationResult {
         package_name: "cargo-dist".to_string(),
         issues,
@@ -326,7 +332,7 @@ fn is_cargo_dist_installed() -> Result<bool> {
         .args(&["dist", "--version"])
         .output()
         .with_context(|| "Failed to check cargo-dist version")?;
-    
+
     Ok(output.status.success())
 }
 
@@ -334,7 +340,7 @@ fn is_cargo_dist_installed() -> Result<bool> {
 fn print_validation_results(results: &[ValidationResult], detailed: bool, _ctx: &Context) {
     for result in results {
         println!("\n📦 {}", result.package_name.cyan().bold());
-        
+
         if result.issues.is_empty() && result.warnings.is_empty() {
             println!("  ✅ No issues found");
         } else {
@@ -344,7 +350,7 @@ fn print_validation_results(results: &[ValidationResult], detailed: bool, _ctx: 
                     println!("    • {}", issue.red());
                 }
             }
-            
+
             if !result.warnings.is_empty() {
                 println!("  {} Warnings:", "⚠️ ".yellow());
                 for warning in &result.warnings {
@@ -358,10 +364,13 @@ fn print_validation_results(results: &[ValidationResult], detailed: bool, _ctx: 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_valid_binary_names() {
-        assert!(is_valid_binary_name("kindly-guard-server", "kindly-guard-server"));
+        assert!(is_valid_binary_name(
+            "kindly-guard-server",
+            "kindly-guard-server"
+        ));
         assert!(is_valid_binary_name("kindly-server", "kindly-guard-server"));
         assert!(is_valid_binary_name("kindlytools", "kindly-tools"));
         assert!(!is_valid_binary_name("random-name", "kindly-guard-server"));

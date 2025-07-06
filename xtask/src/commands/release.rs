@@ -48,19 +48,22 @@ pub struct ReleaseCmd {
 
 pub async fn run(cmd: ReleaseCmd, ctx: Context) -> Result<()> {
     let config = ReleaseConfig::load()?;
-    
+
     // If checklist flag is set, run interactive checklist
     if cmd.checklist {
         return run_interactive_checklist(&ctx, cmd.version).await;
     }
-    
+
     // Ensure we're in a clean git state
     check_git_status(&ctx).await?;
 
     // Determine version
     let version = determine_version(&cmd, &ctx)?;
-    
-    ctx.info(&format!("Preparing to release version {}", version.to_string().bold()));
+
+    ctx.info(&format!(
+        "Preparing to release version {}",
+        version.to_string().bold()
+    ));
 
     // Confirmation
     if !cmd.yes && !confirm_release(&version, &cmd, &config)? {
@@ -70,7 +73,7 @@ pub async fn run(cmd: ReleaseCmd, ctx: Context) -> Result<()> {
 
     // Create release checklist
     let mut steps = vec![];
-    
+
     if !cmd.skip_tests {
         steps.push(ReleaseStep::Tests);
     }
@@ -90,7 +93,7 @@ pub async fn run(cmd: ReleaseCmd, ctx: Context) -> Result<()> {
     // Execute release steps
     for (i, step) in steps.iter().enumerate() {
         ctx.info(&format!("[{}/{}] {}", i + 1, steps.len(), step));
-        
+
         match step {
             ReleaseStep::Tests => run_tests(&ctx).await?,
             ReleaseStep::Security => run_security_checks(&ctx, &config).await?,
@@ -98,14 +101,19 @@ pub async fn run(cmd: ReleaseCmd, ctx: Context) -> Result<()> {
             ReleaseStep::Build => build_all_platforms(&ctx, &config).await?,
             ReleaseStep::GitTag => create_git_tag(&ctx, &version).await?,
             ReleaseStep::Publish => publish_packages(&ctx, &config).await?,
-            ReleaseStep::GitHubRelease => create_github_release(&ctx, &config, &version, &cmd).await?,
+            ReleaseStep::GitHubRelease => {
+                create_github_release(&ctx, &config, &version, &cmd).await?
+            },
         }
-        
+
         ctx.success(&format!("{} complete", step));
     }
 
-    ctx.success(&format!("Release {} completed successfully! 🎉", version.to_string().bold()));
-    
+    ctx.success(&format!(
+        "Release {} completed successfully! 🎉",
+        version.to_string().bold()
+    ));
+
     // Print post-release instructions
     print_post_release_instructions(&ctx, &version);
 
@@ -139,7 +147,7 @@ impl std::fmt::Display for ReleaseStep {
 
 async fn check_git_status(ctx: &Context) -> Result<()> {
     let output = ctx.run_async("git", &["status", "--porcelain"]).await?;
-    
+
     if !output.trim().is_empty() {
         anyhow::bail!("Git working directory is not clean. Please commit or stash changes.");
     }
@@ -147,7 +155,7 @@ async fn check_git_status(ctx: &Context) -> Result<()> {
     // Ensure we're on main/master branch
     let branch = ctx.run_async("git", &["branch", "--show-current"]).await?;
     let branch = branch.trim();
-    
+
     if branch != "main" && branch != "master" {
         ctx.warn(&format!("You're on branch '{}', not main/master", branch));
     }
@@ -160,26 +168,26 @@ fn determine_version(cmd: &ReleaseCmd, _ctx: &Context) -> Result<Version> {
         Version::parse(v).context("Invalid version format")
     } else {
         // Get current version from Cargo.toml
-        let manifest = std::fs::read_to_string("Cargo.toml")
-            .context("Failed to read Cargo.toml")?;
-        
-        let current: toml::Value = toml::from_str(&manifest)
-            .context("Failed to parse Cargo.toml")?;
-        
+        let manifest =
+            std::fs::read_to_string("Cargo.toml").context("Failed to read Cargo.toml")?;
+
+        let current: toml::Value =
+            toml::from_str(&manifest).context("Failed to parse Cargo.toml")?;
+
         let current_version = current["package"]["version"]
             .as_str()
             .context("No version found in Cargo.toml")?;
-        
+
         let current_version = Version::parse(current_version)?;
-        
+
         // Suggest next versions
         let mut patch = current_version.clone();
         patch.patch += 1;
-        
+
         let mut minor = current_version.clone();
         minor.minor += 1;
         minor.patch = 0;
-        
+
         let mut major = current_version.clone();
         major.major += 1;
         major.minor = 0;
@@ -211,9 +219,9 @@ fn determine_version(cmd: &ReleaseCmd, _ctx: &Context) -> Result<Version> {
                             .map_err(|e| format!("Invalid version: {}", e))
                     })
                     .interact_text()?;
-                
+
                 Version::parse(&custom).context("Invalid version")
-            }
+            },
             _ => unreachable!(),
         }
     }
@@ -222,8 +230,15 @@ fn determine_version(cmd: &ReleaseCmd, _ctx: &Context) -> Result<Version> {
 fn confirm_release(version: &Version, cmd: &ReleaseCmd, config: &ReleaseConfig) -> Result<bool> {
     println!("\n{}", "Release Summary:".bold());
     println!("  Version: {}", version.to_string().green());
-    println!("  Type: {}", if cmd.prerelease { "Pre-release" } else { "Production" });
-    
+    println!(
+        "  Type: {}",
+        if cmd.prerelease {
+            "Pre-release"
+        } else {
+            "Production"
+        }
+    );
+
     println!("\n  Steps:");
     if !cmd.skip_tests {
         println!("    ✓ Run all tests");
@@ -233,7 +248,10 @@ fn confirm_release(version: &Version, cmd: &ReleaseCmd, config: &ReleaseConfig) 
     }
     println!("    ✓ Update version numbers");
     if !cmd.skip_build {
-        println!("    ✓ Build for {} platforms", config.platforms.targets.len());
+        println!(
+            "    ✓ Build for {} platforms",
+            config.platforms.targets.len()
+        );
     }
     println!("    ✓ Create git tag");
     if !cmd.skip_publish {
@@ -251,7 +269,7 @@ fn confirm_release(version: &Version, cmd: &ReleaseCmd, config: &ReleaseConfig) 
     println!("    ✓ Create GitHub release");
 
     println!();
-    
+
     Confirm::with_theme(&ColorfulTheme::default())
         .with_prompt("Continue with release?")
         .default(true)
@@ -261,31 +279,34 @@ fn confirm_release(version: &Version, cmd: &ReleaseCmd, config: &ReleaseConfig) 
 
 async fn run_tests(ctx: &Context) -> Result<()> {
     let spinner = crate::utils::spinner("Running tests...");
-    
+
     // Run unit tests
     ctx.run_command("cargo", &["test", "--all", "--all-features"])?;
-    
+
     // Run integration tests if they exist
     if std::path::Path::new("tests/integration").exists() {
-        ctx.run_command("cargo", &["test", "--test", "integration", "--", "--test-threads=1"])?;
+        ctx.run_command(
+            "cargo",
+            &["test", "--test", "integration", "--", "--test-threads=1"],
+        )?;
     }
-    
+
     spinner.finish_with_message("Tests passed");
     Ok(())
 }
 
 async fn run_security_checks(ctx: &Context, config: &ReleaseConfig) -> Result<()> {
     let spinner = crate::utils::spinner("Running security audits...");
-    
+
     if config.security.audit {
         // Use the security command implementation
         crate::commands::security::run_audit(ctx)?;
     }
-    
+
     if config.security.deny {
         crate::commands::security::run_deny(ctx)?;
     }
-    
+
     spinner.finish_with_message("Security checks passed");
     Ok(())
 }
@@ -293,11 +314,14 @@ async fn run_security_checks(ctx: &Context, config: &ReleaseConfig) -> Result<()
 async fn update_versions(ctx: &Context, version: &Version) -> Result<()> {
     // Use the version command implementation
     crate::commands::version::update_all_versions(ctx, version)?;
-    
+
     // Commit version changes
     ctx.run_command("git", &["add", "-A"])?;
-    ctx.run_command("git", &["commit", "-m", &format!("chore: Release v{}", version)])?;
-    
+    ctx.run_command(
+        "git",
+        &["commit", "-m", &format!("chore: Release v{}", version)],
+    )?;
+
     Ok(())
 }
 
@@ -310,21 +334,24 @@ async fn build_all_platforms(ctx: &Context, config: &ReleaseConfig) -> Result<()
         archive: config.platforms.compress,
         output_dir: Some("release-artifacts".to_string()),
     };
-    
+
     crate::commands::build::run(build_cmd, ctx.clone()).await?;
-    
+
     Ok(())
 }
 
 async fn create_git_tag(ctx: &Context, version: &Version) -> Result<()> {
     let tag = format!("v{}", version);
-    
-    ctx.run_command("git", &["tag", "-a", &tag, "-m", &format!("Release {}", tag)])?;
-    
+
+    ctx.run_command(
+        "git",
+        &["tag", "-a", &tag, "-m", &format!("Release {}", tag)],
+    )?;
+
     if !ctx.dry_run {
         ctx.run_command("git", &["push", "origin", &tag])?;
     }
-    
+
     Ok(())
 }
 
@@ -336,9 +363,9 @@ async fn publish_packages(ctx: &Context, config: &ReleaseConfig) -> Result<()> {
         docker: config.registries.docker,
         skip_verification: false,
     };
-    
+
     crate::commands::publish::run(publish_cmd, ctx.clone()).await?;
-    
+
     Ok(())
 }
 
@@ -356,9 +383,11 @@ async fn create_github_release(
 
     // GitHub release functionality requires octocrab dependency
     // Uncomment the octocrab dependency in Cargo.toml and this code to enable GitHub releases
-    
-    ctx.warn("GitHub release creation is disabled. Enable octocrab in Cargo.toml to use this feature.");
-    
+
+    ctx.warn(
+        "GitHub release creation is disabled. Enable octocrab in Cargo.toml to use this feature.",
+    );
+
     /*
     let github_token = std::env::var("GITHUB_TOKEN")
         .context("GITHUB_TOKEN environment variable not set")?;
@@ -368,7 +397,7 @@ async fn create_github_release(
         .build()?;
 
     let tag = format!("v{}", version);
-    
+
     // Read changelog for release notes
     let notes = if config.github.generate_notes {
         generate_release_notes(version)?
@@ -396,17 +425,17 @@ async fn create_github_release(
             for entry in std::fs::read_dir(artifacts_dir)? {
                 let entry = entry?;
                 let path = entry.path();
-                
+
                 if path.is_file() {
                     let file_name = path.file_name()
                         .context("Invalid file name")?
                         .to_string_lossy();
-                    
+
                     ctx.debug(&format!("Uploading {}", file_name));
-                    
+
                     let file_data = std::fs::read(&path)
                         .context("Failed to read artifact")?;
-                    
+
                     octocrab
                         .repos(&config.github.owner, &config.github.repo)
                         .releases()
@@ -449,33 +478,44 @@ fn generate_release_notes(version: &Version) -> Result<String> {
 }
 
 async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Result<()> {
-    ctx.info(&format!("{} KindlyGuard Pre-Release Checklist", "🚀".blue()));
+    ctx.info(&format!(
+        "{} KindlyGuard Pre-Release Checklist",
+        "🚀".blue()
+    ));
     println!("{}", "=======================================".blue());
-    
+
     let mut errors = 0;
     let mut warnings = 0;
-    
+
     // Get current version
     let current_version = get_current_version()?;
-    ctx.info(&format!("Current version: {}", current_version.to_string().yellow()));
-    
+    ctx.info(&format!(
+        "Current version: {}",
+        current_version.to_string().yellow()
+    ));
+
     // Check if new version was provided
     let target_version = if let Some(v) = version {
         let parsed = Version::parse(&v).context("Invalid version format")?;
         if parsed <= current_version {
-            ctx.error(&format!("Target version {} must be greater than current version {}", 
-                parsed, current_version));
+            ctx.error(&format!(
+                "Target version {} must be greater than current version {}",
+                parsed, current_version
+            ));
             errors += 1;
         }
         Some(parsed)
     } else {
         None
     };
-    
+
     if let Some(ref ver) = target_version {
-        ctx.info(&format!("Target release version: {}", ver.to_string().magenta()));
+        ctx.info(&format!(
+            "Target release version: {}",
+            ver.to_string().magenta()
+        ));
     }
-    
+
     // Run all pre-release checks
     let checks = vec![
         PreReleaseCheck::VersionConsistency,
@@ -489,13 +529,13 @@ async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Re
         PreReleaseCheck::DependencyCheck,
         PreReleaseCheck::MsrvCompatibility,
     ];
-    
+
     // Interactive checklist with progress
     ctx.info(&format!("\n{} Running pre-release checks", "📋".yellow()));
-    
+
     for (i, check) in checks.iter().enumerate() {
         let (passed, is_warning) = run_check(ctx, check, &target_version).await?;
-        
+
         if !passed {
             if is_warning {
                 warnings += 1;
@@ -503,12 +543,12 @@ async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Re
                 errors += 1;
             }
         }
-        
+
         // Show progress
         let progress = format!("[{}/{}]", i + 1, checks.len());
         ctx.debug(&format!("{} Completed {}", progress.dimmed(), check));
     }
-    
+
     // Summary
     println!("\n{}", "📊 Summary".blue().bold());
     println!("{}", "====================");
@@ -516,16 +556,30 @@ async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Re
     if let Some(ver) = &target_version {
         println!("Target version: {}", ver.to_string().magenta());
     }
-    println!("Errors: {}", if errors > 0 { errors.to_string().red() } else { errors.to_string().green() });
-    println!("Warnings: {}", if warnings > 0 { warnings.to_string().yellow() } else { warnings.to_string().green() });
-    
+    println!(
+        "Errors: {}",
+        if errors > 0 {
+            errors.to_string().red()
+        } else {
+            errors.to_string().green()
+        }
+    );
+    println!(
+        "Warnings: {}",
+        if warnings > 0 {
+            warnings.to_string().yellow()
+        } else {
+            warnings.to_string().green()
+        }
+    );
+
     if errors == 0 {
         ctx.success("All critical checks passed!");
-        
+
         if warnings > 0 {
             ctx.warn(&format!("There are {} warnings to review", warnings));
         }
-        
+
         // If version was provided, offer to update versions
         if let Some(ver) = &target_version {
             println!();
@@ -533,33 +587,44 @@ async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Re
                 .with_prompt("Would you like to update all files to the new version?")
                 .default(true)
                 .interact()?;
-                
+
             if update {
                 crate::commands::version::update_all_versions(ctx, ver)?;
                 ctx.success(&format!("Version updated to {}", ver));
             }
         }
-        
+
         // Generate release notes
-        if target_version.is_some() || Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt("Would you like to generate release notes?")
-            .default(true)
-            .interact()? 
+        if target_version.is_some()
+            || Confirm::with_theme(&ColorfulTheme::default())
+                .with_prompt("Would you like to generate release notes?")
+                .default(true)
+                .interact()?
         {
-            generate_interactive_release_notes(ctx, &target_version.clone().unwrap_or(current_version.clone()))?;
+            generate_interactive_release_notes(
+                ctx,
+                &target_version.clone().unwrap_or(current_version.clone()),
+            )?;
         }
-        
+
         // Show next steps
         println!("\n{}", "Next steps for release:".blue());
         println!("1. Ensure CHANGELOG.md is updated with release notes");
-        println!("2. Commit all changes: git add -A && git commit -m \"Release v{}\"", 
-            target_version.as_ref().unwrap_or(&current_version));
-        println!("3. Run: cargo xtask release {}", 
-            target_version.as_ref().unwrap_or(&current_version));
-        
+        println!(
+            "2. Commit all changes: git add -A && git commit -m \"Release v{}\"",
+            target_version.as_ref().unwrap_or(&current_version)
+        );
+        println!(
+            "3. Run: cargo xtask release {}",
+            target_version.as_ref().unwrap_or(&current_version)
+        );
+
         Ok(())
     } else {
-        ctx.error(&format!("{} critical checks failed. Please fix the issues before releasing.", errors));
+        ctx.error(&format!(
+            "{} critical checks failed. Please fix the issues before releasing.",
+            errors
+        ));
         Err(anyhow::anyhow!("Pre-release checks failed"))
     }
 }
@@ -595,9 +660,13 @@ impl std::fmt::Display for PreReleaseCheck {
     }
 }
 
-async fn run_check(ctx: &Context, check: &PreReleaseCheck, target_version: &Option<Version>) -> Result<(bool, bool)> {
+async fn run_check(
+    ctx: &Context,
+    check: &PreReleaseCheck,
+    target_version: &Option<Version>,
+) -> Result<(bool, bool)> {
     let spinner = crate::utils::spinner(&format!("Checking: {}...", check));
-    
+
     let (passed, is_warning) = match check {
         PreReleaseCheck::VersionConsistency => check_version_consistency(ctx).await,
         PreReleaseCheck::ChangelogUpdate => check_changelog_update(ctx, target_version).await,
@@ -610,7 +679,7 @@ async fn run_check(ctx: &Context, check: &PreReleaseCheck, target_version: &Opti
         PreReleaseCheck::DependencyCheck => check_dependencies(ctx).await,
         PreReleaseCheck::MsrvCompatibility => check_msrv_compatibility(ctx).await,
     }?;
-    
+
     if passed {
         spinner.finish_with_message(format!("✅ {}", check));
     } else if is_warning {
@@ -618,7 +687,7 @@ async fn run_check(ctx: &Context, check: &PreReleaseCheck, target_version: &Opti
     } else {
         spinner.finish_with_message(format!("❌ {} (failed)", check));
     }
-    
+
     Ok((passed, is_warning))
 }
 
@@ -629,42 +698,48 @@ async fn check_version_consistency(ctx: &Context) -> Result<(bool, bool)> {
         Err(_) => {
             ctx.error("Version mismatch detected across files");
             Ok((false, false))
-        }
+        },
     }
 }
 
-async fn check_changelog_update(ctx: &Context, target_version: &Option<Version>) -> Result<(bool, bool)> {
+async fn check_changelog_update(
+    ctx: &Context,
+    target_version: &Option<Version>,
+) -> Result<(bool, bool)> {
     let changelog_path = crate::utils::workspace_root()?.join("CHANGELOG.md");
-    
+
     if !changelog_path.exists() {
         ctx.warn("CHANGELOG.md not found");
         return Ok((false, true));
     }
-    
+
     if let Some(ver) = target_version {
         let content = std::fs::read_to_string(&changelog_path)?;
         let version_heading = format!("## [{}]", ver);
-        
+
         if !content.contains(&version_heading) {
-            ctx.warn(&format!("CHANGELOG.md doesn't contain entry for version {}", ver));
+            ctx.warn(&format!(
+                "CHANGELOG.md doesn't contain entry for version {}",
+                ver
+            ));
             return Ok((false, true));
         }
     }
-    
+
     Ok((true, false))
 }
 
 async fn check_documentation_status(ctx: &Context) -> Result<(bool, bool)> {
     let required_docs = vec!["README.md", "LICENSE"];
     let mut missing = vec![];
-    
+
     for doc in required_docs {
         let path = crate::utils::workspace_root()?.join(doc);
         if !path.exists() {
             missing.push(doc);
         }
     }
-    
+
     if missing.is_empty() {
         // Check if docs build successfully
         match ctx.run_command("cargo", &["doc", "--no-deps", "--all"]) {
@@ -672,10 +747,13 @@ async fn check_documentation_status(ctx: &Context) -> Result<(bool, bool)> {
             Err(_) => {
                 ctx.error("Documentation build failed");
                 Ok((false, false))
-            }
+            },
         }
     } else {
-        ctx.warn(&format!("Missing required documentation: {}", missing.join(", ")));
+        ctx.warn(&format!(
+            "Missing required documentation: {}",
+            missing.join(", ")
+        ));
         Ok((false, true))
     }
 }
@@ -687,7 +765,7 @@ async fn check_test_coverage(ctx: &Context) -> Result<(bool, bool)> {
     } else {
         ctx.run_command("cargo", &["test", "--all"])
     };
-    
+
     match test_result {
         Ok(_) => {
             // Also run doc tests
@@ -696,13 +774,13 @@ async fn check_test_coverage(ctx: &Context) -> Result<(bool, bool)> {
                 Err(_) => {
                     ctx.error("Doc tests failed");
                     Ok((false, false))
-                }
+                },
             }
-        }
+        },
         Err(_) => {
             ctx.error("Tests failed");
             Ok((false, false))
-        }
+        },
     }
 }
 
@@ -711,24 +789,24 @@ async fn check_security_audit(ctx: &Context) -> Result<(bool, bool)> {
         ctx.warn("cargo-audit not installed, skipping security audit");
         return Ok((false, true));
     }
-    
+
     match crate::commands::security::run_audit(ctx) {
         Ok(_) => Ok((true, false)),
         Err(_) => {
             ctx.error("Security vulnerabilities found");
             Ok((false, false))
-        }
+        },
     }
 }
 
 async fn check_license_verification(ctx: &Context) -> Result<(bool, bool)> {
     let license_path = crate::utils::workspace_root()?.join("LICENSE");
-    
+
     if !license_path.exists() {
         ctx.error("LICENSE file not found");
         return Ok((false, false));
     }
-    
+
     // If cargo-deny is available, check licenses
     if crate::utils::command_exists("cargo-deny") {
         match ctx.run_command("cargo", &["deny", "check", "licenses"]) {
@@ -736,7 +814,7 @@ async fn check_license_verification(ctx: &Context) -> Result<(bool, bool)> {
             Err(_) => {
                 ctx.warn("License compliance check failed");
                 Ok((false, true))
-            }
+            },
         }
     } else {
         Ok((true, false))
@@ -753,33 +831,33 @@ async fn check_build_verification(ctx: &Context) -> Result<(bool, bool)> {
                 Err(_) => {
                     ctx.error("Release build failed");
                     Ok((false, false))
-                }
+                },
             }
-        }
+        },
         Err(_) => {
             ctx.error("Debug build failed");
             Ok((false, false))
-        }
+        },
     }
 }
 
 async fn check_git_status_detailed(ctx: &Context) -> Result<(bool, bool)> {
     let output = ctx.run_async("git", &["status", "--porcelain"]).await?;
-    
+
     if !output.trim().is_empty() {
         ctx.warn("Working directory has uncommitted changes");
         return Ok((false, true));
     }
-    
+
     // Check branch
     let branch = ctx.run_async("git", &["branch", "--show-current"]).await?;
     let branch = branch.trim();
-    
+
     if branch != "main" && branch != "master" {
         ctx.warn(&format!("Not on main branch (current: {})", branch));
         return Ok((true, true)); // This is just a warning
     }
-    
+
     Ok((true, false))
 }
 
@@ -792,35 +870,35 @@ async fn check_dependencies(ctx: &Context) -> Result<(bool, bool)> {
                     ctx.warn("Unused dependencies found");
                     return Ok((false, true));
                 }
-            }
+            },
             Err(_) => {
                 // Tool failed to run, skip this check
-            }
+            },
         }
     }
-    
+
     Ok((true, false))
 }
 
 async fn check_msrv_compatibility(ctx: &Context) -> Result<(bool, bool)> {
     let msrv = "1.81";
-    
+
     // Check if MSRV toolchain is installed
     let toolchain_check = ctx.run_command("rustup", &["toolchain", "list"]);
-    
+
     if let Ok(output) = toolchain_check {
         if !output.contains(msrv) {
             ctx.warn(&format!("MSRV toolchain {} not installed", msrv));
             return Ok((false, true));
         }
-        
+
         // Run MSRV build
         match ctx.run_command("cargo", &[&format!("+{}", msrv), "build", "--all-features"]) {
             Ok(_) => Ok((true, false)),
             Err(_) => {
                 ctx.error(&format!("Build failed with MSRV {}", msrv));
                 Ok((false, false))
-            }
+            },
         }
     } else {
         Ok((true, false)) // Skip if rustup not available
@@ -828,23 +906,25 @@ async fn check_msrv_compatibility(ctx: &Context) -> Result<(bool, bool)> {
 }
 
 fn get_current_version() -> Result<Version> {
-    let manifest = std::fs::read_to_string("Cargo.toml")
-        .context("Failed to read Cargo.toml")?;
-    
-    let current: toml::Value = toml::from_str(&manifest)
-        .context("Failed to parse Cargo.toml")?;
-    
+    let manifest = std::fs::read_to_string("Cargo.toml").context("Failed to read Cargo.toml")?;
+
+    let current: toml::Value = toml::from_str(&manifest).context("Failed to parse Cargo.toml")?;
+
     let version_str = current["package"]["version"]
         .as_str()
         .or_else(|| current["workspace"]["package"]["version"].as_str())
         .context("No version found in Cargo.toml")?;
-    
+
     Version::parse(version_str).context("Invalid version in Cargo.toml")
 }
 
 fn generate_interactive_release_notes(ctx: &Context, version: &Version) -> Result<()> {
-    ctx.info(&format!("\n{} Generating release notes for v{}", "📝".yellow(), version));
-    
+    ctx.info(&format!(
+        "\n{} Generating release notes for v{}",
+        "📝".yellow(),
+        version
+    ));
+
     // Categories for release notes
     let categories = vec![
         ("Added", "New features"),
@@ -854,44 +934,48 @@ fn generate_interactive_release_notes(ctx: &Context, version: &Version) -> Resul
         ("Fixed", "Bug fixes"),
         ("Security", "Security updates"),
     ];
-    
+
     let mut release_notes: HashMap<&str, Vec<String>> = HashMap::new();
-    
+
     // For each category, ask if there are items to add
     for (category, description) in &categories {
         let has_items = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(&format!("Any {} items? ({})", category.to_lowercase(), description))
+            .with_prompt(&format!(
+                "Any {} items? ({})",
+                category.to_lowercase(),
+                description
+            ))
             .default(false)
             .interact()?;
-            
+
         if has_items {
             ctx.info(&format!("Enter {} items (empty line to finish):", category));
             let mut items = vec![];
-            
+
             loop {
                 let item: String = dialoguer::Input::with_theme(&ColorfulTheme::default())
                     .with_prompt(">")
                     .allow_empty(true)
                     .interact_text()?;
-                    
+
                 if item.is_empty() {
                     break;
                 }
-                
+
                 items.push(format!("- {}", item));
             }
-            
+
             if !items.is_empty() {
                 release_notes.insert(category, items);
             }
         }
     }
-    
+
     // Generate release notes content
     if !release_notes.is_empty() {
         let date = chrono::Local::now().format("%Y-%m-%d");
         let mut content = format!("\n## [{}] - {}\n", version, date);
-        
+
         for (category, _) in &categories {
             if let Some(items) = release_notes.get(category) {
                 content.push_str(&format!("\n### {}\n", category));
@@ -900,27 +984,27 @@ fn generate_interactive_release_notes(ctx: &Context, version: &Version) -> Resul
                 }
             }
         }
-        
+
         ctx.success("Generated release notes:");
         println!("{}", content.dimmed());
-        
+
         // Offer to update CHANGELOG.md
         let update_changelog = Confirm::with_theme(&ColorfulTheme::default())
             .with_prompt("Update CHANGELOG.md with these notes?")
             .default(true)
             .interact()?;
-            
+
         if update_changelog {
             update_changelog_with_notes(ctx, &content)?;
         }
     }
-    
+
     Ok(())
 }
 
 fn update_changelog_with_notes(ctx: &Context, notes: &str) -> Result<()> {
     let changelog_path = crate::utils::workspace_root()?.join("CHANGELOG.md");
-    
+
     if !changelog_path.exists() {
         // Create new CHANGELOG.md
         let content = format!("# Changelog\n\nAll notable changes to this project will be documented in this file.\n{}", notes);
@@ -928,26 +1012,29 @@ fn update_changelog_with_notes(ctx: &Context, notes: &str) -> Result<()> {
         ctx.success("Created CHANGELOG.md");
     } else {
         let content = std::fs::read_to_string(&changelog_path)?;
-        
+
         // Find insertion point
         let insertion_point = if let Some(pos) = content.find("## [") {
             pos
         } else if let Some(pos) = content.find("# Changelog") {
-            content[pos..].find('\n').map(|n| pos + n + 1).unwrap_or(content.len())
+            content[pos..]
+                .find('\n')
+                .map(|n| pos + n + 1)
+                .unwrap_or(content.len())
         } else {
             0
         };
-        
+
         // Insert new notes
         let mut new_content = String::new();
         new_content.push_str(&content[..insertion_point]);
         new_content.push_str(notes);
         new_content.push_str(&content[insertion_point..]);
-        
+
         std::fs::write(&changelog_path, new_content)?;
         ctx.success("Updated CHANGELOG.md");
     }
-    
+
     Ok(())
 }
 

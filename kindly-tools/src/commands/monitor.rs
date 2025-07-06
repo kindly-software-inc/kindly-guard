@@ -30,10 +30,10 @@ pub async fn run(url: String, interval: u64) -> Result<()> {
         match fetch_server_status(&url).await {
             Ok(status) => {
                 print_server_status(&status);
-            }
+            },
             Err(e) => {
                 println!("{}: {}", "Error".red(), e);
-            }
+            },
         }
 
         tokio::time::sleep(tokio::time::Duration::from_secs(interval)).await;

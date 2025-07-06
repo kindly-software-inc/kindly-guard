@@ -329,7 +329,7 @@ impl AuditLogger for InMemoryAuditLogger {
             ExportFormat::Json => {
                 let json = serde_json::to_string_pretty(&events)?;
                 Ok(json.into_bytes())
-            }
+            },
             ExportFormat::Csv => {
                 let mut wtr = csv::Writer::from_writer(vec![]);
 
@@ -360,7 +360,7 @@ impl AuditLogger for InMemoryAuditLogger {
                 }
 
                 Ok(wtr.into_inner()?)
-            }
+            },
             ExportFormat::Syslog => {
                 let mut output = Vec::new();
 
@@ -386,7 +386,7 @@ impl AuditLogger for InMemoryAuditLogger {
                 }
 
                 Ok(output)
-            }
+            },
             ExportFormat::Cef => {
                 let mut output = Vec::new();
 
@@ -411,7 +411,7 @@ impl AuditLogger for InMemoryAuditLogger {
                 }
 
                 Ok(output)
-            }
+            },
         }
     }
 

@@ -34,7 +34,7 @@ pub struct ResilienceConfig {
 
     /// Recovery configuration
     pub recovery: RecoveryConfig,
-    
+
     /// Bulkhead configuration
     pub bulkhead: BulkheadConfig,
 }
@@ -149,11 +149,11 @@ pub struct BulkheadConfig {
     /// Maximum concurrent operations per bulkhead
     #[serde(default = "default_max_concurrent")]
     pub max_concurrent: Option<u32>,
-    
+
     /// Timeout for bulkhead operations
     #[serde(default = "default_bulkhead_timeout")]
     pub timeout_ms: Option<u64>,
-    
+
     /// Enable adaptive limits (enhanced mode only)
     #[serde(default = "default_false")]
     pub adaptive_limits: bool,

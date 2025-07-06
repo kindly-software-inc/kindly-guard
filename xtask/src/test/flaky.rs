@@ -127,7 +127,7 @@ impl FlakyTestManager {
     /// Create a new flaky test manager
     pub async fn new(workspace_root: &Path) -> Result<Self> {
         let db_path = workspace_root.join(".xtask").join("flaky-tests.json");
-        
+
         // Ensure directory exists
         if let Some(parent) = db_path.parent() {
             fs::create_dir_all(parent).await?;
@@ -150,7 +150,7 @@ impl FlakyTestManager {
 
         // Load existing data
         manager.load_database().await?;
-        
+
         Ok(manager)
     }
 
@@ -216,7 +216,7 @@ impl FlakyTestManager {
         };
 
         let json = serde_json::to_string_pretty(&db)?;
-        
+
         let mut file = File::create(&self.db_path).await?;
         file.write_all(json.as_bytes()).await?;
         file.sync_all().await?;
@@ -227,33 +227,35 @@ impl FlakyTestManager {
     /// Record a test execution
     pub async fn record_execution(&self, execution: TestExecution) -> Result<()> {
         let test_name = execution.test_name.clone();
-        
+
         // Update executions
         {
             let mut executions = self.executions.write().await;
-            let history = executions.entry(test_name.clone()).or_insert_with(VecDeque::new);
-            
+            let history = executions
+                .entry(test_name.clone())
+                .or_insert_with(VecDeque::new);
+
             // Maintain max history size
             if history.len() >= MAX_HISTORY_SIZE {
                 history.pop_front();
             }
-            
+
             history.push_back(execution.clone());
         }
 
         // Update statistics
         self.update_stats(&test_name).await?;
-        
+
         // Save to disk
         self.save_database().await?;
-        
+
         Ok(())
     }
 
     /// Update statistics for a test
     async fn update_stats(&self, test_name: &str) -> Result<()> {
         let executions = self.executions.read().await;
-        
+
         if let Some(history) = executions.get(test_name) {
             if history.is_empty() {
                 return Ok(());
@@ -262,20 +264,20 @@ impl FlakyTestManager {
             let total_runs = history.len() as u64;
             let passed_runs = history.iter().filter(|e| e.passed).count() as u64;
             let failed_runs = total_runs - passed_runs;
-            
+
             let durations: Vec<Duration> = history.iter().map(|e| e.duration).collect();
             let total_duration: Duration = durations.iter().sum();
             let avg_duration = total_duration / total_runs as u32;
             let max_duration = durations.iter().max().copied().unwrap_or_default();
             let min_duration = durations.iter().min().copied().unwrap_or_default();
-            
+
             // Calculate flakiness score
             let flakiness_score = if total_runs >= MIN_RUNS_FOR_FLAKINESS as u64 {
                 // Consider a test flaky if it has inconsistent results
                 let failure_rate = failed_runs as f64 / total_runs as f64;
                 let has_recent_failures = history.iter().rev().take(10).any(|e| !e.passed);
                 let has_recent_passes = history.iter().rev().take(10).any(|e| e.passed);
-                
+
                 if has_recent_failures && has_recent_passes {
                     failure_rate.max(0.1) // At least 10% flaky if inconsistent
                 } else {
@@ -288,18 +290,20 @@ impl FlakyTestManager {
             let last_execution = history.back().map(|e| e.timestamp).unwrap_or_else(Utc::now);
 
             let mut stats = self.stats.write().await;
-            let test_stats = stats.entry(test_name.to_string()).or_insert_with(|| TestStats {
-                total_runs: 0,
-                passed_runs: 0,
-                failed_runs: 0,
-                avg_duration,
-                max_duration,
-                min_duration,
-                flakiness_score: 0.0,
-                quarantined: false,
-                quarantine_reason: None,
-                last_execution,
-            });
+            let test_stats = stats
+                .entry(test_name.to_string())
+                .or_insert_with(|| TestStats {
+                    total_runs: 0,
+                    passed_runs: 0,
+                    failed_runs: 0,
+                    avg_duration,
+                    max_duration,
+                    min_duration,
+                    flakiness_score: 0.0,
+                    quarantined: false,
+                    quarantine_reason: None,
+                    last_execution,
+                });
 
             test_stats.total_runs = total_runs;
             test_stats.passed_runs = passed_runs;
@@ -317,7 +321,10 @@ impl FlakyTestManager {
                     "Auto-quarantined due to high flakiness score: {:.2}",
                     flakiness_score
                 ));
-                warn!("Test {} auto-quarantined with flakiness score {:.2}", test_name, flakiness_score);
+                warn!(
+                    "Test {} auto-quarantined with flakiness score {:.2}",
+                    test_name, flakiness_score
+                );
             }
         }
 
@@ -328,7 +335,7 @@ impl FlakyTestManager {
     pub async fn get_retry_policy(&self, test_name: &str) -> RetryPolicy {
         let policies = self.retry_policies.read().await;
         let stats = self.stats.read().await;
-        
+
         // Check for custom policy
         if let Some(policy) = policies.get(test_name) {
             return policy.clone();
@@ -339,7 +346,8 @@ impl FlakyTestManager {
             if test_stats.flakiness_score > FLAKY_THRESHOLD {
                 // More aggressive retries for flaky tests
                 return RetryPolicy {
-                    max_retries: (DEFAULT_RETRY_COUNT as f64 * (1.0 + test_stats.flakiness_score)) as u32,
+                    max_retries: (DEFAULT_RETRY_COUNT as f64 * (1.0 + test_stats.flakiness_score))
+                        as u32,
                     backoff: BackoffStrategy::ExponentialJitter {
                         base: Duration::from_millis(200),
                         max: Duration::from_secs(30),
@@ -362,23 +370,26 @@ impl FlakyTestManager {
     /// Quarantine a test
     pub async fn quarantine_test(&self, test_name: &str, reason: String) -> Result<()> {
         let mut stats = self.stats.write().await;
-        
+
         if let Some(test_stats) = stats.get_mut(test_name) {
             test_stats.quarantined = true;
             test_stats.quarantine_reason = Some(reason);
         } else {
-            stats.insert(test_name.to_string(), TestStats {
-                total_runs: 0,
-                passed_runs: 0,
-                failed_runs: 0,
-                avg_duration: Duration::default(),
-                max_duration: Duration::default(),
-                min_duration: Duration::default(),
-                flakiness_score: 1.0,
-                quarantined: true,
-                quarantine_reason: Some(reason),
-                last_execution: Utc::now(),
-            });
+            stats.insert(
+                test_name.to_string(),
+                TestStats {
+                    total_runs: 0,
+                    passed_runs: 0,
+                    failed_runs: 0,
+                    avg_duration: Duration::default(),
+                    max_duration: Duration::default(),
+                    min_duration: Duration::default(),
+                    flakiness_score: 1.0,
+                    quarantined: true,
+                    quarantine_reason: Some(reason),
+                    last_execution: Utc::now(),
+                },
+            );
         }
 
         self.save_database().await
@@ -387,7 +398,7 @@ impl FlakyTestManager {
     /// Un-quarantine a test
     pub async fn unquarantine_test(&self, test_name: &str) -> Result<()> {
         let mut stats = self.stats.write().await;
-        
+
         if let Some(test_stats) = stats.get_mut(test_name) {
             test_stats.quarantined = false;
             test_stats.quarantine_reason = None;
@@ -422,7 +433,10 @@ impl FlakyTestManager {
         let executions = self.executions.read().await;
 
         let total_tests = stats.len();
-        let flaky_tests = stats.values().filter(|s| s.flakiness_score > FLAKY_THRESHOLD).count();
+        let flaky_tests = stats
+            .values()
+            .filter(|s| s.flakiness_score > FLAKY_THRESHOLD)
+            .count();
         let quarantined_tests = stats.values().filter(|s| s.quarantined).count();
 
         let mut test_reports = Vec::new();
@@ -444,7 +458,8 @@ impl FlakyTestManager {
 
         // Sort by flakiness score (descending)
         test_reports.sort_by(|a, b| {
-            b.stats.flakiness_score
+            b.stats
+                .flakiness_score
                 .partial_cmp(&a.stats.flakiness_score)
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
@@ -474,7 +489,7 @@ impl FlakyTestManager {
         // Add per-test overrides for flaky tests
         config.push_str("[[profile.default.overrides]]\n");
         config.push_str("# Flaky test overrides\n");
-        
+
         let mut has_overrides = false;
 
         for (test_name, test_stats) in stats.iter() {
@@ -482,25 +497,27 @@ impl FlakyTestManager {
                 if has_overrides {
                     config.push_str("\n[[profile.default.overrides]]\n");
                 }
-                
+
                 config.push_str(&format!("filter = 'test(={})'\n", test_name));
-                
-                let policy = policies.get(test_name)
+
+                let policy = policies
+                    .get(test_name)
                     .cloned()
                     .unwrap_or_else(|| self.default_retry_policy.clone());
-                
+
                 let backoff_str = match policy.backoff {
                     BackoffStrategy::None => "fixed",
                     BackoffStrategy::Fixed { .. } => "fixed",
                     BackoffStrategy::Linear { .. } => "linear",
-                    BackoffStrategy::Exponential { .. } | BackoffStrategy::ExponentialJitter { .. } => "exponential",
+                    BackoffStrategy::Exponential { .. }
+                    | BackoffStrategy::ExponentialJitter { .. } => "exponential",
                 };
-                
+
                 config.push_str(&format!(
                     "retries = {{ backoff = \"{}\", count = {} }}\n",
                     backoff_str, policy.max_retries
                 ));
-                
+
                 has_overrides = true;
             }
         }
@@ -515,13 +532,13 @@ impl FlakyTestManager {
         if !quarantined.is_empty() {
             config.push_str("\n[[profile.default.overrides]]\n");
             config.push_str("# Quarantined tests\n");
-            
+
             let filter = quarantined
                 .iter()
                 .map(|name| format!("test(={})", name))
                 .collect::<Vec<_>>()
                 .join(" | ");
-            
+
             config.push_str(&format!("filter = '{}'\n", filter));
             config.push_str("retries = { backoff = \"exponential\", count = 5 }\n");
         }
@@ -538,7 +555,7 @@ impl FlakyTestManager {
             BackoffStrategy::Exponential { base, max } => {
                 let exp = (*base * 2u32.pow(attempt.saturating_sub(1))).min(*max);
                 exp
-            }
+            },
             BackoffStrategy::ExponentialJitter { base, max } => {
                 let exp = (*base * 2u32.pow(attempt.saturating_sub(1))).min(*max);
                 // Add jitter: ±25%
@@ -547,7 +564,7 @@ impl FlakyTestManager {
                 let jitter = exp.as_millis() as f64 * 0.25;
                 let jittered = exp.as_millis() as f64 + (rng.gen::<f64>() - 0.5) * jitter;
                 Duration::from_millis(jittered.max(0.0) as u64)
-            }
+            },
         }
     }
 }
@@ -740,7 +757,6 @@ impl FlakinessReport {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -752,7 +768,7 @@ mod tests {
 
         // Simulate a flaky test
         let test_name = "test::flaky_test";
-        
+
         for i in 0..10 {
             let execution = TestExecution {
                 test_name: test_name.to_string(),
@@ -767,14 +783,14 @@ mod tests {
                 },
                 output: None,
             };
-            
+
             manager.record_execution(execution).await.unwrap();
         }
 
         // Check stats
         let stats = manager.stats.read().await;
         let test_stats = stats.get(test_name).unwrap();
-        
+
         assert_eq!(test_stats.total_runs, 10);
         assert_eq!(test_stats.failed_runs, 4); // Failed on 0, 3, 6, 9
         assert!(test_stats.flakiness_score > 0.3);
@@ -787,7 +803,7 @@ mod tests {
             base: Duration::from_millis(100),
             max: Duration::from_secs(10),
         };
-        
+
         assert_eq!(
             FlakyTestManager::calculate_backoff(&strategy, 1),
             Duration::from_millis(100)
@@ -800,7 +816,7 @@ mod tests {
             FlakyTestManager::calculate_backoff(&strategy, 3),
             Duration::from_millis(400)
         );
-        
+
         // Test max limit
         assert_eq!(
             FlakyTestManager::calculate_backoff(&strategy, 20),

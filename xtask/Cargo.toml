@@ -77,6 +77,14 @@ tempfile = "3.10"
 sha2 = "0.10"
 target-triple = "0.1"
 
+# For parallel CI
+rayon = "1.10"
+dashmap = "6.1"
+async-trait = "0.1"
+sysinfo = "0.33"
+ratatui = "0.28"
+crossterm = "0.28"
+
 [target.'cfg(unix)'.dependencies]
 nix = { version = "0.29", features = ["signal", "process"] }
 

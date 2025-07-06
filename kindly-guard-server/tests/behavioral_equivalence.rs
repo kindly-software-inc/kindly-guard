@@ -270,16 +270,16 @@ async fn test_neutralizer_behavioral_equivalence() {
                     "Sanitized content mismatch for threat: {:?}",
                     threat.threat_type
                 );
-            }
+            },
             (None, None) => {
                 // Both chose not to sanitize - OK
-            }
+            },
             _ => {
                 panic!(
                     "Sanitization decision mismatch for threat: {:?}",
                     threat.threat_type
                 );
-            }
+            },
         }
 
         // Metadata should be functionally equivalent (may differ in details)
@@ -405,13 +405,13 @@ async fn test_scanner_behavioral_equivalence() {
                         o2,
                         l2
                     );
-                }
+                },
                 _ => {
                     assert_eq!(
                         std_threat.location, enh_threat.location,
                         "Location type mismatch"
                     );
-                }
+                },
             }
         }
     }

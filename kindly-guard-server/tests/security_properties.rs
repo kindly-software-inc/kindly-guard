@@ -62,7 +62,7 @@ fn create_test_scanner(enhanced: bool) -> Result<Arc<SecurityScanner>> {
         enhanced_mode: Some(enhanced),
         crypto_detection: true,
         max_content_size: 5 * 1024 * 1024, // 5MB
-            max_input_size: None,
+        max_input_size: None,
     };
     Ok(Arc::new(SecurityScanner::new(config)?))
 }

@@ -40,7 +40,7 @@ fn bench_unicode_scanning_regression(c: &mut Criterion) {
         custom_patterns: None,
         max_scan_depth: 10,
         enable_event_buffer: false,
-        crypto_detection: false, // Disabled for this specific benchmark
+        crypto_detection: false,      // Disabled for this specific benchmark
         max_content_size: 10_485_760, // 10MB for benchmarks
     };
 

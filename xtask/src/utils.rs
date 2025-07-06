@@ -17,7 +17,7 @@ pub mod tools;
 pub mod version;
 
 // Re-exports for convenience
-pub use tools::{ensure_tool_installed, is_tool_installed, is_ci_environment, ToolInstallConfig};
+pub use tools::{ensure_tool_installed, is_ci_environment, is_tool_installed, ToolInstallConfig};
 
 #[derive(Clone, Debug)]
 pub struct Context {
@@ -67,7 +67,7 @@ impl Context {
         }
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        
+
         if self.verbose && !stdout.is_empty() {
             println!("{}", stdout);
         }
@@ -185,7 +185,7 @@ pub fn workspace_root() -> Result<std::path::PathBuf> {
 
     // Fallback: use current directory
     let current_dir = std::env::current_dir()?;
-    
+
     // Walk up to find a directory containing Cargo.toml with workspace
     let mut dir = current_dir.as_path();
     loop {
@@ -198,13 +198,13 @@ pub fn workspace_root() -> Result<std::path::PathBuf> {
                 }
             }
         }
-        
+
         match dir.parent() {
             Some(parent) => dir = parent,
             None => break,
         }
     }
-    
+
     // If all else fails, assume we're in kindly-guard
     Ok(current_dir)
 }

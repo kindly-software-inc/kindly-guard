@@ -297,12 +297,12 @@ mod websocket_security {
                             text.contains("error") || text.contains("invalid"),
                             "WebSocket accepted tampered message"
                         );
-                    }
+                    },
                     Message::Close(_) => {
                         // Connection closed is acceptable
                         break;
-                    }
-                    _ => {}
+                    },
+                    _ => {},
                 }
             }
         }
@@ -325,10 +325,10 @@ mod websocket_security {
                     Ok((mut ws, _)) => {
                         let _ = ws.send(Message::Text(format!("spam {}", i))).await;
                         let _ = ws.close(None).await;
-                    }
+                    },
                     Err(_) => {
                         // Connection refused is acceptable under DoS
-                    }
+                    },
                 }
             });
             handles.push(handle);
@@ -581,7 +581,7 @@ async fn scan_handler(
             Ok(Response::new(Body::from(
                 json!({"status": "clean"}).to_string(),
             )))
-        }
+        },
         Err(_) => Err(StatusCode::BAD_REQUEST),
     }
 }
@@ -621,7 +621,7 @@ async fn handle_websocket(mut socket: WebSocket) {
 
                 // Echo back for testing
                 let _ = socket.send(axum::extract::ws::Message::Text(text)).await;
-            }
+            },
             Ok(axum::extract::ws::Message::Binary(data)) => {
                 if data.len() > MAX_WEBSOCKET_FRAME_SIZE {
                     let _ = socket
@@ -631,10 +631,10 @@ async fn handle_websocket(mut socket: WebSocket) {
                         .await;
                     break;
                 }
-            }
+            },
             Ok(axum::extract::ws::Message::Close(_)) => break,
             Err(_) => break,
-            _ => {}
+            _ => {},
         }
     }
 }

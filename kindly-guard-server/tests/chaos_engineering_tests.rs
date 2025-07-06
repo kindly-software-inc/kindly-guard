@@ -140,7 +140,7 @@ impl ChaosInjector {
             FailureType::ComponentTimeout => {
                 sleep(Duration::from_secs(30)).await;
                 Ok(())
-            }
+            },
             FailureType::ComponentPanic => {
                 // Simulate a caught panic
                 std::panic::catch_unwind(|| {
@@ -148,7 +148,7 @@ impl ChaosInjector {
                 })
                 .map_err(|_| KindlyError::Internal("Panic caught".into()))?;
                 Ok(())
-            }
+            },
             FailureType::NetworkDelay => {
                 let delay = {
                     let mut rng = self.rng.lock();
@@ -156,25 +156,25 @@ impl ChaosInjector {
                 };
                 sleep(Duration::from_millis(delay)).await;
                 Ok(())
-            }
+            },
             FailureType::NetworkPartition => {
                 // Simulate network partition by failing
                 Err(KindlyError::NetworkError("Chaos: Network partition".into()))?
-            }
+            },
             FailureType::ResourceExhaustion => {
                 // Simulate resource exhaustion
                 self.simulate_resource_exhaustion().await
-            }
+            },
             FailureType::DataCorruption => {
                 // Return corrupted data
                 Err(KindlyError::Internal(
                     "Chaos: Simulated data corruption".into(),
                 ))?
-            }
+            },
             FailureType::CascadingFailure => {
                 // Trigger multiple failures
                 self.simulate_cascading_failure().await
-            }
+            },
         }
     }
 
@@ -297,12 +297,12 @@ impl ChaosTestHarness {
                         if !Self::verify_consistency(&shared_state, &expected_state).await {
                             data_inconsistencies.fetch_add(1, Ordering::Relaxed);
                         }
-                    }
+                    },
                     Err(_) => {
                         failures_observed.fetch_add(1, Ordering::Relaxed);
                         let recovery_time = operation_start.elapsed();
                         recovery_times.lock().push(recovery_time);
-                    }
+                    },
                 }
             });
 
@@ -773,7 +773,7 @@ async fn test_retry_strategy_with_chaos() -> Result<()> {
             Ok(_) => {
                 println!("Attempt {} succeeded", attempt);
                 break;
-            }
+            },
             Err(e) => {
                 println!("Attempt {} failed: {}", attempt, e);
 
@@ -797,7 +797,7 @@ async fn test_retry_strategy_with_chaos() -> Result<()> {
                     println!("Retry strategy decided not to retry: {}", decision.reason);
                     break;
                 }
-            }
+            },
         }
     }
 
