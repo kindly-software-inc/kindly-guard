@@ -14,7 +14,19 @@
 
 ## 🚀 Quick Start (30 seconds)
 
-### Install with kindly-tools (New Rust-based installer!)
+### Cargo (Primary Installation Method)
+```bash
+# Install KindlyGuard MCP server
+cargo install kindly-guard
+
+# Run the MCP server
+kindly-guard --stdio
+
+# Note: kindly-guard is the primary package name
+# kindly-guard-server is the underlying implementation crate
+```
+
+### Install with kindly-tools (Alternative method)
 ```bash
 # Install kindly-tools first (one-time setup)
 cargo install kindly-tools
@@ -54,11 +66,8 @@ brew install samduchaine/tap/kindly-guard
 - **macOS:** [Download PKG installer](https://github.com/samduchaine/kindly-guard/releases/latest)
 - **Linux:** [Download .deb or .rpm](https://github.com/samduchaine/kindly-guard/releases/latest)
 
-### Cargo
+### Additional Tools
 ```bash
-# Install the MCP server
-cargo install kindlyguard && kindlyguard --stdio
-
 # Install the CLI tools for scanning and monitoring
 cargo install kindly-tools
 ```
@@ -66,13 +75,13 @@ cargo install kindly-tools
 ### Docker
 ```bash
 # Quick start with Docker
-docker run -it kindlysoftware/kindlyguard:latest --stdio
+docker run -it kindlysoftware/kindly-guard:latest --stdio
 
 # With persistent configuration
 docker run -it \
   -v $(pwd)/config:/etc/kindlyguard:ro \
   -v kindly-data:/var/lib/kindlyguard \
-  kindlysoftware/kindlyguard:latest
+  kindlysoftware/kindly-guard:latest
 ```
 
 📚 **[Full Docker Deployment Guide](docs/DOCKER_DEPLOYMENT.md)** | **[Docker Security Guide](docs/DOCKER_SECURITY.md)**
@@ -99,7 +108,7 @@ kindly-tools setup-mcp --ide claude-desktop
 kindly-tools show-mcp-config
 
 # Set up shield auto-wrap for AI CLI protection
-kindly-tools wrap --init  # Creates ~/.kindlyguard/wrap.toml
+kindly-tools wrap --init  # Creates ~/.kindly-guard/wrap.toml
 kindly-tools shield auto-wrap -o ~/.kindly-shield.sh
 echo 'source ~/.kindly-shield.sh' >> ~/.bashrc  # or ~/.zshrc
 ```
@@ -116,7 +125,7 @@ echo 'source ~/.kindly-shield.sh' >> ~/.bashrc  # or ~/.zshrc
 
 ### 🎉 New in v0.11.0
 
-- **Unified Binary Structure** - Simplified to just `kindlyguard` (server) and `kindly-tools` (CLI)
+- **Unified Binary Structure** - Simplified to just `kindly-guard` (server) and `kindly-tools` (CLI)
 - **Command Wrapping** - Wrap any command with `kindly-tools wrap` for automatic threat detection
 - **Colored Output** - Beautiful, color-coded threat reports in the terminal
 - **Shield Auto-Wrap** - Automatically protect terminal commands with the shield
@@ -269,7 +278,7 @@ let scanner = create_scanner(config)?; // Automatic selection
 
 KindlyGuard is now organized into two main binaries:
 
-- **`kindlyguard`** - The MCP server binary that integrates with AI assistants
+- **`kindly-guard`** - The MCP server binary that integrates with AI assistants
 - **`kindly-tools`** - CLI tools for scanning, wrapping commands, and monitoring
 
 ### Key Components
@@ -284,7 +293,7 @@ KindlyGuard is now organized into two main binaries:
 
 ### Basic Configuration
 ```yaml
-# kindlyguard.yaml
+# kindly-guard.yaml
 scanner:
   unicode_detection: true
   injection_detection: true
@@ -462,11 +471,11 @@ kindly-tools version           # Show version
 kindly-tools help              # Get help
 ```
 
-### kindlyguard Server Commands
+### kindly-guard Server Commands
 ```bash
 # Start the MCP server
-kindlyguard --stdio            # Standard I/O mode for MCP
-kindlyguard server             # HTTP server mode
+kindly-guard --stdio            # Standard I/O mode for MCP
+kindly-guard server             # HTTP server mode
 ```
 
 ## 🧪 Testing
@@ -505,16 +514,16 @@ cargo bench
 sudo ./systemd/install.sh
 
 # Start service
-sudo systemctl start kindlyguard
-sudo systemctl enable kindlyguard
+sudo systemctl start kindly-guard
+sudo systemctl enable kindly-guard
 ```
 
 ### Docker Compose
 ```yaml
 version: '3.8'
 services:
-  kindlyguard:
-    image: kindlysoftware/kindlyguard:latest
+  kindly-guard:
+    image: kindlysoftware/kindly-guard:latest
     restart: unless-stopped
     user: "10001:10001"  # Non-root user
     read_only: true      # Security hardening
@@ -547,14 +556,14 @@ volumes:
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: kindlyguard
+  name: kindly-guard
 spec:
   replicas: 3
   template:
     spec:
       containers:
-      - name: kindlyguard
-        image: kindlyguard/kindlyguard:latest
+      - name: kindly-guard
+        image: kindlyguard/kindly-guard:latest
         resources:
           requests:
             memory: "64Mi"
@@ -578,7 +587,7 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 ```bash
 # Clone repository
 git clone https://github.com/kindlyguard/kindlyguard
-cd kindlyguard
+cd kindly-guard
 
 # Verify Rust version (must be 1.81+)
 rustc --version
@@ -678,7 +687,7 @@ We use cutting-edge Rust tooling for security and productivity:
 ## 📈 Roadmap
 
 ### v0.11.0 (Current Release)
-- ✅ Unified binary structure (`kindlyguard` + `kindly-tools`)
+- ✅ Unified binary structure (`kindly-guard` + `kindly-tools`)
 - ✅ Command wrapping with colored output
 - ✅ Shield auto-wrap feature
 - ✅ Configuration file support

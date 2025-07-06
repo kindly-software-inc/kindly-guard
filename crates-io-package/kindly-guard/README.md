@@ -10,7 +10,7 @@ Install KindlyGuard using cargo:
 cargo install kindly-guard
 ```
 
-This will install the `kindly-guard` command, which automatically downloads and manages the KindlyGuard binary for your platform.
+This will install the `kindly-guard` command, which is the actual KindlyGuard server.
 
 ## What is KindlyGuard?
 
@@ -23,7 +23,7 @@ KindlyGuard is a security-focused MCP server designed to protect AI systems from
 
 ## Usage
 
-After installation, simply run:
+After installation, you can use KindlyGuard as an MCP server:
 
 ```bash
 # Start the MCP server
@@ -36,23 +36,41 @@ kindly-guard --config /path/to/config.toml
 kindly-guard --help
 ```
 
-The installer will automatically download the appropriate binary for your platform on first run.
+## Features
 
-## Supported Platforms
+- **Security Scanner**: Advanced threat detection for unicode attacks, injections, and XSS
+- **Real-time Shield**: Live monitoring dashboard showing threat statistics
+- **Neutralizer**: Automatic threat mitigation and sanitization
+- **Resilience**: Built-in circuit breakers and retry logic for fault tolerance
+- **Storage**: SQLite-based persistence for threat history and audit logs
 
-- Linux x86_64
-- Linux aarch64
-- macOS x86_64 (Intel)
-- macOS aarch64 (Apple Silicon)
-- Windows x86_64
+## Configuration
 
-## Binary Management
+KindlyGuard can be configured via a TOML file. Example configuration:
 
-The KindlyGuard binary is installed to `~/.kindlyguard/bin/`. To update to the latest version:
+```toml
+[server]
+host = "127.0.0.1"
+port = 8080
 
-```bash
-kindlyguard --force-download
+[scanner]
+unicode_enabled = true
+injection_enabled = true
+xss_enabled = true
+
+[resilience]
+[resilience.circuit_breaker]
+failure_threshold = 5
+recovery_timeout = "30s"
 ```
+
+## MCP Integration
+
+KindlyGuard implements the Model Context Protocol (MCP) and can be used with any MCP-compatible client. It provides tools for:
+
+- Text scanning and validation
+- Security analysis of prompts
+- Threat reporting and monitoring
 
 ## Source Code
 
