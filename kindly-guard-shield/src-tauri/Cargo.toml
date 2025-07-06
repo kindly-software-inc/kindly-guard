@@ -1,6 +1,6 @@
 [package]
 name = "kindly-guard-shield"
-version = "0.11.8"
+version = "0.11.9"
 edition = "2021"
 license = "Apache-2.0"
 
