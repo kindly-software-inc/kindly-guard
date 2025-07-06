@@ -96,9 +96,9 @@ ls target/release/
 ## The Heroes
 
 - **Sequential Thinking**: For analyzing complex problems
-- **Persistence**: 10 versions to get it right\!
+- **Persistence**: 10 versions to get it right!
 - **Community Tools**: cross, rustls, GitHub Actions
-- **You**: For not giving up\! 
+- **You**: For not giving up! 
 
 ## Final Commands
 
@@ -113,5 +113,4 @@ gh run list --workflow=release.yml
 file target/x86_64-unknown-linux-musl/release/kindlyguard
 ```
 
-🎊 **KindlyGuard now has a bulletproof CI/CD pipeline\!** 🎊
-EOF < /dev/null
+🎊 **KindlyGuard now has a bulletproof CI/CD pipeline!** 🎊
