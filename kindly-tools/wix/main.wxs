@@ -173,7 +173,7 @@
         <!--<Icon Id='ProductICO' SourceFile='wix\Product.ico'/>-->
         <!--<Property Id='ARPPRODUCTICON' Value='ProductICO' />-->
 
-        <Property Id='ARPHELPLINK' Value='https://github.com/samduchaine/kindly-guard'/>
+        <Property Id='ARPHELPLINK' Value='https://github.com/kindly-software-inc/kindly-guard'/>
         
         <UI>
             <UIRef Id='WixUI_FeatureTree'/>

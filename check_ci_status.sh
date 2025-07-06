@@ -2,6 +2,7 @@
 # Script to check CI status for KindlyGuard
 
 echo "=== Checking CI Status for KindlyGuard ==="
+echo "Current time: $(date)"
 
 if command -v gh &> /dev/null; then
     echo "Using GitHub CLI to check status..."
@@ -24,6 +25,18 @@ if command -v gh &> /dev/null; then
     # Show workflow run URLs for manual check
     echo -e "\n=== Recent workflow URLs ==="
     gh run list --limit 3 --json url,name,headBranch --jq '.[] | "\(.name) (\(.headBranch)): \(.url)"'
+    
+    # Check if any workflows are failing
+    echo -e "\n=== Failed workflows (if any) ==="
+    gh run list --status failure --limit 5 || echo "No recent failures"
+    
+    # Watch for completion (optional)
+    echo -e "\n=== Monitoring tip ==="
+    echo "To watch CI in real-time, run:"
+    echo "  watch -n 30 ./check_ci_status.sh"
+    echo ""
+    echo "Or check specific run:"
+    echo "  gh run watch"
 else
     echo "GitHub CLI not available. Install with: brew install gh (macOS) or see https://cli.github.com/"
     echo "Check manually at: https://github.com/kindly-software-inc/kindly-guard/actions"
