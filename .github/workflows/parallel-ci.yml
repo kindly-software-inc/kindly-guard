@@ -64,7 +64,9 @@ jobs:
       
       - name: Install cross
         if: matrix.use_cross
-        run: cargo install cross --version 0.3.1
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
       
       - name: Build
         run: |
@@ -101,7 +103,9 @@ jobs:
         uses: Swatinem/rust-cache@v2
       
       - name: Install nextest
-        uses: taiki-e/install-action@nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: nextest
         
       - name: Run ${{ matrix.suite }} tests
         run: |
@@ -192,7 +196,9 @@ jobs:
         uses: dtolnay/rust-toolchain@stable
       
       - name: Install cargo-llvm-cov
-        uses: taiki-e/install-action@cargo-llvm-cov
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov
       
       - name: Cache dependencies
         uses: Swatinem/rust-cache@v2
