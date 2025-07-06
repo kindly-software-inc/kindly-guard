@@ -79,16 +79,14 @@ jobs:
         run: |
           cd target/${{ matrix.target }}/release
           tar czf ../../../kindly-guard-${{ matrix.target }}.tar.gz \
-            kindly-guard-server \
-            kindly-guard-cli \
-            kindly-guard
+            kindlyguard
         shell: bash
       
       - name: Package artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
           cd target\${{ matrix.target }}\release
-          Compress-Archive -Path kindly-guard-server.exe,kindly-guard-cli.exe,kindly-guard.exe -DestinationPath ..\..\..\kindly-guard-${{ matrix.target }}.zip
+          Compress-Archive -Path kindlyguard.exe -DestinationPath ..\..\..\kindly-guard-${{ matrix.target }}.zip
         shell: pwsh
       
       - name: Upload artifacts
