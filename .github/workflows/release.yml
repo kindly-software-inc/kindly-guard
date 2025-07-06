@@ -119,6 +119,14 @@ jobs:
           submodules: recursive
       - name: Install dist
         run: ${{ matrix.install_dist }}
+      
+      # Install cross for cross-compilation
+      - name: Install cross for cross-compilation
+        if: ${{ startsWith(matrix.runner, 'ubuntu') && (contains(join(matrix.targets, ','), 'aarch64') || contains(join(matrix.targets, ','), 'musl')) }}
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cross
+      
       # Get the dist-manifest
       - name: Fetch local artifacts
         uses: actions/download-artifact@v4
@@ -130,6 +138,8 @@ jobs:
         run: |
           ${{ matrix.packages_install }}
       - name: Build artifacts
+        env:
+          CARGO_DIST_CARGO_BUILD_WRAPPER: ${{ (startsWith(matrix.runner, 'ubuntu') && (contains(join(matrix.targets, ','), 'aarch64') || contains(join(matrix.targets, ','), 'musl'))) && 'cross' || '' }}
         run: |
           # Actually do builds and make zips and whatnot
           dist build ${{ needs.plan.outputs.tag-flag }} --print=linkage --output-format=json ${{ matrix.dist_args }} > dist-manifest.json
