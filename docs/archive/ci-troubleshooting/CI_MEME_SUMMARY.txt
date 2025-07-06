@@ -1,0 +1,18 @@
+┌─────────────────────────────────────┐
+│  HOW IT STARTED:                    │
+│  "Just need to remove one line      │
+│   from Cargo.toml"                  │
+│                                     │
+│  HOW IT'S GOING:                   │
+│  - 11 versions                      │
+│  - 16+ hours                        │
+│  - Changed TLS libraries            │
+│  - Rewrote entire workflow          │
+│  - Still broken                     │
+│  - Writing poetry about failure     │
+└─────────────────────────────────────┘
+
+     ¯\_(ツ)_/¯
+    
+  "Have you tried turning 
+   it off and on again?"

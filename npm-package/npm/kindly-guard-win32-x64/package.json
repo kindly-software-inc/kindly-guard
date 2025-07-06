@@ -1,17 +1,17 @@
 {
-  "name": "kindlyguard-win32-x64",
+  "name": "kindly-guard-win32-x64",
   "version": "0.11.0",
-  "description": "Windows x64 binary for KindlyGuard",
+  "description": "Windows x64 binary for Kindly-Guard",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/samduchaine/kindly-guard.git"
   },
   "license": "Apache-2.0",
   "author": "samduchaine",
-  "main": "kindlyguard.exe",
+  "main": "kindly-guard.exe",
   "files": [
-    "kindlyguard.exe",
-    "kindlyguard-cli.exe"
+    "kindly-guard.exe",
+    "kindly-guard-cli.exe"
   ],
   "os": ["win32"],
   "cpu": ["x64"],

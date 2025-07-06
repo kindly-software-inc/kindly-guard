@@ -1,8 +1,8 @@
 #!/bin/bash
 
-# Build script for KindlyGuard Chrome Extension
+# Build script for Kindly-Guard Chrome Extension
 
-echo "Building KindlyGuard extension..."
+echo "Building Kindly-Guard extension..."
 
 # Create dist directory
 mkdir -p dist
@@ -16,12 +16,12 @@ cp -r assets dist/
 
 # Create zip for Chrome Web Store
 cd dist
-zip -r ../kindlyguard-claude-ai.zip *
+zip -r ../kindly-guard-claude-ai.zip *
 cd ..
 
 echo "Build complete! Files:"
 echo "  - dist/         (unpacked extension)"
-echo "  - kindlyguard-claude-ai.zip (for Chrome Web Store)"
+echo "  - kindly-guard-claude-ai.zip (for Chrome Web Store)"
 
 # Generate icons if needed
 if [ ! -f "assets/icon-128.png" ]; then

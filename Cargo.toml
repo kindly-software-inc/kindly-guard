@@ -3,7 +3,7 @@ resolver = "2"
 members = [
     "kindly-guard-server",
     "kindly-guard-shield",
-    "crates-io-package/kindlyguard",
+    "crates-io-package/kindly-guard",
     "xtask",
     "kindly-tools",
 ]

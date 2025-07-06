@@ -1,6 +1,6 @@
 {
-  "name": "claude-code-kindlyguard",
-  "displayName": "KindlyGuard Security Shield",
+  "name": "claude-code-kindly-guard",
+  "displayName": "Kindly-Guard Security Shield",
   "description": "Real-time security monitoring for Claude Code",
   "version": "0.11.0",
   "license": "Apache-2.0",
@@ -15,37 +15,37 @@
   "contributes": {
     "commands": [
       {
-        "command": "kindlyguard.toggleShield",
+        "command": "kindly-guard.toggleShield",
         "title": "Toggle Security Shield",
         "icon": "$(shield)"
       },
       {
-        "command": "kindlyguard.showDetails",
+        "command": "kindly-guard.showDetails",
         "title": "Show Security Details"
       }
     ],
     "keybindings": [
       {
-        "command": "kindlyguard.toggleShield",
+        "command": "kindly-guard.toggleShield",
         "key": "ctrl+shift+s",
         "mac": "cmd+shift+s"
       }
     ],
     "configuration": {
-      "title": "KindlyGuard",
+      "title": "Kindly-Guard",
       "properties": {
-        "kindlyguard.autoConnect": {
+        "kindly-guard.autoConnect": {
           "type": "boolean",
           "default": true,
           "description": "Automatically connect to shield app on startup"
         },
-        "kindlyguard.notificationLevel": {
+        "kindly-guard.notificationLevel": {
           "type": "string",
           "enum": ["all", "threats", "critical"],
           "default": "threats",
           "description": "Level of notifications to show"
         },
-        "kindlyguard.shieldPort": {
+        "kindly-guard.shieldPort": {
           "type": "number",
           "default": 9955,
           "description": "Port for shield WebSocket server"

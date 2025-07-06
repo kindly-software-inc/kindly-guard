@@ -1,10 +1,10 @@
 #!/bin/bash
-# Security boundary check script for KindlyGuard Shield
+# Security boundary check script for Kindly-Guard Shield
 # Ensures no proprietary technology leaks in public APIs
 
 set -e
 
-echo "=== KindlyGuard Shield Security Boundary Check ==="
+echo "=== Kindly-Guard Shield Security Boundary Check ==="
 echo
 
 # Colors for output
@@ -13,15 +13,15 @@ GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Check for direct imports of kindly-guard-core outside of enhanced modules
-echo "Checking for unauthorized kindly-guard-core imports..."
-UNAUTHORIZED=$(grep -r "use kindly_guard_core" src/ --include="*.rs" 2>/dev/null | grep -v "enhanced.rs" || true)
+# Check for direct imports of proprietary modules outside of enhanced modules
+echo "Checking for unauthorized proprietary imports..."
+UNAUTHORIZED=$(grep -r "use.*enhanced::" src/ --include="*.rs" 2>/dev/null | grep -v "enhanced.rs" || true)
 if [ -n "$UNAUTHORIZED" ]; then
-    echo -e "${RED}✗ FAIL: Found direct imports of kindly-guard-core outside enhanced modules:${NC}"
+    echo -e "${RED}✗ FAIL: Found direct imports of proprietary modules outside enhanced modules:${NC}"
     echo "$UNAUTHORIZED"
     exit 1
 else
-    echo -e "${GREEN}✓ PASS: No unauthorized kindly-guard-core imports${NC}"
+    echo -e "${GREEN}✓ PASS: No unauthorized proprietary imports${NC}"
 fi
 
 # Check that enhanced modules are properly feature-gated

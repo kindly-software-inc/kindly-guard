@@ -1,20 +1,24 @@
 {
-  "name": "kindlyguard-darwin-x64",
+  "name": "kindly-guard-linux-x64",
   "version": "0.11.0",
-  "description": "macOS x64 (Intel) binary for KindlyGuard",
+  "description": "Linux x64 binary for Kindly-Guard",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/samduchaine/kindly-guard.git"
   },
   "license": "Apache-2.0",
   "author": "samduchaine",
-  "main": "kindlyguard",
+  "main": "kindly-guard",
   "files": [
-    "kindlyguard",
-    "kindlyguard-cli"
+    "kindly-guard",
+    "kindly-guard-cli"
   ],
-  "os": ["darwin"],
-  "cpu": ["x64"],
+  "os": [
+    "linux"
+  ],
+  "cpu": [
+    "x64"
+  ],
   "engines": {
     "node": ">=14.0.0"
   }

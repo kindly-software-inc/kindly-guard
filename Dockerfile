@@ -1,4 +1,4 @@
-# Multi-stage Dockerfile for KindlyGuard MCP Security Server
+# Multi-stage Dockerfile for Kindly-Guard MCP Security Server
 # Security-focused build with minimal attack surface
 
 # Build stage
@@ -21,15 +21,15 @@ COPY Cargo.toml Cargo.lock ./
 COPY kindly-guard-server/Cargo.toml ./kindly-guard-server/
 COPY kindly-tools/Cargo.toml ./kindly-tools/
 COPY kindly-guard-shield/Cargo.toml ./kindly-guard-shield/
-COPY crates-io-package/kindlyguard/Cargo.toml ./crates-io-package/kindlyguard/
+COPY crates-io-package/kindly-guard/Cargo.toml ./crates-io-package/kindly-guard/
 
 # Create stub files for dependency caching
-RUN mkdir -p kindly-guard-server/src kindly-tools/src kindly-guard-shield/src crates-io-package/kindlyguard/src && \
+RUN mkdir -p kindly-guard-server/src kindly-tools/src kindly-guard-shield/src crates-io-package/kindly-guard/src && \
     echo "fn main() {}" > kindly-guard-server/src/main.rs && \
     touch kindly-guard-server/src/lib.rs && \
     echo "fn main() {}" > kindly-tools/src/main.rs && \
     echo "fn main() {}" > kindly-guard-shield/src/main.rs && \
-    touch crates-io-package/kindlyguard/src/lib.rs
+    touch crates-io-package/kindly-guard/src/lib.rs
 
 # Create stub benchmark files to satisfy Cargo.toml
 RUN mkdir -p kindly-guard-server/benches && \
@@ -46,7 +46,7 @@ RUN mkdir -p kindly-guard-server/benches && \
 RUN cargo build --release --package kindly-guard-server
 
 # Remove stub files
-RUN rm -rf kindly-guard-server/src kindly-tools/src kindly-guard-shield/src crates-io-package/kindlyguard/src kindly-guard-server/benches
+RUN rm -rf kindly-guard-server/src kindly-tools/src kindly-guard-shield/src crates-io-package/kindly-guard/src kindly-guard-server/benches
 
 # Copy actual source code
 COPY . .
@@ -68,10 +68,10 @@ RUN cargo build --profile=secure --package kindly-guard-server || \
     cargo build --release --package kindly-guard-server
 
 # Copy the built binary to a consistent location
-RUN if [ -f /build/target/secure/kindlyguard ]; then \
-        cp /build/target/secure/kindlyguard /build/kindly-guard-binary; \
+RUN if [ -f /build/target/secure/kindly-guard ]; then \
+        cp /build/target/secure/kindly-guard /build/kindly-guard-binary; \
     else \
-        cp /build/target/release/kindlyguard /build/kindly-guard-binary; \
+        cp /build/target/release/kindly-guard /build/kindly-guard-binary; \
     fi
 
 # Change ownership of built artifacts to build user

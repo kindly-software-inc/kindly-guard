@@ -8,6 +8,8 @@ use anyhow::Result;
 use dialoguer::Select;
 use std::path::{Path, PathBuf};
 
+use crate::platform::Platform;
+
 /// Common trait for all subcommands
 #[allow(async_fn_in_trait)]
 pub trait Execute {
@@ -58,9 +60,188 @@ pub fn get_mcp_config_path() -> Result<PathBuf> {
 }
 
 /// Download a file with progress bar
-pub async fn download_file(_url: &str, _dest: &Path) -> Result<()> {
-    // TODO: Implement when reqwest MSRV is compatible
-    anyhow::bail!("Download functionality temporarily disabled due to MSRV constraints")
+pub async fn download_file(url: &str, dest: &Path) -> Result<()> {
+    use futures_util::StreamExt;
+    use indicatif::{ProgressBar, ProgressStyle};
+    use std::io::Write;
+    
+    // Create HTTP client
+    let client = reqwest::Client::new();
+    
+    // Start the download
+    let response = client
+        .get(url)
+        .send()
+        .await?;
+    
+    // Check status
+    if !response.status().is_success() {
+        anyhow::bail!("Failed to download: HTTP {}", response.status());
+    }
+    
+    // Get content length for progress bar
+    let total_size = response
+        .content_length()
+        .unwrap_or(0);
+    
+    // Create progress bar
+    let pb = ProgressBar::new(total_size);
+    pb.set_style(
+        ProgressStyle::default_bar()
+            .template("{msg}\n{spinner:.green} [{elapsed_precise}] [{wide_bar:.cyan/blue}] {bytes}/{total_bytes} ({bytes_per_sec}, {eta})")?
+            .progress_chars("#>-")
+    );
+    pb.set_message(format!("Downloading {}", dest.file_name().unwrap_or_default().to_string_lossy()));
+    
+    // Create the destination file
+    let mut file = std::fs::File::create(dest)?;
+    
+    // Download with progress
+    let mut downloaded = 0u64;
+    let mut stream = response.bytes_stream();
+    
+    while let Some(chunk) = stream.next().await {
+        let chunk = chunk?;
+        file.write_all(&chunk)?;
+        downloaded += chunk.len() as u64;
+        pb.set_position(downloaded);
+    }
+    
+    pb.finish_with_message("Download complete");
+    
+    Ok(())
+}
+
+/// Get the GitHub release download URL for KindlyGuard based on platform
+pub fn get_kindlyguard_download_url(version: &str, platform: &Platform) -> String {
+    let version_tag = if version == "latest" {
+        "latest".to_string()
+    } else {
+        format!("v{}", version.trim_start_matches('v'))
+    };
+    
+    let (os, arch, ext) = match platform {
+        Platform::Windows => ("pc-windows-msvc", "x86_64", "exe"),
+        Platform::MacOS => {
+            if std::env::consts::ARCH == "aarch64" {
+                ("apple-darwin", "aarch64", "")
+            } else {
+                ("apple-darwin", "x86_64", "")
+            }
+        },
+        Platform::Linux => ("unknown-linux-gnu", "x86_64", ""),
+        Platform::Unknown => {
+            return format!("https://github.com/kindly-software-inc/kindly-guard/releases/{}", version_tag);
+        }
+    };
+    
+    let filename = if ext.is_empty() {
+        format!("kindlyguard-{}-{}", arch, os)
+    } else {
+        format!("kindlyguard-{}-{}.{}", arch, os, ext)
+    };
+    
+    if version_tag == "latest" {
+        format!(
+            "https://github.com/kindly-software-inc/kindly-guard/releases/latest/download/{}",
+            filename
+        )
+    } else {
+        format!(
+            "https://github.com/kindly-software-inc/kindly-guard/releases/download/{}/{}",
+            version_tag, filename
+        )
+    }
+}
+
+/// Install KindlyGuard binary from GitHub releases
+pub async fn install_kindlyguard_from_github(version: &str, platform: &Platform) -> Result<()> {
+    use colored::Colorize;
+    
+    println!("📦 {}", "Downloading KindlyGuard from GitHub releases...".green());
+    
+    // Get download URL
+    let url = get_kindlyguard_download_url(version, platform);
+    println!("📍 URL: {}", url.cyan());
+    
+    // Determine installation directory
+    let install_dir = match platform {
+        Platform::Windows => {
+            // Install to user's local bin directory
+            let home = home_dir()?;
+            home.join(".kindlyguard").join("bin")
+        },
+        _ => {
+            // Try ~/.local/bin first, then ~/.cargo/bin
+            let home = home_dir()?;
+            let local_bin = home.join(".local").join("bin");
+            if local_bin.exists() {
+                local_bin
+            } else {
+                home.join(".cargo").join("bin")
+            }
+        }
+    };
+    
+    // Ensure directory exists
+    ensure_dir(&install_dir)?;
+    
+    // Determine binary name
+    let binary_name = if platform == &Platform::Windows {
+        "kindlyguard.exe"
+    } else {
+        "kindlyguard"
+    };
+    
+    let dest_path = install_dir.join(binary_name);
+    let temp_path = dest_path.with_extension("tmp");
+    
+    // Download to temporary file
+    download_file(&url, &temp_path).await?;
+    
+    // Make executable on Unix
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::PermissionsExt;
+        let mut perms = std::fs::metadata(&temp_path)?.permissions();
+        perms.set_mode(0o755);
+        std::fs::set_permissions(&temp_path, perms)?;
+    }
+    
+    // Move to final location
+    std::fs::rename(&temp_path, &dest_path)?;
+    
+    println!("\n✅ {}", "Installation successful!".green().bold());
+    println!("📍 {}: {}", "Binary installed to".cyan(), dest_path.display());
+    
+    // Check if directory is in PATH
+    let path_var = std::env::var("PATH").unwrap_or_default();
+    if !path_var.contains(&install_dir.to_string_lossy().to_string()) {
+        println!(
+            "\n⚠️  {}",
+            "Installation directory is not in your PATH!".yellow()
+        );
+        println!("📋 {}", "Add this to your shell configuration:".cyan());
+        
+        match platform {
+            Platform::Windows => {
+                println!(
+                    "   {} $env:Path += \";{}\"",
+                    "$".dimmed(),
+                    install_dir.display()
+                );
+            },
+            _ => {
+                println!(
+                    "   {} export PATH=\"$PATH:{}\"",
+                    "$".dimmed(),
+                    install_dir.display()
+                );
+            }
+        }
+    }
+    
+    Ok(())
 }
 
 /// Detect various environment characteristics
@@ -1318,85 +1499,99 @@ pub mod install {
                 }
             },
             "cargo" => {
-                println!("🦀 {}", "Installing via Cargo...".green());
+                println!("🦀 {}", "Installing KindlyGuard...".green());
+                println!("📦 {}", "Using GitHub releases for faster installation".cyan());
 
-                if !command_exists("cargo") {
-                    println!("\n❌ {}", "Cargo not found!".red());
-                    println!("🦀 {}", "Let's install Rust and Cargo:".yellow());
-                    println!("\n📋 {}", "Quick install (all platforms):".cyan());
-                    println!(
-                        "   {} {}",
-                        "$".dimmed(),
-                        "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
-                            .bright_white()
-                    );
+                // Try to install from GitHub releases
+                match install_kindlyguard_from_github(&version_str, &platform).await {
+                    Ok(_) => {
+                        // Success - installation complete
+                    },
+                    Err(e) => {
+                        println!("\n⚠️  {}", format!("GitHub download failed: {}", e).yellow());
+                        println!("🔄 {}", "Falling back to cargo install...".cyan());
 
-                    match platform {
-                        Platform::Windows => {
-                            println!("\n🪟 {}", "Windows alternative:".cyan());
+                        // Check if cargo is available for fallback
+                        if !command_exists("cargo") {
+                            println!("\n❌ {}", "Cargo not found!".red());
+                            println!("🦀 {}", "Let's install Rust and Cargo:".yellow());
+                            println!("\n📋 {}", "Quick install (all platforms):".cyan());
                             println!(
-                                "   📥 Download installer: {}",
-                                "https://rustup.rs/".blue().underline()
+                                "   {} {}",
+                                "$".dimmed(),
+                                "curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+                                    .bright_white()
                             );
-                        },
-                        _ => {},
-                    }
 
-                    println!(
-                        "\n💡 {}",
-                        "After installing Rust, restart your terminal and try again!".yellow()
-                    );
-                    return Err(anyhow::anyhow!("Cargo not installed"));
-                }
-
-                let package = if version_str != "latest" {
-                    format!("kindlyguard@{}", version_str)
-                } else {
-                    "kindlyguard".to_string()
-                };
-
-                println!("\n📋 {}", "Installation command:".cyan());
-                println!(
-                    "   {} cargo install {}",
-                    "$".dimmed(),
-                    package.bright_white()
-                );
-
-                println!(
-                    "\n⏳ {}",
-                    "Attempting installation (this may take a while)...".yellow()
-                );
-                let status = std::process::Command::new("cargo")
-                    .args(["install", &package])
-                    .status();
-
-                match status {
-                    Ok(s) if s.success() => {
-                        println!("\n✅ {}", "Installation successful!".green().bold());
-                        println!("📍 {}", "Binary installed to ~/.cargo/bin/".cyan());
-                    },
-                    _ => {
-                        // Installation failed, show recovery menu
-                        loop {
-                            let recovery_method = show_recovery_menu("cargo")?;
-
-                            if recovery_method == RecoveryMethod::Cancel {
-                                return Err(anyhow::anyhow!("Installation cancelled"));
+                            match platform {
+                                Platform::Windows => {
+                                    println!("\n🪟 {}", "Windows alternative:".cyan());
+                                    println!(
+                                        "   📥 Download installer: {}",
+                                        "https://rustup.rs/".blue().underline()
+                                    );
+                                },
+                                _ => {},
                             }
 
-                            execute_recovery(recovery_method, "cargo", &package, &platform).await?;
-
-                            // Ask if user wants to try another recovery method
-                            let try_again = dialoguer::Confirm::new()
-                                .with_prompt("Try another recovery method?")
-                                .default(true)
-                                .interact()?;
-
-                            if !try_again {
-                                break;
-                            }
+                            println!(
+                                "\n💡 {}",
+                                "After installing Rust, restart your terminal and try again!".yellow()
+                            );
+                            return Err(anyhow::anyhow!("Installation failed - no fallback available"));
                         }
-                    },
+
+                        // Fallback to cargo install
+                        let package = if version_str != "latest" {
+                            format!("kindlyguard@{}", version_str)
+                        } else {
+                            "kindlyguard".to_string()
+                        };
+
+                        println!("\n📋 {}", "Fallback installation command:".cyan());
+                        println!(
+                            "   {} cargo install {}",
+                            "$".dimmed(),
+                            package.bright_white()
+                        );
+
+                        println!(
+                            "\n⏳ {}",
+                            "Attempting installation (this may take a while)...".yellow()
+                        );
+                        let status = std::process::Command::new("cargo")
+                            .args(["install", &package])
+                            .status();
+
+                        match status {
+                            Ok(s) if s.success() => {
+                                println!("\n✅ {}", "Installation successful!".green().bold());
+                                println!("📍 {}", "Binary installed to ~/.cargo/bin/".cyan());
+                            },
+                            _ => {
+                                // Installation failed, show recovery menu
+                                loop {
+                                    let recovery_method = show_recovery_menu("cargo")?;
+
+                                    if recovery_method == RecoveryMethod::Cancel {
+                                        return Err(anyhow::anyhow!("Installation cancelled"));
+                                    }
+
+                                    execute_recovery(recovery_method, "cargo", &package, &platform).await?;
+
+                                    // Ask if user wants to try another recovery method
+                                    let try_again = dialoguer::Confirm::new()
+                                        .with_prompt("Try another recovery method?")
+                                        .default(true)
+                                        .interact()?;
+
+                                    if !try_again {
+                                        break;
+                                    }
+                                }
+                            },
+                        }
+                    }
                 }
             },
             "binary" => {
@@ -1408,94 +1603,29 @@ pub mod install {
                     format!("Detected architecture: {}", arch.name()).cyan()
                 );
 
-                println!("\n📥 {}", "Download options:".cyan());
-                println!(
-                    "   🌐 Visit: {}",
-                    "https://github.com/kindly-software-inc/kindly-guard/releases"
-                        .blue()
-                        .underline()
-                );
+                // Ask if user wants automatic download
+                let auto_download = dialoguer::Confirm::new()
+                    .with_prompt("Download and install automatically?")
+                    .default(true)
+                    .interact()?;
 
-                match platform {
-                    Platform::MacOS => {
-                        let arch_str = if arch == crate::platform::Architecture::Arm64 {
-                            "aarch64"
-                        } else {
-                            "x86_64"
-                        };
-                        println!("\n🍎 {}", "macOS binary:".cyan());
-                        println!(
-                            "   📦 File: {}",
-                            format!("kindly-guard-server-{}-apple-darwin.tar.gz", arch_str)
-                                .bright_white()
-                        );
-
-                        println!("\n📋 {}", "Installation steps:".cyan());
-                        println!("   1️⃣  Download the .tar.gz file");
-                        println!(
-                            "   2️⃣  Extract: {}",
-                            "tar -xzf kindly-guard-server-*.tar.gz".bright_white()
-                        );
-                        println!(
-                            "   3️⃣  Move to PATH: {}",
-                            "sudo mv kindlyguard /usr/local/bin/".bright_white()
-                        );
-                        println!(
-                            "   4️⃣  Make executable: {}",
-                            "sudo chmod +x /usr/local/bin/kindlyguard".bright_white()
-                        );
-                    },
-                    Platform::Linux => {
-                        println!("\n🐧 {}", "Linux binary:".cyan());
-                        println!(
-                            "   📦 File: {}",
-                            "kindly-guard-server-x86_64-unknown-linux-gnu.tar.gz".bright_white()
-                        );
-
-                        println!("\n📋 {}", "Installation steps:".cyan());
-                        println!("   1️⃣  Download the .tar.gz file");
-                        println!(
-                            "   2️⃣  Extract: {}",
-                            "tar -xzf kindly-guard-server-*.tar.gz".bright_white()
-                        );
-                        println!(
-                            "   3️⃣  Move to PATH: {}",
-                            "sudo mv kindlyguard /usr/local/bin/".bright_white()
-                        );
-                        println!(
-                            "   4️⃣  Make executable: {}",
-                            "sudo chmod +x /usr/local/bin/kindlyguard".bright_white()
-                        );
-                    },
-                    Platform::Windows => {
-                        println!("\n🪟 {}", "Windows options:".cyan());
-                        println!(
-                            "   📦 ZIP: {}",
-                            "kindly-guard-server-x86_64-pc-windows-msvc.zip".bright_white()
-                        );
-                        println!(
-                            "   🎁 MSI installer: {}",
-                            "kindly-guard-server-x86_64-pc-windows-msvc.msi".bright_white()
-                        );
-
-                        println!("\n📋 {}", "Installation steps:".cyan());
-                        println!(
-                            "   💡 {}",
-                            "Recommended: Use the MSI installer for automatic setup".green()
-                        );
-                        println!("   📂 Manual: Extract ZIP to C:\\Program Files\\KindlyGuard\\");
-                        println!(
-                            "   🔧 Add to PATH: {}",
-                            "%ProgramFiles%\\KindlyGuard".yellow()
-                        );
-                    },
-                    _ => {},
+                if auto_download {
+                    // Use the same GitHub download functionality
+                    match install_kindlyguard_from_github(&version_str, &platform).await {
+                        Ok(_) => {
+                            // Success - installation complete
+                        },
+                        Err(e) => {
+                            println!("\n⚠️  {}", format!("Automatic download failed: {}", e).yellow());
+                            println!("📋 {}", "You can download manually:".cyan());
+                            
+                            // Fall through to manual instructions
+                            show_manual_download_instructions(&platform, &arch);
+                        }
+                    }
+                } else {
+                    show_manual_download_instructions(&platform, &arch);
                 }
-
-                println!("\n⚠️  {}", "Important:".yellow());
-                println!("   🔍 Verify checksums after download");
-                println!("   🔒 Check file permissions are correct");
-                println!("   📍 Ensure binary is in your PATH");
             },
             _ => {
                 println!(
@@ -1726,6 +1856,88 @@ pub mod install {
         }
 
         Ok(())
+    }
+
+    /// Show manual download instructions for binary installation
+    fn show_manual_download_instructions(platform: &Platform, arch: &crate::platform::Architecture) {
+        use colored::*;
+        
+        println!("\n📥 {}", "Download options:".cyan());
+        println!(
+            "   🌐 Visit: {}",
+            "https://github.com/kindly-software-inc/kindly-guard/releases"
+                .blue()
+                .underline()
+        );
+
+        match platform {
+            Platform::MacOS => {
+                let arch_str = if *arch == crate::platform::Architecture::Arm64 {
+                    "aarch64"
+                } else {
+                    "x86_64"
+                };
+                println!("\n🍎 {}", "macOS binary:".cyan());
+                println!(
+                    "   📦 File: {}",
+                    format!("kindlyguard-{}-apple-darwin", arch_str)
+                        .bright_white()
+                );
+
+                println!("\n📋 {}", "Installation steps:".cyan());
+                println!("   1️⃣  Download the binary file");
+                println!(
+                    "   2️⃣  Move to PATH: {}",
+                    "sudo mv kindlyguard /usr/local/bin/".bright_white()
+                );
+                println!(
+                    "   3️⃣  Make executable: {}",
+                    "sudo chmod +x /usr/local/bin/kindlyguard".bright_white()
+                );
+            },
+            Platform::Linux => {
+                println!("\n🐧 {}", "Linux binary:".cyan());
+                println!(
+                    "   📦 File: {}",
+                    "kindlyguard-x86_64-unknown-linux-gnu".bright_white()
+                );
+
+                println!("\n📋 {}", "Installation steps:".cyan());
+                println!("   1️⃣  Download the binary file");
+                println!(
+                    "   2️⃣  Move to PATH: {}",
+                    "sudo mv kindlyguard /usr/local/bin/".bright_white()
+                );
+                println!(
+                    "   3️⃣  Make executable: {}",
+                    "sudo chmod +x /usr/local/bin/kindlyguard".bright_white()
+                );
+            },
+            Platform::Windows => {
+                println!("\n🪟 {}", "Windows binary:".cyan());
+                println!(
+                    "   📦 File: {}",
+                    "kindlyguard-x86_64-pc-windows-msvc.exe".bright_white()
+                );
+
+                println!("\n📋 {}", "Installation steps:".cyan());
+                println!("   1️⃣  Download the .exe file");
+                println!("   📂 Move to C:\\Program Files\\KindlyGuard\\");
+                println!(
+                    "   🔧 Add to PATH: {}",
+                    "%ProgramFiles%\\KindlyGuard".yellow()
+                );
+            },
+            Platform::Unknown => {
+                println!("\n❓ {}", "Unknown platform:".yellow());
+                println!("   Please visit the releases page for manual download");
+            },
+        }
+
+        println!("\n⚠️  {}", "Important:".yellow());
+        println!("   🔍 Verify checksums after download");
+        println!("   🔒 Check file permissions are correct");
+        println!("   📍 Ensure binary is in your PATH");
     }
 
     /// Detect shell and show PATH configuration instructions

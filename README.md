@@ -2,13 +2,13 @@
 
 **Security that's kind to developers, tough on threats**
 
-[![Crates.io](https://img.shields.io/crates/v/kindlyguard.svg)](https://crates.io/crates/kindlyguard)
-[![CI Status](https://img.shields.io/github/workflow/status/kindlyguard/kindlyguard/CI)](https://github.com/kindlyguard/kindlyguard/actions)
+[![Crates.io](https://img.shields.io/crates/v/kindly-guard.svg)](https://crates.io/crates/kindly-guard)
+[![CI Status](https://img.shields.io/github/workflow/status/samduchaine/kindly-guard/CI)](https://github.com/samduchaine/kindly-guard/actions)
 [![Security Audit](https://img.shields.io/badge/security-audited-green.svg)](docs/SECURITY_AUDIT_REPORT.md)
-[![License](https://img.shields.io/crates/l/kindlyguard.svg)](LICENSE)
+[![License](https://img.shields.io/crates/l/kindly-guard.svg)](LICENSE)
 [![MSRV](https://img.shields.io/badge/rust-1.75%2B-blue.svg)](https://github.com/rust-lang/rust)
-[![deps.rs](https://deps.rs/repo/github/kindlyguard/kindlyguard/status.svg)](https://deps.rs/repo/github/kindlyguard/kindlyguard)
-[![Documentation](https://docs.rs/kindlyguard/badge.svg)](https://docs.rs/kindlyguard)
+[![deps.rs](https://deps.rs/repo/github/samduchaine/kindly-guard/status.svg)](https://deps.rs/repo/github/samduchaine/kindly-guard)
+[![Documentation](https://docs.rs/kindly-guard/badge.svg)](https://docs.rs/kindly-guard)
 
 **Production-ready security layer for AI model interactions via the Model Context Protocol (MCP)**
 
@@ -20,12 +20,12 @@
 cargo install kindly-tools
 
 # Install KindlyGuard with automatic platform detection
-kindly install kindlyguard
+kindly install kindly-guard
 
 # Or install specific components
-kindly install kindlyguard        # MCP server binary
+kindly install kindly-guard        # MCP server binary
 kindly install kindly-tools       # CLI tools (scan, wrap, monitor)
-kindly install kindlyguard-shield # Desktop UI
+kindly install kindly-guard-shield # Desktop UI
 ```
 
 ### Quick Install Scripts
@@ -41,7 +41,7 @@ irm https://github.com/samduchaine/kindly-guard/releases/latest/download/kindly-
 
 ### npm (Recommended for Node.js users)
 ```bash
-npm install -g kindlyguard && kindlyguard --stdio
+npm install -g kindly-guard && kindly-guard --stdio
 ```
 
 ### Homebrew (macOS/Linux)
@@ -129,7 +129,7 @@ echo 'source ~/.kindly-shield.sh' >> ~/.bashrc  # or ~/.zshrc
 ```bash
 # Using kindly-tools (recommended)
 cargo install kindly-tools
-kindly install kindlyguard
+kindly install kindly-guard
 
 # Or use traditional methods (npm, homebrew, etc.)
 ```

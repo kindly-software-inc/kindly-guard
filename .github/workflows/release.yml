@@ -103,14 +103,14 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../kindly-guard-${{ matrix.target }}.tar.gz kindlyguard
+          tar czf ../../../kindly-guard-${{ matrix.target }}.tar.gz kindly-guard
         shell: bash
 
       - name: Package artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
           cd target\${{ matrix.target }}\release
-          Compress-Archive -Path kindlyguard.exe -DestinationPath ..\..\..\kindly-guard-${{ matrix.target }}.zip
+          Compress-Archive -Path kindly-guard.exe -DestinationPath ..\..\..\kindly-guard-${{ matrix.target }}.zip
         shell: pwsh
 
       - name: Upload artifacts
@@ -209,7 +209,7 @@ jobs:
             mkdir -p "$INSTALL_DIR"
           fi
 
-          mv kindlyguard "$INSTALL_DIR/"
+          mv kindly-guard "$INSTALL_DIR/"
           echo "KindlyGuard installed to $INSTALL_DIR"
           EOF
 

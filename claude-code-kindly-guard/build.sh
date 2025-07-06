@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "Building KindlyGuard Extension for Claude Code..."
+echo "Building Kindly-Guard Extension for Claude Code..."
 
 # Install dependencies
 echo "Installing dependencies..."
