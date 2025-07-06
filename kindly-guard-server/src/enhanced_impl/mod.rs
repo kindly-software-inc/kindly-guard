@@ -37,6 +37,7 @@ pub fn create_enhanced_event_buffer(
 ) -> Result<impl EventBufferTrait> {
     // For now, create a simple implementation
     // The actual enhanced implementation would use advanced techniques
+    #[allow(dead_code)]
     struct EnhancedEventBuffer {
         buffer_size_mb: usize,
         max_endpoints: u32,

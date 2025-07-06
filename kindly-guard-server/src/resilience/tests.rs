@@ -90,7 +90,6 @@ mod tests {
         assert!(result.is_ok(), "Retry strategy should execute successfully");
     }
     use std::sync::atomic::{AtomicU32, Ordering};
-    use std::sync::Arc;
     use tokio::time::{sleep, Duration};
 
     #[tokio::test]

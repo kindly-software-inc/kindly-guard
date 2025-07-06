@@ -1301,7 +1301,7 @@ pub mod compliance {
 }
 
 /// Create an audit logger based on configuration
-pub fn create_audit_logger(config: &crate::config::Config) -> Arc<dyn AuditLogger> {
+pub fn create_audit_logger(_config: &crate::config::Config) -> Arc<dyn AuditLogger> {
     // For now, use default audit config
     // TODO: Add audit config to main Config struct
     let audit_config = AuditConfig::default();

@@ -24,6 +24,7 @@ pub struct Dashboard {
     terminal: Terminal<CrosstermBackend<io::Stdout>>,
 }
 
+#[allow(dead_code)]
 impl Dashboard {
     /// Create a new dashboard
     pub fn new() -> Result<Self> {

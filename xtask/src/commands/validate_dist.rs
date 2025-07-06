@@ -39,28 +39,31 @@ pub async fn run(cmd: ValidateDistCmd, ctx: Context) -> Result<()> {
 
 /// Configuration for a binary in dist
 #[derive(Debug, Deserialize)]
+#[allow(non_snake_case, dead_code)]
 struct DistBinary {
-    name: String,
-    package_name: String,
+    _name: String,
+    package__name: String,
 }
 
 /// Partial structure for parsing cargo dist plan output
 #[derive(Debug, Deserialize)]
 struct DistPlan {
-    announcement_tag: Option<String>,
-    releases: Vec<DistRelease>,
+    _announcement_tag: Option<String>,
+    _releases: Vec<DistRelease>,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(non_snake_case, dead_code)]
 struct DistRelease {
-    app_name: String,
-    artifacts: Vec<String>,
+    app__name: String,
+    _artifacts: Vec<String>,
 }
 
 /// Validation result for a workspace member
 #[derive(Debug)]
+#[allow(non_snake_case)]
 struct ValidationResult {
-    package_name: String,
+    package__name: String,
     issues: Vec<String>,
     warnings: Vec<String>,
 }
@@ -127,7 +130,7 @@ fn should_validate_package(package: &Package) -> bool {
 fn validate_package(
     package: &Package,
     workspace_root: &Path,
-    ctx: &Context,
+    _ctx: &Context,
 ) -> Result<ValidationResult> {
     let mut issues = Vec::new();
     let mut warnings = Vec::new();
@@ -206,7 +209,7 @@ fn validate_package(
     }
 
     Ok(ValidationResult {
-        package_name: package.name.clone(),
+        package__name: package.name.clone(),
         issues,
         warnings,
     })
@@ -238,7 +241,7 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
     if !is_cargo_dist_installed()? {
         issues.push("cargo-dist is not installed. Run 'cargo install cargo-dist'".to_string());
         return Ok(ValidationResult {
-            package_name: "cargo-dist".to_string(),
+            package__name: "cargo-dist".to_string(),
             issues,
             warnings,
         });
@@ -255,7 +258,7 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
         let stderr = String::from_utf8_lossy(&output.stderr);
         issues.push(format!("cargo dist plan failed: {}", stderr));
         return Ok(ValidationResult {
-            package_name: "cargo-dist".to_string(),
+            package__name: "cargo-dist".to_string(),
             issues,
             warnings,
         });
@@ -320,7 +323,7 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
     }
 
     Ok(ValidationResult {
-        package_name: "cargo-dist".to_string(),
+        package__name: "cargo-dist".to_string(),
         issues,
         warnings,
     })
@@ -337,9 +340,9 @@ fn is_cargo_dist_installed() -> Result<bool> {
 }
 
 /// Prints the validation results in a formatted way
-fn print_validation_results(results: &[ValidationResult], detailed: bool, _ctx: &Context) {
+fn print_validation_results(results: &[ValidationResult], _detailed: bool, _ctx: &Context) {
     for result in results {
-        println!("\n📦 {}", result.package_name.cyan().bold());
+        println!("\n📦 {}", result.package__name.cyan().bold());
 
         if result.issues.is_empty() && result.warnings.is_empty() {
             println!("  ✅ No issues found");

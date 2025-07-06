@@ -67,7 +67,7 @@ struct PipelineState {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum PipelineStatus {
+pub enum PipelineStatus {
     Pending,
     Running,
     Completed,

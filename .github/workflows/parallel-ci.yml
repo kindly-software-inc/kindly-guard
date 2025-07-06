@@ -11,7 +11,7 @@ on:
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
-  # RUSTFLAGS: "-D warnings" # TODO: Re-enable after fixing all warnings
+  RUSTFLAGS: "-D warnings"
   
 jobs:
   # Matrix strategy for parallel execution

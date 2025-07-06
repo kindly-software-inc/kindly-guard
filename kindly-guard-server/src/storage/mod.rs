@@ -283,7 +283,7 @@ impl StorageProviderFactory for DefaultStorageFactory {
 }
 
 /// Create a storage provider based on configuration
-pub fn create_storage_provider(config: &crate::config::Config) -> Arc<dyn StorageProvider> {
+pub fn create_storage_provider(_config: &crate::config::Config) -> Arc<dyn StorageProvider> {
     let factory = DefaultStorageFactory;
     // For now, use a default storage config
     // TODO: Add storage config to main Config struct

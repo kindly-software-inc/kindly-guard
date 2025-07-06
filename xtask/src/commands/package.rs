@@ -192,7 +192,7 @@ struct Artifact {
     target: String,
     binary_path: PathBuf,
     binary_name: String,
-    archive_path: PathBuf,
+    _archive_path: PathBuf,
 }
 
 async fn package_binaries(
@@ -255,7 +255,7 @@ async fn package_single_target(
     release: bool,
     strip: bool,
     max_compression: bool,
-    ctx: &Context,
+    _ctx: &Context,
     archives_dir: &Path,
     version: &str,
     multi_progress: &MultiProgress,
@@ -312,7 +312,7 @@ async fn package_single_target(
             target: target.to_string(),
             binary_path: dest_binary,
             binary_name: binary_name.into_owned(),
-            archive_path,
+            _archive_path: archive_path,
         });
     }
 
@@ -656,7 +656,7 @@ fn calculate_sha256(path: &Path) -> Result<String> {
     Ok(format!("{:x}", hasher.finalize()))
 }
 
-fn print_summary(output_dir: &Path, ctx: &Context) -> Result<()> {
+fn print_summary(output_dir: &Path, _ctx: &Context) -> Result<()> {
     println!("\n{}", "Package Summary:".bold().green());
     println!("{}", "=".repeat(50));
 

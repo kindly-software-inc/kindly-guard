@@ -11,12 +11,12 @@ use crate::utils::Context;
 
 /// Pipeline for code formatting and linting
 pub struct FormatPipeline {
-    check_only: bool,
+    _check_only: bool,
 }
 
 impl FormatPipeline {
     pub fn new() -> Self {
-        Self { check_only: true }
+        Self { _check_only: true }
     }
 }
 

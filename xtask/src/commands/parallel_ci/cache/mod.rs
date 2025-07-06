@@ -7,7 +7,7 @@ use tokio::process::Command;
 /// Cache manager for build artifacts
 pub struct CacheManager {
     backend: CacheBackend,
-    cache_dir: PathBuf,
+    _cache_dir: PathBuf,
 }
 
 /// Supported cache backends
@@ -40,7 +40,7 @@ impl CacheManager {
             .unwrap_or_else(|| PathBuf::from(".cache"))
             .join("kindly-guard");
 
-        Self { backend, cache_dir }
+        Self { backend, _cache_dir: cache_dir }
     }
 
     /// Initialize the cache backend

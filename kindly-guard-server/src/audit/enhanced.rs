@@ -32,6 +32,7 @@ use super::*;
 /// - Distributed storage for high availability
 /// - Real-time alerting for critical events
 /// - Advanced analytics and anomaly detection
+#[allow(dead_code)]
 pub struct EnhancedAuditLogger {
     config: AuditConfig,
     // In real implementation:

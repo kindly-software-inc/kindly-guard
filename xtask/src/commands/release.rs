@@ -457,6 +457,7 @@ async fn create_github_release(
     Ok(())
 }
 
+#[allow(dead_code)]
 fn generate_release_notes(version: &Version) -> Result<String> {
     // Try to extract from CHANGELOG.md
     if let Ok(changelog) = std::fs::read_to_string("CHANGELOG.md") {

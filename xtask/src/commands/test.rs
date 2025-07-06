@@ -461,7 +461,7 @@ async fn run_cargo_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> Res
     Ok(())
 }
 
-async fn run_nextest_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> Result<()> {
+async fn run_nextest_tests(cmd: &TestCmd, _ctx: &Context, integration: bool) -> Result<()> {
     let mut nextest_args = crate::utils::nextest::NextestArgs::default();
 
     // Set profile if specified

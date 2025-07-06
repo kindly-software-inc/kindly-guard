@@ -240,6 +240,7 @@ impl ConfigWriter for JsonLocalConfigWriter {
 }
 
 /// TOML configuration writer (future support)
+#[allow(dead_code)]
 pub struct TomlConfigWriter {
     server_name: String,
 }

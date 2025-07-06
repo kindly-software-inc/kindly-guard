@@ -28,18 +28,19 @@ use crate::traits::{CircuitBreakerWrapper, RetryStrategyWrapper};
 use anyhow::Result;
 use async_trait::async_trait;
 use parking_lot::RwLock;
-use std::collections::HashMap;
-use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Internal state for enhanced circuit breaker
+#[allow(dead_code)]
 struct CircuitBreakerState {
     // Implementation details are private
     inner: Box<dyn Send + Sync>,
 }
 
 /// Enhanced circuit breaker with predictive failure detection
+#[allow(dead_code)]
 pub struct EnhancedCircuitBreaker {
     state: Arc<CircuitBreakerState>,
     failure_threshold: u32,
@@ -75,7 +76,7 @@ impl EnhancedCircuitBreaker {
 
 #[async_trait]
 impl CircuitBreakerTrait for EnhancedCircuitBreaker {
-    async fn call<F, T, Fut>(&self, name: &str, f: F) -> Result<T, CircuitBreakerError>
+    async fn call<F, T, Fut>(&self, _name: &str, f: F) -> Result<T, CircuitBreakerError>
     where
         F: FnOnce() -> Fut + Send,
         Fut: std::future::Future<Output = Result<T>> + Send,
@@ -132,11 +133,13 @@ impl CircuitBreakerTrait for EnhancedCircuitBreaker {
 }
 
 /// Internal retry state
+#[allow(dead_code)]
 struct RetryState {
     inner: Box<dyn Send + Sync>,
 }
 
 /// Enhanced retry strategy with adaptive backoff and jitter
+#[allow(dead_code)]
 pub struct EnhancedRetryStrategy {
     state: Arc<RetryState>,
     max_attempts: u32,
@@ -178,7 +181,7 @@ impl EnhancedRetryStrategy {
 
 #[async_trait]
 impl RetryStrategyTrait for EnhancedRetryStrategy {
-    async fn execute<F, T, Fut>(&self, operation: &str, f: F) -> Result<T>
+    async fn execute<F, T, Fut>(&self, _operation: &str, f: F) -> Result<T>
     where
         F: Fn() -> Fut + Send + Sync,
         Fut: std::future::Future<Output = Result<T>> + Send,
@@ -212,7 +215,7 @@ impl RetryStrategyTrait for EnhancedRetryStrategy {
         }
     }
 
-    fn should_retry(&self, error: &anyhow::Error, context: &RetryContext) -> RetryDecision {
+    fn should_retry(&self, _error: &anyhow::Error, context: &RetryContext) -> RetryDecision {
         RetryDecision {
             should_retry: context.attempts < self.max_attempts,
             delay: Some(self.get_delay(context.attempts)),
@@ -231,11 +234,13 @@ impl RetryStrategyTrait for EnhancedRetryStrategy {
 }
 
 /// Internal health check state
+#[allow(dead_code)]
 struct HealthCheckState {
     inner: Box<dyn Send + Sync>,
 }
 
 /// Enhanced health checker with predictive monitoring
+#[allow(dead_code)]
 pub struct EnhancedHealthChecker {
     state: Arc<HealthCheckState>,
     interval: Duration,
@@ -334,11 +339,13 @@ impl HealthCheckTrait for EnhancedHealthChecker {
 }
 
 /// Internal recovery state
+#[allow(dead_code)]
 struct RecoveryState {
     inner: Box<dyn Send + Sync>,
 }
 
 /// Enhanced recovery handler with caching and predictive recovery
+#[allow(dead_code)]
 pub struct EnhancedRecoveryHandler {
     state: Arc<RecoveryState>,
     cache_enabled: bool,
@@ -432,7 +439,7 @@ impl ResilienceFactory for EnhancedResilienceFactory {
 
     fn create_health_checker(
         &self,
-        config: &crate::config::Config,
+        _config: &crate::config::Config,
     ) -> Result<Arc<dyn HealthCheckTrait>> {
         Ok(Arc::new(EnhancedHealthChecker::new(
             Duration::from_secs(30),
@@ -444,7 +451,7 @@ impl ResilienceFactory for EnhancedResilienceFactory {
 
     fn create_recovery_strategy(
         &self,
-        config: &crate::config::Config,
+        _config: &crate::config::Config,
     ) -> Result<Arc<dyn RecoveryStrategyTrait>> {
         Ok(Arc::new(EnhancedRecoveryHandler::new(
             true,

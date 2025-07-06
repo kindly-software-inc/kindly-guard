@@ -19,7 +19,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use std::sync::Arc;
 use tracing::info;
 
 use super::*;
@@ -97,6 +96,7 @@ impl Transport for GrpcTransport {
 /// - Perfect forward secrecy
 /// - Hardware security module integration
 /// - Secure multi-party computation support
+#[allow(dead_code)]
 pub struct QuantumTransport {
     config: serde_json::Value,
 }
@@ -116,6 +116,7 @@ impl QuantumTransport {
 /// - Zero-copy message passing
 /// - Hardware timestamp support
 /// - Nanosecond-precision timing
+#[allow(dead_code)]
 pub struct UltraTransport {
     config: serde_json::Value,
 }

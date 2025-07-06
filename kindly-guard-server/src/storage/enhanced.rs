@@ -21,6 +21,7 @@ use tracing::{debug, info};
 
 // Missing type definitions
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct SnapshotInfo {
     id: String,
     created_at: u64,
@@ -53,6 +54,7 @@ struct ArchivalStats {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 struct ArchivalDetailedStats {
     hot_storage_events: u64,
     archived_events: u64,
@@ -256,6 +258,7 @@ impl ArchivalSystem {
 }
 
 /// Enhanced storage provider with advanced optimizations
+#[allow(dead_code)]
 pub struct EnhancedStorage {
     /// Configuration
     config: StorageConfig,

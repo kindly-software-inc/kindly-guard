@@ -162,7 +162,6 @@ pub struct SecurityEventProcessor {
     buffer: Option<Box<dyn EventBufferTrait>>,
     endpoint_map: RwLock<HashMap<String, u32>>,
     next_endpoint_id: RwLock<u32>,
-    start_time: Instant,
 }
 
 /// Attack patterns detected by correlation
@@ -204,7 +203,6 @@ impl SecurityEventProcessor {
             buffer,
             endpoint_map: RwLock::new(HashMap::new()),
             next_endpoint_id: RwLock::new(0),
-            start_time: Instant::now(),
         })
     }
 

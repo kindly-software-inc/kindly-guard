@@ -291,6 +291,7 @@ pub fn extract_tar_gz(archive_path: &Path, dest_dir: &Path, options: ExtractOpti
         0
     };
 
+    #[allow(unused_assignments)]
     let mut processed_entries = 0u64;
 
     // Extract files

@@ -18,13 +18,13 @@ pub struct Coordinator {
     ctx: Arc<Context>,
     max_parallel: usize,
     fail_fast: bool,
-    enable_dashboard: bool,
+    _enable_dashboard: bool,
     pipelines: Vec<Box<dyn Pipeline>>,
     targets: TargetMatrix,
     results: Arc<DashMap<String, PipelineResult>>,
     semaphore: Arc<Semaphore>,
     monitor: Option<Monitor>,
-    start_time: Instant,
+    _start_time: Instant,
 }
 
 impl Coordinator {
@@ -33,12 +33,12 @@ impl Coordinator {
         ctx: Arc<Context>,
         max_parallel: Option<usize>,
         fail_fast: bool,
-        enable_dashboard: bool,
+        _enable_dashboard: bool,
     ) -> Result<Self> {
         let max_parallel = max_parallel.unwrap_or_else(|| num_cpus::get());
         let semaphore = Arc::new(Semaphore::new(max_parallel));
 
-        let monitor = if enable_dashboard {
+        let monitor = if _enable_dashboard {
             Some(Monitor::new().await?)
         } else {
             None
@@ -48,13 +48,13 @@ impl Coordinator {
             ctx,
             max_parallel,
             fail_fast,
-            enable_dashboard,
+            _enable_dashboard,
             pipelines: Vec::new(),
             targets: TargetMatrix::default(),
             results: Arc::new(DashMap::new()),
             semaphore,
             monitor,
-            start_time: Instant::now(),
+            _start_time: Instant::now(),
         })
     }
 

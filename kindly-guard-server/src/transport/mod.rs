@@ -446,7 +446,7 @@ impl TransportFactory for DefaultTransportFactory {
 }
 
 /// Create a transport based on configuration
-pub fn create_transport(config: &crate::config::Config) -> Arc<dyn Transport> {
+pub fn create_transport(_config: &crate::config::Config) -> Arc<dyn Transport> {
     // For now, default to stdio transport
     // TODO: Read transport config from main Config struct
     let transport_config = TransportTypeConfig {

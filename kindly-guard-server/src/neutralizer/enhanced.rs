@@ -28,7 +28,6 @@ use std::time::Instant;
 
 use super::standard::StandardNeutralizer;
 use super::*;
-use crate::event_processor::AttackPattern as EventAttackPattern;
 use crate::scanner::{Location, Threat, ThreatType};
 use crate::traits::{SecurityEvent, SecurityEventProcessor};
 
@@ -62,6 +61,7 @@ pub struct EnhancedNeutralizer {
 }
 
 /// Optimized Unicode neutralizer
+#[allow(dead_code)]
 struct UnicodeNeutralizer {
     // Pre-built lookup tables for fast character classification
     bidi_chars: Vec<u32>,
@@ -70,6 +70,7 @@ struct UnicodeNeutralizer {
 }
 
 /// Optimized SQL neutralizer with caching
+#[allow(dead_code)]
 struct SqlNeutralizer {
     // Cached prepared statement templates
     template_cache: RwLock<HashMap<String, String>>,

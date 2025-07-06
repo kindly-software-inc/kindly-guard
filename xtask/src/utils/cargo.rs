@@ -1,7 +1,7 @@
 //! Cargo-related utilities
 
 use anyhow::{Context as AnyhowContext, Result};
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::process::Command;
 use tracing::debug;
 

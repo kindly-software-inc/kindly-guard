@@ -305,7 +305,7 @@ pub use metrics::{CommandMetrics, MetricsCollector, MetricsSnapshot};
 pub use standard::StandardTelemetryProvider;
 
 /// Create a telemetry provider based on configuration
-pub fn create_telemetry_provider(config: &crate::config::Config) -> Arc<dyn TelemetryProvider> {
+pub fn create_telemetry_provider(_config: &crate::config::Config) -> Arc<dyn TelemetryProvider> {
     // For now, use default telemetry config
     // TODO: Add telemetry config to main Config struct
     let telemetry_config = TelemetryConfig::default();
