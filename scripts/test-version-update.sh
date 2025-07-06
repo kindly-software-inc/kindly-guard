@@ -36,23 +36,23 @@ backup_file() {
 }
 
 # Backup all version files from version-locations.json
-if [ -f "version-locations.json" ]; then
+if [ -f "scripts/version-locations.json" ]; then
     # Backup Cargo files
-    jq -r '.version_locations.cargo_files[].path' version-locations.json | while read -r file; do
+    jq -r '.version_locations.cargo_files[].path' scripts/version-locations.json | while read -r file; do
         backup_file "$file"
     done
     
     # Backup package files
-    jq -r '.version_locations.package_files[].path' version-locations.json | while read -r file; do
+    jq -r '.version_locations.package_files[].path' scripts/version-locations.json | while read -r file; do
         backup_file "$file"
     done
     
     # Backup documentation files
-    jq -r '.version_locations.documentation_files[].path' version-locations.json | while read -r file; do
+    jq -r '.version_locations.documentation_files[].path' scripts/version-locations.json | while read -r file; do
         backup_file "$file"
     done
 else
-    echo -e "${RED}❌ version-locations.json not found${NC}"
+    echo -e "${RED}❌ scripts/version-locations.json not found${NC}"
     exit 1
 fi
 

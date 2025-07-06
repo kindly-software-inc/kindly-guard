@@ -76,7 +76,7 @@ pub fn update_all_versions(ctx: &Context, version: &Version) -> Result<()> {
 }
 
 fn load_version_locations() -> Result<VersionLocations> {
-    let config_path = "version-locations.json";
+    let config_path = "scripts/version-locations.json";
     
     if Path::new(config_path).exists() {
         let content = std::fs::read_to_string(config_path)

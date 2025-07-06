@@ -113,7 +113,7 @@ impl ReleaseConfig {
 
     fn config_path() -> Result<PathBuf> {
         let root = crate::utils::workspace_root()?;
-        Ok(root.join("release-config.toml"))
+        Ok(root.join("scripts/release-config.toml"))
     }
 }
 

@@ -68,7 +68,7 @@ impl InteractiveMode {
 
     fn is_first_run(&self) -> Result<bool> {
         // Check if release config exists
-        let config_path = crate::utils::workspace_root()?.join("release-config.toml");
+        let config_path = crate::utils::workspace_root()?.join("scripts/release-config.toml");
         Ok(!config_path.exists())
     }
 

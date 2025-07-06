@@ -47,8 +47,9 @@ This directory contains deployment configurations for KindlyGuard MCP Security S
 
 **Files:**
 - `Dockerfile` - Multi-stage build with security hardening
-- `docker-compose.yml` - Basic deployment
+- `docker-compose.yml` - Basic deployment (not present in this directory)
 - `docker-compose.prod.yml` - Full production stack with monitoring
+- `docker-compose.buildx.yml` - Multi-platform build configuration
 
 **Security Features:**
 - Non-root user execution
@@ -59,11 +60,8 @@ This directory contains deployment configurations for KindlyGuard MCP Security S
 
 **Commands:**
 ```bash
-# Basic deployment
-docker-compose up -d
-
 # Production deployment with monitoring
-docker-compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+docker-compose -f docker-compose.prod.yml up -d
 
 # View logs
 docker-compose logs -f kindly-guard

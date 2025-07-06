@@ -2,11 +2,11 @@
 
 ## Overview
 
-KindlyGuard's enhanced event buffer includes comprehensive security measures to handle compressed data safely, preventing compression-based attacks while maintaining performance.
+KindlyGuard includes comprehensive security measures to handle compressed data safely, preventing compression-based attacks while maintaining performance.
 
 ## Threat Model
 
-### 1. Compression Bombs (Zip Bombs)
+### 1. Malicious Compressed Data
 
 **Attack Vector**: Malicious actors submit highly compressed data that expands to enormous sizes when decompressed, causing:
 - Memory exhaustion
@@ -33,7 +33,7 @@ KindlyGuard's enhanced event buffer includes comprehensive security measures to 
 
 ### 1. Compression Detection
 
-The atomic state machine tracks compression state at the bit level:
+The system tracks compression state for security validation:
 
 ```rust
 // Magic byte detection for common compression formats
@@ -46,7 +46,7 @@ let is_compressed = data.len() > 4 && (
 
 ### 2. Ratio Validation
 
-Strict limits on compression ratios prevent bombs:
+Strict limits on compression ratios prevent malicious payloads:
 
 ```rust
 const MAX_COMPRESSION_RATIO: u8 = 10;  // Maximum 10:1 compression

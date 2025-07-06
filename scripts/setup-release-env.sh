@@ -393,7 +393,7 @@ fi
 # Check release configuration
 echo_header "Checking Release Configuration"
 
-if [[ -f "$PROJECT_ROOT/release-config.yml" ]]; then
+if [[ -f "$SCRIPT_DIR/release-config.yml" ]]; then
     echo_success "release-config.yml exists"
 else
     echo_error "release-config.yml not found"
@@ -401,7 +401,7 @@ else
 fi
 ((TOTAL_CHECKS++))
 
-if [[ -f "$PROJECT_ROOT/version-locations.json" ]]; then
+if [[ -f "$SCRIPT_DIR/version-locations.json" ]]; then
     echo_success "version-locations.json exists"
 else
     echo_error "version-locations.json not found"

@@ -127,7 +127,9 @@ override.toml
 
 # Analysis outputs (temporary)
 /analysis/*.log
-FileScopeMCP-tree.json
+/analysis/FileScopeMCP-tree.json
+/analysis/*.html
+/analysis/code_structure_metrics.json
 
 # Session files
 SESSION_*.md

@@ -1,22 +1,12 @@
 # Docker Compose Deployment Guide
 
-This directory contains Docker Compose configurations for deploying KindlyGuard in various environments.
+This directory contains Docker Compose configurations for deploying KindlyGuard in various environments. The docker-compose files are located in this directory alongside the deployment documentation.
 
 ## Available Configurations
 
 ### 1. Development/Basic Deployment (`docker-compose.yml`)
 Basic single-instance deployment suitable for development and testing.
-
-```bash
-# Start the service
-docker-compose up -d
-
-# View logs
-docker-compose logs -f kindly-guard
-
-# Stop the service
-docker-compose down
-```
+**Note:** The basic docker-compose.yml file is not present in this directory. Use docker-compose.prod.yml for deployment.
 
 ### 2. Production Deployment (`docker-compose.prod.yml`)
 Full production stack with monitoring, logging, and high availability.
