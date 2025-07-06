@@ -1,8 +1,8 @@
 //! Integration tests for tool installation utilities
 
 use anyhow::Result;
-use xtask::utils::tools::{is_ci_environment, is_tool_installed, ToolInstallConfig};
-use xtask::utils::{ensure_tool_installed, Context};
+use xtask::utils::tools::{ensure_tool_installed, is_ci_environment, is_tool_installed, ToolInstallConfig};
+use xtask::utils::Context;
 
 #[test]
 fn test_ci_environment_detection() {
