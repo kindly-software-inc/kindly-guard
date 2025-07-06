@@ -5,7 +5,7 @@ This directory contains Git hooks to prevent accidental leakage of proprietary i
 ## Pre-commit Hook
 
 The pre-commit hook prevents commits that contain references to:
-- Hierarchical rate limiter implementation
+- Advanced rate limiter implementation
 - Atomic bit-packed event buffer details
 - Performance metrics that reveal proprietary optimizations
 - Internal module names and patterns
@@ -28,7 +28,7 @@ ln -sf ../../.githooks/pre-commit .git/hooks/pre-commit
 
 The following files are allowed to contain sensitive terms:
 - `docs/FUTURE_INNOVATIONS.md` - Internal roadmap documentation
-- `docs/HIERARCHICAL_RATE_LIMITER.md` - Technical specification
+- `docs/RATE_LIMITING.md` - Technical specification
 - `docs/ATOMIC_STATE_MACHINE.md` - Implementation details
 - `src/enhanced_impl/*` - Actual implementation files
 - `benches/rate_limiter_comparison.rs` - Performance benchmarks

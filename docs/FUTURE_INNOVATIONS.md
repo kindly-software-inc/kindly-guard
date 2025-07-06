@@ -19,23 +19,23 @@ The `MetricsProvider` trait has been implemented in v1.0 as preparation for futu
 
 This architectural groundwork enables seamless migration to high-performance implementations (like Seqlock) in future versions without breaking changes.
 
-## 1. Hierarchical Per-CPU Rate Limiter
+## 1. Advanced Rate Limiting
 
 **Status**: Fully implemented and tested  
 **Target Release**: v2.0 or Enterprise Edition  
 **Complexity**: High  
-**Performance Gain**: 27x at 64 cores  
+**Performance Gain**: Significant at high core counts  
 
 ### Overview
 
-A revolutionary rate limiting design that achieves linear scaling through per-CPU token buckets with work-stealing. This eliminates the global lock bottleneck in traditional implementations.
+An advanced rate limiting design that achieves linear scaling through innovative algorithms. This eliminates bottlenecks in traditional implementations.
 
 ### Implementation Details
 
 **Files Created**:
-- `/kindly-guard-server/src/enhanced_impl/hierarchical_rate_limiter.rs` - Core implementation
+- `/kindly-guard-server/src/enhanced_impl/advanced_rate_limiter.rs` - Core implementation
 - `/kindly-guard-server/benches/rate_limiter_comparison.rs` - Performance benchmarks
-- `/docs/HIERARCHICAL_RATE_LIMITER.md` - Mathematical foundation
+- `/docs/RATE_LIMITING.md` - Design documentation
 
 **Key Innovations**:
 
@@ -104,7 +104,7 @@ Lock-free event buffer using bit-packed atomic state machines. Provides signific
 
 ### Why Consider Delaying
 
-While less complex than the hierarchical rate limiter, it still adds:
+While less complex than the advanced rate limiter, it still adds:
 - Intricate bit manipulation code
 - Harder debugging of atomic operations
 - Additional test surface area

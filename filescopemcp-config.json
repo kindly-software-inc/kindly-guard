@@ -1,0 +1,19 @@
+{
+  "baseDirectory": "/home/samuel/kindly-guard",
+  "excludePatterns": [
+    "target/**",
+    "node_modules/**",
+    "dist/**",
+    ".git/**",
+    "*.lock",
+    "coverage/**",
+    "backups/**",
+    "release-*/**",
+    "test-*/**",
+    "*.log"
+  ],
+  "fileWatching": {
+    "enabled": false
+  },
+  "version": "1.0.0"
+}
