@@ -64,7 +64,7 @@ jobs:
       
       - name: Install cross
         if: matrix.use_cross
-        run: cargo install cross --version 0.2.5
+        run: cargo install cross --version 0.3.1
       
       - name: Build
         run: |
