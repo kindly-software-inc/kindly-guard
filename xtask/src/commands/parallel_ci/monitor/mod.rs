@@ -10,10 +10,11 @@ mod dashboard;
 mod metrics;
 
 pub use dashboard::Dashboard;
-pub use metrics::{PipelineMetrics, SystemMetrics};
+pub use metrics::SystemMetrics;
 
 /// Events sent from pipelines to monitor
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum MonitorEvent {
     PipelineStarted {
         name: String,
@@ -54,6 +55,7 @@ pub struct Monitor {
 
 struct MonitorState {
     pipelines: HashMap<String, PipelineState>,
+    #[allow(dead_code)]
     start_time: Instant,
     system_metrics: SystemMetrics,
 }
@@ -61,12 +63,14 @@ struct MonitorState {
 struct PipelineState {
     status: PipelineStatus,
     progress: (usize, usize),
+    #[allow(dead_code)]
     start_time: Instant,
     duration: Option<Duration>,
     last_message: String,
 }
 
 #[derive(Debug, Clone, PartialEq)]
+#[allow(dead_code)]
 pub enum PipelineStatus {
     Pending,
     Running,
@@ -196,6 +200,7 @@ impl Monitor {
     }
 
     /// Get current state snapshot
+    #[allow(dead_code)]
     pub async fn snapshot(&self) -> MonitorSnapshot {
         let state = self.state.lock().await;
 

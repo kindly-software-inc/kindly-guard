@@ -4,7 +4,8 @@ use std::time::Duration;
 
 use chrono::Utc;
 use tempfile::TempDir;
-use xtask::test::{BackoffStrategy, FlakyTestManager, RetryPolicy, TestExecution};
+use xtask::test::{FlakyTestManager, TestExecution};
+use xtask::test::flaky::{BackoffStrategy, RetryPolicy};
 
 #[tokio::test]
 async fn test_flaky_detection() {

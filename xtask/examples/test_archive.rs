@@ -3,8 +3,7 @@
 use anyhow::Result;
 use std::path::Path;
 use xtask::utils::archive::{
-    create_tar_gz, create_zip, extract_tar_gz, extract_zip, list_archive_contents, CreateOptions,
-    ExtractOptions,
+    create_tar_gz, create_zip, list_archive_contents, CreateOptions,
 };
 
 fn main() -> Result<()> {

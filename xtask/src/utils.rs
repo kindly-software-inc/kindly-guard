@@ -17,7 +17,6 @@ pub mod tools;
 pub mod version;
 
 // Re-exports for convenience
-pub use tools::{ensure_tool_installed, is_ci_environment, is_tool_installed, ToolInstallConfig};
 
 #[derive(Clone, Debug)]
 pub struct Context {

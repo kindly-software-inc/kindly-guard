@@ -12,6 +12,7 @@ pub struct CacheManager {
 
 /// Supported cache backends
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum CacheBackend {
     Local { path: PathBuf },
     Sccache { config: SccacheConfig },
@@ -26,6 +27,7 @@ pub struct SccacheConfig {
 }
 
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub enum SccacheStorage {
     Local { dir: PathBuf },
     Redis { url: String },
@@ -35,6 +37,7 @@ pub enum SccacheStorage {
 
 impl CacheManager {
     /// Create a new cache manager
+    #[allow(dead_code)]
     pub fn new(backend: CacheBackend) -> Self {
         let cache_dir = dirs::cache_dir()
             .unwrap_or_else(|| PathBuf::from(".cache"))
@@ -47,6 +50,7 @@ impl CacheManager {
     }
 
     /// Initialize the cache backend
+    #[allow(dead_code)]
     pub async fn init(&self) -> Result<()> {
         match &self.backend {
             CacheBackend::Sccache { config } => {
@@ -62,6 +66,7 @@ impl CacheManager {
     }
 
     /// Setup sccache with configuration
+    #[allow(dead_code)]
     async fn setup_sccache(&self, config: &SccacheConfig) -> Result<()> {
         // Check if sccache is installed
         let sccache_available = Command::new("sccache")
@@ -110,6 +115,7 @@ impl CacheManager {
     }
 
     /// Get cache statistics
+    #[allow(dead_code)]
     pub async fn stats(&self) -> Result<CacheStats> {
         match &self.backend {
             CacheBackend::Sccache { .. } => {
@@ -136,6 +142,7 @@ impl CacheManager {
     }
 
     /// Clear the cache
+    #[allow(dead_code)]
     pub async fn clear(&self) -> Result<()> {
         match &self.backend {
             CacheBackend::Sccache { .. } => {
@@ -164,6 +171,7 @@ pub struct CacheStats {
 
 impl CacheStats {
     /// Parse sccache output
+    #[allow(dead_code)]
     fn from_sccache_output(output: &str) -> Self {
         let mut stats = Self::default();
 
@@ -190,6 +198,7 @@ impl CacheStats {
 }
 
 /// Calculate directory size recursively
+#[allow(dead_code)]
 async fn calculate_dir_size(path: &PathBuf) -> Result<u64> {
     let mut size = 0u64;
     let mut entries = tokio::fs::read_dir(path).await?;
@@ -207,6 +216,7 @@ async fn calculate_dir_size(path: &PathBuf) -> Result<u64> {
 }
 
 /// Parse size string with units
+#[allow(dead_code)]
 fn parse_size(s: &str) -> Option<u64> {
     let s = s.trim();
     if let Some(num_str) = s.split_whitespace().next() {

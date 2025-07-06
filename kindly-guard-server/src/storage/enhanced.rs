@@ -65,6 +65,7 @@ struct ArchivalDetailedStats {
 
 // Stubs for advanced storage components
 struct EventStore;
+#[allow(dead_code)]
 impl EventStore {
     fn new(_size: usize, _compression: bool, _encryption: bool) -> Result<Self> {
         Ok(Self)
@@ -109,6 +110,7 @@ impl EventStore {
 }
 
 struct RateLimiterImpl;
+#[allow(dead_code)]
 impl RateLimiterImpl {
     fn new(_size: usize) -> Result<Self> {
         Ok(Self)
@@ -140,6 +142,7 @@ impl RateLimiterImpl {
 }
 
 struct CorrelationIndex;
+#[allow(dead_code)]
 impl CorrelationIndex {
     fn with_capacity(_capacity: usize) -> Result<Self> {
         Ok(Self)
@@ -178,6 +181,7 @@ impl CorrelationIndex {
 }
 
 struct SnapshotEngine;
+#[allow(dead_code)]
 impl SnapshotEngine {
     fn new(_store: &EventStore, _retention_days: u32) -> Result<Self> {
         Ok(Self)
@@ -212,6 +216,7 @@ impl SnapshotEngine {
 }
 
 struct ArchivalSystem;
+#[allow(dead_code)]
 impl ArchivalSystem {
     fn new(_connection: Option<&str>, _days: u32) -> Result<Self> {
         Ok(Self)

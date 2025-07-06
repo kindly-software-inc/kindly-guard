@@ -9,3 +9,7 @@ image = "ghcr.io/cross-rs/x86_64-unknown-linux-musl:latest"
 # Configuration for ARM64 Linux (e.g., Raspberry Pi 4, AWS Graviton)
 [target.aarch64-unknown-linux-gnu]
 image = "ghcr.io/cross-rs/aarch64-unknown-linux-gnu:main"
+
+# Standard Linux GNU target
+[target.x86_64-unknown-linux-gnu]
+image = "ghcr.io/cross-rs/x86_64-unknown-linux-gnu:main"

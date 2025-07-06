@@ -4,7 +4,8 @@
 
 use anyhow::Result;
 use xtask::utils::tools::{common_tools, ToolInstallConfig};
-use xtask::utils::{ensure_tool_installed, ensure_tools_installed, Context};
+use xtask::utils::Context;
+use xtask::utils::tools::{ensure_tool_installed, ensure_tools_installed};
 
 fn main() -> Result<()> {
     // Create a context for the examples

@@ -8,8 +8,8 @@ use tokio::sync::Semaphore;
 mod build_worker;
 mod test_worker;
 
-pub use build_worker::BuildWorker;
-pub use test_worker::TestWorker;
+// pub use build_worker::BuildWorker;
+// pub use test_worker::TestWorker;
 
 /// Trait for worker implementations
 pub trait Worker: Send + Sync {

@@ -2,11 +2,11 @@
 //!
 //! Run with: cargo run --example flaky_test_example
 
-use std::path::Path;
 use std::time::Duration;
 
 use chrono::Utc;
-use xtask::test::{BackoffStrategy, FlakyTestManager, RetryPolicy, TestExecution};
+use xtask::test::{FlakyTestManager, TestExecution};
+use xtask::test::flaky::{BackoffStrategy, RetryPolicy};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -79,7 +79,7 @@ async fn main() -> anyhow::Result<()> {
 
     // Generate report
     let report = manager
-        .generate_report(&xtask::utils::Context::default())
+        .generate_report(&xtask::utils::Context { dry_run: false, verbose: false })
         .await?;
     println!("\n=== Flakiness Report Summary ===");
     println!("Total tests tracked: {}", report.total_tests);

@@ -1,11 +1,10 @@
-use anyhow::{Context as _, Result};
+use anyhow::Result;
 use colored::*;
 use dialoguer::{theme::ColorfulTheme, Confirm, Input, MultiSelect, Select};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::time::Duration;
 
 use crate::{
-    commands::{build, doctor, package, publish, release, security, version},
     config::ReleaseConfig,
     utils::Context,
 };
@@ -333,7 +332,7 @@ default = {:?}
             .default(5)
             .interact()?;
 
-        let target = if target_selection < 5 {
+        let _target = if target_selection < 5 {
             Some(targets[target_selection].to_string())
         } else {
             None
@@ -347,7 +346,7 @@ default = {:?}
             .default(1)
             .interact()?;
 
-        let profile = profiles[profile_selection].to_string();
+        let _profile = profiles[profile_selection].to_string();
 
         // Additional options
         let _clean_first = Confirm::with_theme(&self.theme)
@@ -514,13 +513,13 @@ default = {:?}
             .default(true)
             .interact()?;
 
-        let max_compression = Confirm::with_theme(&self.theme)
+        let _max_compression = Confirm::with_theme(&self.theme)
             .with_prompt("Use maximum compression?")
             .default(false)
             .interact()?;
 
         // Skip build if binaries exist
-        let skip_build = Confirm::with_theme(&self.theme)
+        let _skip_build = Confirm::with_theme(&self.theme)
             .with_prompt("Skip building (use existing binaries)?")
             .default(false)
             .interact()?;
