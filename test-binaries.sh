@@ -221,10 +221,10 @@ test_current_platform() {
         test_mcp_server "$platform_dir/kindlyguard${ext}"
     fi
     
-    # Test CLI
-    if [ -f "$platform_dir/kindlyguard-cli${ext}" ]; then
-        test_binary "$platform_dir/kindlyguard-cli${ext}" "KindlyGuard CLI"
-        test_cli "$platform_dir/kindlyguard-cli${ext}"
+    # Test kindly-tools (replaced kindlyguard-cli)
+    if [ -f "$platform_dir/kindly-tools${ext}" ]; then
+        test_binary "$platform_dir/kindly-tools${ext}" "Kindly Tools"
+        test_cli "$platform_dir/kindly-tools${ext}"
     fi
     
     # Test shield if present
