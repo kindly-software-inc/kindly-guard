@@ -28,7 +28,7 @@ jobs:
             os: ubuntu-22.04
             dist-args: ""
             use-cross: true
-          
+
           # macOS builds
           - target: aarch64-apple-darwin
             os: macos-latest
@@ -36,7 +36,7 @@ jobs:
           - target: x86_64-apple-darwin
             os: macos-latest
             dist-args: ""
-          
+
           # Windows builds
           - target: x86_64-pc-windows-msvc
             os: windows-latest
@@ -47,18 +47,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-      
+
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: ${{ matrix.target }}
-      
+
       - name: Install cross for cross-compilation
         if: matrix.use-cross == true
         uses: taiki-e/install-action@v2
         with:
           tool: cross
-      
+
       - name: Install dependencies (Ubuntu)
         if: startsWith(matrix.os, 'ubuntu')
         run: |
@@ -68,25 +68,29 @@ jobs:
           if [[ "${{ matrix.target }}" == *"musl"* ]]; then
             sudo apt-get install -y musl-tools
           fi
-      
-            - name: Setup musl tools and OpenSSL
-        if: matrix.target == 'x86_64-unknown-linux-musl'
+
+      - name: Setup build environment for musl
+        if: contains(matrix.target, 'musl')
         run: |
+          # Install musl toolchain
           sudo apt-get update
           sudo apt-get install -y musl-tools musl-dev
-          # Install static OpenSSL for musl
-          sudo apt-get install -y libssl-dev pkg-config
-          # Set environment variables for musl OpenSSL
-          echo "OPENSSL_STATIC=1" >> $GITHUB_ENV
-          echo "OPENSSL_DIR=/usr" >> $GITHUB_ENV
-          echo "PKG_CONFIG_ALLOW_CROSS=1" >> $GITHUB_ENV
-          echo "PKG_CONFIG_ALL_STATIC=1" >> $GITHUB_ENV
-          echo "CARGO_TARGET_X86_64_UNKNOWN_LINUX_MUSL_LINKER=musl-gcc" >> $GITHUB_ENV
-          # Additional OpenSSL configuration
-          echo "OPENSSL_LIB_DIR=/usr/lib/x86_64-linux-gnu" >> $GITHUB_ENV
-          echo "OPENSSL_INCLUDE_DIR=/usr/include" >> $GITHUB_ENV
 
-      
+          # Set up for static linking
+          echo "RUSTFLAGS=-C target-feature=+crt-static -C link-arg=-static" >> $GITHUB_ENV
+          echo "PKG_CONFIG_ALL_STATIC=1" >> $GITHUB_ENV
+
+          # Create .cargo/config.toml for this build
+          mkdir -p .cargo
+          cat > .cargo/config.toml << 'EOCARGO'
+          [target.x86_64-unknown-linux-musl]
+          rustflags = ["-C", "target-feature=+crt-static", "-C", "link-arg=-static"]
+          EOCARGO
+
+          # Ensure we're using rustls, not OpenSSL
+          echo "OPENSSL_NO_VENDOR=1" >> $GITHUB_ENV
+
+      - name: Build release binary
         run: |
           if [ "${{ matrix.use-cross }}" = "true" ]; then
             cross build --release --target ${{ matrix.target }}
@@ -94,24 +98,21 @@ jobs:
             cargo build --release --target ${{ matrix.target }}
           fi
         shell: bash
-      
+
       - name: Package artifacts (Unix)
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../kindly-guard-${{ matrix.target }}.tar.gz \
-            kindlyguard \
-            kindlyguard \
-            kindlyguard
+          tar czf ../../../kindly-guard-${{ matrix.target }}.tar.gz kindlyguard
         shell: bash
-      
+
       - name: Package artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
           cd target\${{ matrix.target }}\release
-          Compress-Archive -Path kindlyguard.exe,kindlyguard.exe,kindlyguard.exe -DestinationPath ..\..\..\kindly-guard-${{ matrix.target }}.zip
+          Compress-Archive -Path kindlyguard.exe -DestinationPath ..\..\..\kindly-guard-${{ matrix.target }}.zip
         shell: pwsh
-      
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
@@ -126,12 +127,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
-      
+
       - name: Create Release
         id: create_release
         uses: actions/create-release@v1
@@ -142,7 +143,7 @@ jobs:
           release_name: Release ${{ github.ref }}
           draft: true
           prerelease: false
-      
+
       - name: Upload Release Assets
         run: |
           for file in artifacts/*/*.{tar.gz,zip}; do
@@ -161,17 +162,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Generate shell installer
         run: |
           cat > install.sh << 'EOF'
           #!/bin/sh
           set -e
-          
+
           # Detect OS and architecture
           OS=$(uname -s | tr '[:upper:]' '[:lower:]')
           ARCH=$(uname -m)
-          
+
           case "$OS" in
             linux)
               case "$ARCH" in
@@ -189,7 +190,7 @@ jobs:
               ;;
             *) echo "Unsupported OS: $OS"; exit 1 ;;
           esac
-          
+
           # Download and install
           VERSION="${1:-latest}"
           if [ "$VERSION" = "latest" ]; then
@@ -197,10 +198,10 @@ jobs:
           else
             URL="https://github.com/kindly-software-inc/kindly-guard/releases/download/$VERSION/kindly-guard-$TARGET.tar.gz"
           fi
-          
+
           echo "Downloading KindlyGuard for $TARGET..."
           curl -L "$URL" | tar xz
-          
+
           # Install to /usr/local/bin or ~/.local/bin
           if [ -w /usr/local/bin ]; then
             INSTALL_DIR=/usr/local/bin
@@ -208,13 +209,13 @@ jobs:
             INSTALL_DIR=$HOME/.local/bin
             mkdir -p "$INSTALL_DIR"
           fi
-          
-          mv kindly-guard* "$INSTALL_DIR/"
+
+          mv kindlyguard "$INSTALL_DIR/"
           echo "KindlyGuard installed to $INSTALL_DIR"
           EOF
-          
+
           chmod +x install.sh
-      
+
       - name: Upload shell installer
         run: |
           gh release upload ${{ github.ref_name }} install.sh --clobber
@@ -227,43 +228,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      
+
       - name: Generate PowerShell installer
         run: |
           cat > install.ps1 << 'EOF'
           # PowerShell installer for KindlyGuard
           $ErrorActionPreference = 'Stop'
-          
+
           $version = if ($args.Count -eq 0) { "latest" } else { $args[0] }
           $target = "x86_64-pc-windows-msvc"
-          
+
           if ($version -eq "latest") {
               $url = "https://github.com/kindly-software-inc/kindly-guard/releases/latest/download/kindly-guard-$target.zip"
           } else {
               $url = "https://github.com/kindly-software-inc/kindly-guard/releases/download/$version/kindly-guard-$target.zip"
           }
-          
+
           Write-Host "Downloading KindlyGuard for Windows..."
           $tempFile = [System.IO.Path]::GetTempFileName() + ".zip"
           Invoke-WebRequest -Uri $url -OutFile $tempFile
-          
+
           $installDir = "$env:LOCALAPPDATA\KindlyGuard"
           New-Item -ItemType Directory -Force -Path $installDir | Out-Null
-          
+
           Write-Host "Extracting..."
           Expand-Archive -Path $tempFile -DestinationPath $installDir -Force
           Remove-Item $tempFile
-          
+
           # Add to PATH
           $path = [Environment]::GetEnvironmentVariable("Path", "User")
           if ($path -notlike "*$installDir*") {
               [Environment]::SetEnvironmentVariable("Path", "$path;$installDir", "User")
               Write-Host "Added $installDir to PATH"
           }
-          
+
           Write-Host "KindlyGuard installed successfully!"
           EOF
-      
+
       - name: Upload PowerShell installer
         run: |
           gh release upload ${{ github.ref_name }} install.ps1 --clobber
