@@ -100,7 +100,7 @@ pretty_assertions = "1.4"
 serial_test = "3.2"
 termcolor = "1.4"
 jsonwebtoken = "9.3"
-reqwest = { version = "0.12", features = ["json"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
 tokio-tungstenite = "0.24"
 hyper = { version = "1.5", features = ["full"] }
 hyper-util = "0.1"
