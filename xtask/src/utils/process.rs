@@ -174,12 +174,10 @@ impl ProcessBuilder {
             let reader = BufReader::new(stdout);
             Some(thread::spawn(move || {
                 let mut output = String::new();
-                for line in reader.lines() {
-                    if let Ok(line) = line {
-                        println!("{}", line);
-                        output.push_str(&line);
-                        output.push('\n');
-                    }
+                for line in reader.lines().flatten() {
+                    println!("{}", line);
+                    output.push_str(&line);
+                    output.push('\n');
                 }
                 output
             }))
@@ -192,12 +190,10 @@ impl ProcessBuilder {
             let reader = BufReader::new(stderr);
             Some(thread::spawn(move || {
                 let mut output = String::new();
-                for line in reader.lines() {
-                    if let Ok(line) = line {
-                        eprintln!("{}", line);
-                        output.push_str(&line);
-                        output.push('\n');
-                    }
+                for line in reader.lines().flatten() {
+                    eprintln!("{}", line);
+                    output.push_str(&line);
+                    output.push('\n');
                 }
                 output
             }))
@@ -259,7 +255,7 @@ impl ProcessBuilder {
             stdout: String::from_utf8_lossy(&output.stdout).to_string(),
             stderr: String::from_utf8_lossy(&output.stderr).to_string(),
             status: output.status,
-            elapsed: start.elapsed().into(),
+            elapsed: start.elapsed(),
         })
     }
 }
@@ -365,6 +361,12 @@ where
 /// Pipeline commands (pipe output from one to another)
 pub struct Pipeline {
     commands: Vec<ProcessBuilder>,
+}
+
+impl Default for Pipeline {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Pipeline {
@@ -524,7 +526,7 @@ mod tests {
     fn test_pipeline() {
         let output = Pipeline::new()
             .pipe(ProcessBuilder::new("echo").arg("hello world"))
-            .pipe(ProcessBuilder::new("tr").args(&["a-z", "A-Z"]))
+            .pipe(ProcessBuilder::new("tr").args(["a-z", "A-Z"]))
             .run()
             .unwrap();
 

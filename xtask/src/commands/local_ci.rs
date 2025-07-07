@@ -3,7 +3,7 @@ use anyhow::Result;
 use chrono::Local;
 use clap::Parser;
 use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Parser)]
 pub struct LocalCiCmd {
@@ -192,7 +192,7 @@ impl LocalCiCmd {
 
 async fn run_format_check(_ctx: &Context, verbose: bool) -> Result<bool> {
     let mut cmd = std::process::Command::new("cargo");
-    cmd.args(&["fmt", "--", "--check"]);
+    cmd.args(["fmt", "--", "--check"]);
 
     if !verbose {
         cmd.stdout(std::process::Stdio::null())
@@ -204,7 +204,7 @@ async fn run_format_check(_ctx: &Context, verbose: bool) -> Result<bool> {
 
 async fn run_clippy(_ctx: &Context, verbose: bool) -> Result<bool> {
     let mut cmd = std::process::Command::new("cargo");
-    cmd.args(&[
+    cmd.args([
         "clippy",
         "--all-features",
         "--all-targets",
@@ -223,7 +223,7 @@ async fn run_clippy(_ctx: &Context, verbose: bool) -> Result<bool> {
 
 async fn run_build(_ctx: &Context, verbose: bool) -> Result<bool> {
     let mut cmd = std::process::Command::new("cargo");
-    cmd.args(&["build", "--all-features"]);
+    cmd.args(["build", "--all-features"]);
 
     if !verbose {
         cmd.stdout(std::process::Stdio::null())
@@ -237,9 +237,9 @@ async fn run_tests(_ctx: &Context, quick: bool, verbose: bool) -> Result<bool> {
     let mut cmd = std::process::Command::new("cargo");
 
     if quick {
-        cmd.args(&["test", "--lib"]);
+        cmd.args(["test", "--lib"]);
     } else if crate::utils::nextest::is_installed() {
-        cmd.args(&["nextest", "run"]);
+        cmd.args(["nextest", "run"]);
     } else {
         cmd.arg("test");
     }
@@ -328,7 +328,7 @@ async fn run_security_audit(_ctx: &Context, report_path: &PathBuf, _verbose: boo
     if crate::utils::tools::is_tool_installed("cargo-deny")? {
         writeln!(report, "## Cargo Deny")?;
         let mut cmd = std::process::Command::new("cargo");
-        cmd.args(&["deny", "check"]);
+        cmd.args(["deny", "check"]);
 
         let output = cmd.output()?;
         write!(report, "{}", String::from_utf8_lossy(&output.stdout))?;
@@ -344,7 +344,7 @@ async fn run_security_audit(_ctx: &Context, report_path: &PathBuf, _verbose: boo
 
 async fn run_doc_build(_ctx: &Context, verbose: bool) -> Result<bool> {
     let mut cmd = std::process::Command::new("cargo");
-    cmd.args(&["doc", "--no-deps"]);
+    cmd.args(["doc", "--no-deps"]);
 
     if !verbose {
         cmd.stdout(std::process::Stdio::null())
@@ -354,7 +354,7 @@ async fn run_doc_build(_ctx: &Context, verbose: bool) -> Result<bool> {
     Ok(cmd.status()?.success())
 }
 
-fn clean_ci_artifacts(ci_dir: &PathBuf) -> Result<()> {
+fn clean_ci_artifacts(ci_dir: &Path) -> Result<()> {
     for subdir in &["reports", "logs", "artifacts"] {
         let dir = ci_dir.join(subdir);
         if dir.exists() {

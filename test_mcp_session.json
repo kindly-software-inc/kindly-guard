@@ -1,0 +1,4 @@
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"0.1.0","capabilities":{"tools":{}},"clientInfo":{"name":"test","version":"1.0.0"}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"scan","arguments":{"content":"SELECT * FROM users WHERE id = '1' OR '1'='1'","protection_mode":"report"}}}
+{"jsonrpc":"2.0","id":4,"method":"shutdown","params":{}}

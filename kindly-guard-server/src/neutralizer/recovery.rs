@@ -27,7 +27,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 /// Recovery strategy for neutralization failures
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum RecoveryStrategy {
     /// Retry with exponential backoff
     RetryWithBackoff {
@@ -47,7 +47,7 @@ pub enum RecoveryStrategy {
 }
 
 /// Configuration for neutralization recovery
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct RecoveryConfig {
     /// Enable recovery mechanisms
     pub enabled: bool,

@@ -257,11 +257,9 @@ impl AuditLogger for FileAuditLogger {
             if let Ok(file) = File::open(&file_path) {
                 let reader = BufReader::new(file);
 
-                for line in reader.lines() {
-                    if let Ok(line) = line {
-                        if let Ok(event) = serde_json::from_str::<AuditEvent>(&line) {
-                            all_events.push(event);
-                        }
+                for line in reader.lines().flatten() {
+                    if let Ok(event) = serde_json::from_str::<AuditEvent>(&line) {
+                        all_events.push(event);
                     }
                 }
             }

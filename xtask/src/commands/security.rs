@@ -101,13 +101,13 @@ struct SecurityResults {
 
 impl SecurityResults {
     fn has_issues(&self) -> bool {
-        self.audit.as_ref().map_or(false, |r| r.vulnerabilities > 0)
-            || self.deny.as_ref().map_or(false, |r| r.errors > 0)
+        self.audit.as_ref().is_some_and(|r| r.vulnerabilities > 0)
+            || self.deny.as_ref().is_some_and(|r| r.errors > 0)
     }
 
     fn has_warnings(&self) -> bool {
-        self.audit.as_ref().map_or(false, |r| r.warnings > 0)
-            || self.deny.as_ref().map_or(false, |r| r.warnings > 0)
+        self.audit.as_ref().is_some_and(|r| r.warnings > 0)
+            || self.deny.as_ref().is_some_and(|r| r.warnings > 0)
     }
 }
 
@@ -159,7 +159,7 @@ pub fn run_audit(ctx: &Context) -> Result<AuditResult> {
     let spinner = spinner("Checking for vulnerabilities");
 
     let output = std::process::Command::new("cargo")
-        .args(&["audit", "--json"])
+        .args(["audit", "--json"])
         .output()
         .context("Failed to run cargo-audit")?;
 
@@ -242,7 +242,7 @@ pub fn run_deny(ctx: &Context) -> Result<DenyResult> {
     }
 
     let output = std::process::Command::new("cargo")
-        .args(&["deny", "check", "--format", "json"])
+        .args(["deny", "check", "--format", "json"])
         .output()
         .context("Failed to run cargo-deny")?;
 

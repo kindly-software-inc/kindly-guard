@@ -1,0 +1,8 @@
+<html>
+<body>
+  <h1>Welcome!</h1>
+  <p>User input: <script>alert('XSS Attack!')</script></p>
+  <div onclick="javascript:alert('Another XSS')">Click me</div>
+  <img src="x" onerror="alert('Image XSS')">
+</body>
+</html>

@@ -1,6 +1,6 @@
 [package]
 name = "kindly-guard"
-version = "0.11.15"
+version = "0.15.0"
 authors = ["samduchaine"]
 edition = "2021"
 description = "Security-focused MCP server for AI protection - the actual KindlyGuard server"

@@ -1,0 +1,20 @@
+{
+  "name": "kindlyguard-darwin-arm64",
+  "version": "0.15.0",
+  "description": "macOS arm64 (Apple Silicon) binary for KindlyGuard",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samduchaine/kindly-guard.git"
+  },
+  "license": "Apache-2.0",
+  "author": "samduchaine",
+  "main": "kindlyguard",
+  "files": [
+    "kindlyguard"
+  ],
+  "os": ["darwin"],
+  "cpu": ["arm64"],
+  "engines": {
+    "node": ">=14.0.0"
+  }
+}

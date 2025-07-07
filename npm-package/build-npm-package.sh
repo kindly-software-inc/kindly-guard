@@ -62,22 +62,15 @@ if [ "$PLATFORM_NAME" = "win32" ]; then
     BINARY_EXT=".exe"
 fi
 
-# Check if binaries exist
+# Check if binary exists
 if [ ! -f "../target/release/kindlyguard${BINARY_EXT}" ]; then
     print_error "Binary not found: ../target/release/kindlyguard${BINARY_EXT}"
     print_info "Please run 'cargo build --release' first"
     exit 1
 fi
 
-if [ ! -f "../target/release/kindlyguard-cli${BINARY_EXT}" ]; then
-    print_error "Binary not found: ../target/release/kindlyguard-cli${BINARY_EXT}"
-    print_info "Please run 'cargo build --release' first"
-    exit 1
-fi
-
-# Copy binaries
+# Copy binary
 cp "../target/release/kindlyguard${BINARY_EXT}" "$PACKAGE_DIR/kindlyguard${BINARY_EXT}"
-cp "../target/release/kindlyguard-cli${BINARY_EXT}" "$PACKAGE_DIR/kindlyguard-cli${BINARY_EXT}"
 
 print_status "Binaries copied"
 
@@ -94,8 +87,7 @@ cat > "$PACKAGE_DIR/package.json" <<EOF
     "url": "git+https://github.com/samduchaine/kindly-guard.git"
   },
   "files": [
-    "kindlyguard${BINARY_EXT}",
-    "kindlyguard-cli${BINARY_EXT}"
+    "kindlyguard${BINARY_EXT}"
   ],
   "os": ["${PLATFORM_NAME}"],
   "cpu": ["${ARCH_NAME}"]

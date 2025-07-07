@@ -12,6 +12,11 @@ pub enum IdeType {
     Cursor,
     Zed,
     Neovim,
+    Windsurf,
+    ContinueDev,
+    Codeium,
+    TabNine,
+    GitHubCopilot,
     Unknown,
 }
 
@@ -24,7 +29,43 @@ impl IdeType {
             Self::Cursor => "Cursor",
             Self::Zed => "Zed",
             Self::Neovim => "Neovim",
+            Self::Windsurf => "Windsurf",
+            Self::ContinueDev => "Continue",
+            Self::Codeium => "Codeium",
+            Self::TabNine => "TabNine",
+            Self::GitHubCopilot => "GitHub Copilot",
             Self::Unknown => "Unknown",
+        }
+    }
+    
+    /// Returns true if this IDE supports MCP protocol
+    pub fn supports_mcp(&self) -> bool {
+        matches!(self, 
+            Self::ClaudeDesktop | 
+            Self::ClaudeCode | 
+            Self::VsCode | 
+            Self::Cursor | 
+            Self::Zed |
+            Self::Windsurf |
+            Self::ContinueDev
+        )
+    }
+    
+    /// Returns the config file format preferred by this IDE
+    pub fn preferred_format(&self) -> ConfigFormat {
+        match self {
+            Self::ClaudeDesktop => ConfigFormat::Json,
+            Self::ClaudeCode => ConfigFormat::Json,
+            Self::VsCode => ConfigFormat::Json,
+            Self::Cursor => ConfigFormat::Json,
+            Self::Zed => ConfigFormat::Json,
+            Self::Neovim => ConfigFormat::Json,
+            Self::Windsurf => ConfigFormat::JsonLocal,
+            Self::ContinueDev => ConfigFormat::Json,
+            Self::Codeium => ConfigFormat::Json,
+            Self::TabNine => ConfigFormat::Json,
+            Self::GitHubCopilot => ConfigFormat::Json,
+            Self::Unknown => ConfigFormat::Json,
         }
     }
 }
@@ -79,6 +120,12 @@ enum Platform {
     Linux,
 }
 
+impl Default for McpDetector {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl McpDetector {
     pub fn new() -> Self {
         let platform = if cfg!(target_os = "windows") {
@@ -113,6 +160,12 @@ impl McpDetector {
 
         // Neovim configs
         locations.extend(self.get_neovim_configs()?);
+
+        // Windsurf configs
+        locations.extend(self.get_windsurf_configs()?);
+
+        // Continue configs
+        locations.extend(self.get_continue_configs()?);
 
         // Global MCP configs
         locations.extend(self.get_global_mcp_configs()?);
@@ -167,6 +220,11 @@ impl McpDetector {
             IdeType::Cursor => self.get_cursor_config_path(),
             IdeType::Zed => self.get_zed_config_path(),
             IdeType::Neovim => self.get_neovim_config_path(),
+            IdeType::Windsurf => self.get_windsurf_config_path(),
+            IdeType::ContinueDev => self.get_continue_config_path(),
+            IdeType::Codeium | IdeType::TabNine | IdeType::GitHubCopilot => {
+                Err(anyhow::anyhow!("{} does not support MCP configuration", ide.as_str()))
+            },
             IdeType::Unknown => Err(anyhow::anyhow!("Cannot get config path for unknown IDE")),
         }
     }
@@ -447,6 +505,66 @@ impl McpDetector {
         Ok(configs)
     }
 
+    // Windsurf configurations
+    fn get_windsurf_configs(&self) -> Result<Vec<ConfigLocation>> {
+        let mut configs = Vec::new();
+
+        match self.platform {
+            Platform::Windows => {
+                let appdata = env::var("APPDATA").map(PathBuf::from)?;
+                configs.push(ConfigLocation::new(
+                    appdata.join("Windsurf").join("User").join("settings.local.json"),
+                    ConfigFormat::JsonLocal,
+                    IdeType::Windsurf,
+                ));
+            },
+            Platform::MacOs => {
+                let home = self.get_home_dir()?;
+                configs.push(ConfigLocation::new(
+                    home.join("Library")
+                        .join("Application Support")
+                        .join("Windsurf")
+                        .join("User")
+                        .join("settings.local.json"),
+                    ConfigFormat::JsonLocal,
+                    IdeType::Windsurf,
+                ));
+            },
+            Platform::Linux => {
+                let config = self.get_config_dir()?;
+                configs.push(ConfigLocation::new(
+                    config.join("Windsurf").join("User").join("settings.local.json"),
+                    ConfigFormat::JsonLocal,
+                    IdeType::Windsurf,
+                ));
+            },
+        }
+
+        Ok(configs)
+    }
+
+    // Continue configurations
+    fn get_continue_configs(&self) -> Result<Vec<ConfigLocation>> {
+        let mut configs = Vec::new();
+        let home = self.get_home_dir()?;
+
+        // Continue uses a standard location across platforms
+        configs.push(ConfigLocation::new(
+            home.join(".continue").join("config.json"),
+            ConfigFormat::Json,
+            IdeType::ContinueDev,
+        ));
+
+        // Also check for MCP-specific config
+        configs.push(ConfigLocation::new(
+            home.join(".continue").join("mcp.json"),
+            ConfigFormat::Json,
+            IdeType::ContinueDev,
+        ));
+
+        Ok(configs)
+    }
+
     // Global MCP configurations
     fn get_global_mcp_configs(&self) -> Result<Vec<ConfigLocation>> {
         let mut configs = Vec::new();
@@ -526,6 +644,10 @@ impl McpDetector {
             return Ok(IdeType::Cursor);
         }
 
+        if processes.contains("Windsurf.exe") {
+            return Ok(IdeType::Windsurf);
+        }
+
         if processes.contains("nvim.exe") || processes.contains("nvim-qt.exe") {
             return Ok(IdeType::Neovim);
         }
@@ -537,7 +659,7 @@ impl McpDetector {
         use std::process::Command;
 
         let output = Command::new("ps")
-            .args(&["-ax"])
+            .args(["-ax"])
             .output()
             .context("Failed to run ps")?;
 
@@ -559,6 +681,10 @@ impl McpDetector {
             return Ok(IdeType::Cursor);
         }
 
+        if processes.contains("Windsurf.app") || processes.contains("Windsurf Helper") {
+            return Ok(IdeType::Windsurf);
+        }
+
         if processes.contains("nvim") {
             return Ok(IdeType::Neovim);
         }
@@ -570,7 +696,7 @@ impl McpDetector {
         use std::process::Command;
 
         let output = Command::new("ps")
-            .args(&["aux"])
+            .args(["aux"])
             .output()
             .context("Failed to run ps")?;
 
@@ -590,6 +716,10 @@ impl McpDetector {
 
         if processes.contains("cursor") {
             return Ok(IdeType::Cursor);
+        }
+
+        if processes.contains("windsurf") {
+            return Ok(IdeType::Windsurf);
         }
 
         if processes.contains("nvim") {
@@ -701,6 +831,33 @@ impl McpDetector {
         Ok(home.join(".config").join("nvim").join("mcp.json"))
     }
 
+    fn get_windsurf_config_path(&self) -> Result<PathBuf> {
+        match self.platform {
+            Platform::Windows => {
+                let appdata = env::var("APPDATA").map(PathBuf::from)?;
+                Ok(appdata.join("Windsurf").join("User").join("settings.local.json"))
+            },
+            Platform::MacOs => {
+                let home = self.get_home_dir()?;
+                Ok(home
+                    .join("Library")
+                    .join("Application Support")
+                    .join("Windsurf")
+                    .join("User")
+                    .join("settings.local.json"))
+            },
+            Platform::Linux => {
+                let config = self.get_config_dir()?;
+                Ok(config.join("Windsurf").join("User").join("settings.local.json"))
+            },
+        }
+    }
+
+    fn get_continue_config_path(&self) -> Result<PathBuf> {
+        let home = self.get_home_dir()?;
+        Ok(home.join(".continue").join("mcp.json"))
+    }
+
     /// Check if a specific MCP server is configured
     pub fn is_server_configured(&self, server_name: &str) -> Result<bool> {
         let configs = self.detect_claude_configs()?;
@@ -727,8 +884,8 @@ impl McpDetector {
         let all_configs = self.detect_all()?;
         let existing_configs: Vec<_> = all_configs.iter().filter(|c| c.exists).collect();
 
-        let mut summary = format!("MCP Configuration Status\n");
-        summary.push_str(&format!("========================\n"));
+        let mut summary = "MCP Configuration Status\n".to_string();
+        summary.push_str("========================\n");
         summary.push_str(&format!("Active IDE: {}\n", active_ide.as_str()));
         summary.push_str(&format!("Platform: {:?}\n", self.platform));
         summary.push_str(&format!(
@@ -783,7 +940,29 @@ mod tests {
         assert_eq!(IdeType::ClaudeCode.as_str(), "Claude Code");
         assert_eq!(IdeType::VsCode.as_str(), "VS Code");
         assert_eq!(IdeType::Cursor.as_str(), "Cursor");
+        assert_eq!(IdeType::Zed.as_str(), "Zed");
         assert_eq!(IdeType::Neovim.as_str(), "Neovim");
+        assert_eq!(IdeType::Windsurf.as_str(), "Windsurf");
+        assert_eq!(IdeType::ContinueDev.as_str(), "Continue");
+        assert_eq!(IdeType::Codeium.as_str(), "Codeium");
+        assert_eq!(IdeType::TabNine.as_str(), "TabNine");
+        assert_eq!(IdeType::GitHubCopilot.as_str(), "GitHub Copilot");
         assert_eq!(IdeType::Unknown.as_str(), "Unknown");
+    }
+    
+    #[test]
+    fn test_mcp_support() {
+        assert!(IdeType::ClaudeDesktop.supports_mcp());
+        assert!(IdeType::ClaudeCode.supports_mcp());
+        assert!(IdeType::VsCode.supports_mcp());
+        assert!(IdeType::Cursor.supports_mcp());
+        assert!(IdeType::Zed.supports_mcp());
+        assert!(IdeType::Windsurf.supports_mcp());
+        assert!(IdeType::ContinueDev.supports_mcp());
+        
+        assert!(!IdeType::Neovim.supports_mcp());
+        assert!(!IdeType::Codeium.supports_mcp());
+        assert!(!IdeType::TabNine.supports_mcp());
+        assert!(!IdeType::GitHubCopilot.supports_mcp());
     }
 }

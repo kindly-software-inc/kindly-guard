@@ -379,19 +379,19 @@ args = ["bloat", "--release", "--crates"]
 [tasks.run]
 description = "Run KindlyGuard server"
 command = "cargo"
-args = ["run", "--bin", "kindly-guard-server", "--", "--stdio"]
+args = ["run", "--bin", "kindlyguard", "--", "serve", "--stdio"]
 
 [tasks.run-debug]
 description = "Run server with debug logging"
 env = { RUST_LOG = "kindly_guard=debug" }
 command = "cargo"
-args = ["run", "--bin", "kindly-guard-server", "--", "--stdio"]
+args = ["run", "--bin", "kindlyguard", "--", "serve", "--stdio"]
 
 [tasks.run-trace]
 description = "Run server with trace logging"
 env = { RUST_LOG = "kindly_guard=trace" }
 command = "cargo"
-args = ["run", "--bin", "kindly-guard-server", "--", "--stdio"]
+args = ["run", "--bin", "kindlyguard", "--", "serve", "--stdio"]
 
 [tasks.monitor]
 description = "Run KindlyGuard monitor"
@@ -444,7 +444,7 @@ args = ["xtask", "build", "--target", "x86_64-apple-darwin"]
 [tasks.test-server]
 description = "Test server crate only"
 command = "cargo"
-args = ["test", "-p", "kindly-guard-server"]
+args = ["test", "-p", "kindlyguard"]
 
 [tasks.test-tools]
 description = "Test tools crate only"

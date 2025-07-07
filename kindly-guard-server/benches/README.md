@@ -32,6 +32,16 @@ Basic performance comparison between standard and enhanced modes:
 ### 4. Regression Benchmarks (`regression_benchmarks.rs`)
 Ensures performance doesn't degrade across versions.
 
+### 5. SIMD Scanner Benchmarks (`simd_scanner_benchmarks.rs`)
+Comprehensive benchmarks comparing standard vs SIMD-enhanced scanner implementations:
+- **Scanner Comparison**: Direct throughput comparison across input sizes (1KB-10MB)
+- **Pattern-Specific Performance**: Unicode, injection, and XSS pattern detection speed
+- **Threat Density Impact**: Performance scaling with threat density (0%-50%)
+- **JSON Scanning**: Structured data scanning performance
+- **Parallel Processing**: Multi-threaded scanning efficiency
+- **Memory Efficiency**: Cache utilization and memory bandwidth tests
+- **Worst-Case Scenarios**: Performance under extreme conditions
+
 ## Running Benchmarks
 
 ### Run all benchmarks:
@@ -52,6 +62,17 @@ cargo bench --bench critical_path_benchmarks unicode_scanning
 ### Quick test (verify compilation):
 ```bash
 cargo bench --bench critical_path_benchmarks -- --test
+```
+
+### Run SIMD scanner benchmarks:
+```bash
+# All SIMD benchmarks
+cargo bench --bench simd_scanner_benchmarks
+
+# Specific benchmark groups
+cargo bench --bench simd_scanner_benchmarks -- scanner_comparison
+cargo bench --bench simd_scanner_benchmarks -- pattern_performance
+cargo bench --bench simd_scanner_benchmarks -- threat_density
 ```
 
 ### Generate HTML reports:

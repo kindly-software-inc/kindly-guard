@@ -1,0 +1,79 @@
+[package]
+name = "kindlyguard"
+version = "0.15.0"
+authors = ["samduchaine"]
+edition = "2021"
+description = "Security-focused MCP server protecting against unicode attacks, injection threats, and other AI vulnerabilities"
+license = "Apache-2.0"
+repository = "https://github.com/samduchaine/kindly-guard"
+homepage = "https://github.com/samduchaine/kindly-guard"
+documentation = "https://docs.rs/kindlyguard"
+readme = "README.md"
+keywords = ["security", "mcp", "ai", "protection", "cli"]
+categories = ["network-programming", "command-line-utilities", "development-tools"]
+
+[[bin]]
+name = "kindlyguard"
+path = "src/main.rs"
+
+[dependencies]
+# Core dependencies
+anyhow = "1.0"
+clap = { version = "4.5", features = ["derive", "cargo", "env"] }
+tokio = { version = "1.46", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+colored = "2.1"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# Server dependencies (from kindly-guard-server)
+kindly-guard-server = { path = "../kindly-guard-server", version = "0.15.0" }
+
+# Tool dependencies
+reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls"] }
+indicatif = "0.17"
+dirs = "5.0"
+which = "7.0"
+semver = "1.0"
+sha2 = "0.10"
+hex = "0.4"
+futures = "0.3"
+chrono = { version = "0.4", features = ["serde"] }
+uuid = { version = "1.11", features = ["v4", "serde"] }
+
+# Platform detection
+whoami = "1.5"
+sysinfo = "0.33"
+
+# Terminal interaction
+dialoguer = "0.11"
+console = "0.15"
+crossterm = "0.28"
+
+[target.'cfg(unix)'.dependencies]
+nix = { version = "0.30", features = ["fs", "process"] }
+
+[target.'cfg(windows)'.dependencies]
+winreg = "0.52"
+windows = { version = "0.60", features = ["Win32_System_Environment"] }
+
+[dev-dependencies]
+tempfile = "3.15"
+mockito = "1.7"
+serial_test = "3.2"
+
+[features]
+default = ["server", "tools", "installer"]
+server = []
+tools = []
+installer = []
+
+# The profile that 'dist' will build with
+[profile.dist]
+inherits = "release"
+lto = "thin"
+
+[package.metadata.dist]
+# Ensure dist builds this binary
+dist = true

@@ -26,6 +26,7 @@ use crate::traits::SecurityEventProcessor;
 
 pub mod cli;
 pub mod display;
+pub mod message_integration;
 pub mod universal_display;
 
 pub use cli::{CliShield, DisplayFormat, ShieldStatus};

@@ -15,6 +15,12 @@ pub struct BuildPipeline {
     features: Option<String>,
 }
 
+impl Default for BuildPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BuildPipeline {
     pub fn new() -> Self {
         Self {

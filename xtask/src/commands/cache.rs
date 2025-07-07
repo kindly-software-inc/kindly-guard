@@ -127,7 +127,7 @@ async fn install_sccache(ctx: &Context) -> Result<()> {
     // Try cargo-binstall first (faster)
     if which("cargo-binstall").is_ok() && !ctx.dry_run {
         let result = Command::new("cargo")
-            .args(&["binstall", "--no-confirm", "sccache"])
+            .args(["binstall", "--no-confirm", "sccache"])
             .output()
             .context("Failed to run cargo-binstall")?;
 

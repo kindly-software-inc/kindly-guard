@@ -13,10 +13,21 @@ KindlyGuard is a **security-focused MCP (Model Context Protocol) server** that a
 
 ## Quick Start
 
-### 1. First-Time Setup
+### 1. Instant Setup (Recommended)
+```bash
+# Install via npm - no compilation needed!
+npm install -g kindlyguard
+
+# Start the MCP server
+kindlyguard serve
+
+# You're protected!
+```
+
+### 2. Development Setup (For Contributors)
 ```bash
 # Clone and enter the project
-git clone <repository-url>
+git clone https://github.com/kindly-software-inc/kindly-guard
 cd kindly-guard
 
 # Build everything
@@ -25,23 +36,37 @@ cargo build --workspace
 # Run tests to verify setup
 cargo test --workspace
 
-# Start the MCP server
-cargo run --bin kindly-guard-server
+# Run the unified binary
+cargo run --bin kindlyguard -- serve
 ```
 
 ### 2. Understanding the Codebase Structure
 ```
 kindly-guard/
-├── kindly-guard-server/    # Main MCP server implementation
+├── kindlyguard/           # Unified binary (NEW!)
 │   └── src/
-│       ├── main.rs        # Entry point - start here!
+│       ├── main.rs        # Unified entry point
+│       ├── cli/           # CLI commands
+│       ├── server/        # MCP server mode
+│       └── tools/         # Scanner, monitor, etc.
+├── kindly-guard-server/   # Core server library
+│   └── src/
 │       ├── scanner/       # Threat detection engines
 │       ├── protocol/      # MCP protocol handling
 │       └── shield/        # Terminal UI components
-├── kindly-guard-cli/      # Command-line interface
-├── kindly-guard-shield/   # Desktop UI (Tauri app)
+├── npm-package/           # npm distribution
+│   ├── package.json       # npm metadata
+│   └── lib/               # Platform detection
 └── docs/                  # Additional documentation
 ```
+
+### 3. The Unified Binary Advantage
+
+The `kindlyguard` binary combines all functionality:
+- **Server Mode**: `kindlyguard serve` - MCP server with all tools
+- **CLI Mode**: `kindlyguard scan`, `monitor`, `wrap` - Direct usage
+- **Shield Mode**: `kindlyguard shield` - Interactive UI
+- **MCP Management**: `kindlyguard mcp` - Configure integrations
 
 ## Key Concepts
 

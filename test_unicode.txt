@@ -1,0 +1,4 @@
+Normal text followed by invisible unicode: Hello‌World
+Homograph attack: pаypal.com (with Cyrillic 'а')
+BiDi override: ‏user‎@example.com
+Zero-width characters: admin​user

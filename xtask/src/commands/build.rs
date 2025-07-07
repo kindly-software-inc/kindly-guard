@@ -277,9 +277,11 @@ fn create_archive(
 fn create_zip_archive(src_dir: &Path, dest_path: &Path) -> Result<()> {
     use crate::utils::archive::{create_zip, CreateOptions};
 
-    let mut options = CreateOptions::default();
-    options.compression_level = 6;
-    options.preserve_permissions = true;
+    let options = CreateOptions {
+        compression_level: 6,
+        preserve_permissions: true,
+        ..Default::default()
+    };
 
     create_zip(dest_path, src_dir, options)
 }
@@ -287,9 +289,11 @@ fn create_zip_archive(src_dir: &Path, dest_path: &Path) -> Result<()> {
 fn create_tar_archive(src_dir: &Path, dest_path: &Path) -> Result<()> {
     use crate::utils::archive::{create_tar_gz, CreateOptions};
 
-    let mut options = CreateOptions::default();
-    options.compression_level = 6;
-    options.preserve_permissions = true;
+    let options = CreateOptions {
+        compression_level: 6,
+        preserve_permissions: true,
+        ..Default::default()
+    };
 
     create_tar_gz(dest_path, src_dir, options)
 }

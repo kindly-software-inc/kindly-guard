@@ -134,12 +134,9 @@ impl DaemonHandle {
                     },
                 };
 
-                loop {
-                    stream.recv().await;
-                    info!("Received SIGTERM, shutting down gracefully");
-                    handle2.shutdown();
-                    break;
-                }
+                stream.recv().await;
+                info!("Received SIGTERM, shutting down gracefully");
+                handle2.shutdown();
             });
 
             // Handle SIGHUP for reload (optional)

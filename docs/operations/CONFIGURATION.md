@@ -45,23 +45,44 @@ All configuration defaults follow these principles:
 KindlyGuard supports both TOML and YAML configuration files:
 
 ```toml
-# kindly-guard.toml
+# ~/.kindlyguard/config.toml (recommended location)
 [server]
 port = 8080
 stdio = true
 
 [scanner]
 unicode_detection = true
+
+[protection]
+mode = "auto"  # auto, interactive, report
 ```
 
 ```yaml
-# kindly-guard.yaml
+# ~/.kindlyguard/config.yaml (alternative format)
 server:
   port: 8080
   stdio: true
 
 scanner:
   unicode_detection: true
+  
+protection:
+  mode: "auto"
+```
+
+### Using Configuration with the Unified Binary
+
+The `kindlyguard` binary accepts configuration in multiple ways:
+
+```bash
+# Use default config location (~/.kindlyguard/config.toml)
+kindlyguard serve
+
+# Specify custom config file
+kindlyguard serve --config /path/to/config.toml
+
+# Override with environment variables
+KINDLYGUARD_PROTECTION_MODE=interactive kindlyguard serve
 ```
 
 ## Configuration Sources

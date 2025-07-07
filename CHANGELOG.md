@@ -12,6 +12,97 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Platform testing ongoing
 - Release artifacts preparation
 
+## [0.15.0] - 2025-01-06
+
+### Added
+- **Enhanced Threat System with Quarantine Support**
+  - New `ThreatInfo` struct with comprehensive threat metadata
+  - Quarantine system for isolating suspicious content
+  - Encrypted quarantine storage using ChaCha20Poly1305
+  - Threat severity levels (Critical, High, Medium, Low, Info)
+  - Protection modes (Monitor, Block, BlockAndLog, Quarantine)
+  - Friendly, educational threat messages for better user experience
+
+- **New MCP Tools for Quarantine Management**
+  - `quarantine_list`: List all quarantined items with metadata
+  - `quarantine_get`: Retrieve specific quarantined content securely
+  - `quarantine_delete`: Remove items from quarantine
+  - `quarantine_restore`: Safely restore quarantined content
+  - `quarantine_analyze`: Deep analysis of quarantined threats
+  - `quarantine_export`: Export quarantine data for analysis
+
+- **Enhanced Scan Tools**
+  - New `includeMetadata` parameter for detailed threat information
+  - `protectionMode` parameter to control threat handling behavior
+  - `severityThreshold` for filtering threats by severity
+  - Support for batch operations with progress tracking
+  - Real-time threat statistics during scanning
+
+- **Security Infrastructure Improvements**
+  - ChaCha20Poly1305 authenticated encryption for quarantine
+  - Per-item encryption keys with secure key derivation
+  - Integrity verification for all quarantined content
+  - Audit logging for all quarantine operations
+  - Secure temporary file handling with automatic cleanup
+
+- **Performance Optimizations**
+  - Streaming encryption/decryption for large files
+  - Parallel threat analysis for multi-core utilization
+  - Optimized pattern matching with caching
+  - Memory-efficient large file handling
+  - Background quarantine maintenance tasks
+
+### Changed
+- **API Enhancements**
+  - Scanner trait now returns `ThreatInfo` instead of simple `Threat`
+  - Neutralizer supports protection mode-aware operations
+  - Enhanced error types with more context
+  - Improved JSON serialization for MCP compatibility
+  - Better separation of concerns between detection and action
+
+- **Threat Detection Improvements**
+  - More granular threat categorization
+  - Context-aware severity assignment
+  - Enhanced pattern recognition accuracy
+  - Reduced false positive rate
+  - Better handling of edge cases
+
+- **User Experience**
+  - Friendly, educational threat messages
+  - Clear explanations of why content was flagged
+  - Actionable recommendations for users
+  - Non-alarmist tone in security messages
+  - Progress indicators for long operations
+
+### Fixed
+- Improved error handling in scanner implementations
+- Better resource cleanup in error paths
+- Fixed race conditions in concurrent operations
+- Resolved memory leaks in long-running scans
+- Corrected threat severity calculations
+
+### Security
+- **Encryption**: All quarantined content encrypted with ChaCha20Poly1305
+- **Authentication**: HMAC-based integrity verification
+- **Key Management**: Secure key derivation and storage
+- **Access Control**: Permission-based quarantine operations
+- **Audit Trail**: Complete logging of security operations
+- **Input Validation**: Enhanced validation for all API inputs
+
+### Documentation
+- Comprehensive API documentation for new features
+- Security best practices guide
+- Quarantine management documentation
+- Migration guide from v0.10.x
+- Updated examples and tutorials
+- Performance tuning guide
+
+### Compatibility
+- Backward compatible with v0.10.x scanner API
+- MCP protocol compliance maintained
+- Configuration format unchanged
+- Smooth upgrade path with auto-migration
+
 ## [0.10.3] - 2025-07-05
 
 ### Changed
@@ -180,7 +271,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configuration system
 - Basic authentication
 
-[Unreleased]: https://github.com/yourusername/kindly-guard/compare/v0.9.5...HEAD
+[Unreleased]: https://github.com/yourusername/kindly-guard/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/yourusername/kindly-guard/compare/v0.10.3...v0.15.0
+[0.10.3]: https://github.com/yourusername/kindly-guard/compare/v0.10.2...v0.10.3
+[0.10.2]: https://github.com/yourusername/kindly-guard/compare/v0.10.1...v0.10.2
+[0.10.1]: https://github.com/yourusername/kindly-guard/compare/v0.10.0...v0.10.1
+[0.10.0]: https://github.com/yourusername/kindly-guard/compare/v0.9.5...v0.10.0
 [0.9.5]: https://github.com/yourusername/kindly-guard/compare/v0.9.0...v0.9.5
 [0.9.0]: https://github.com/yourusername/kindly-guard/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/yourusername/kindly-guard/compare/v0.1.0...v0.8.0

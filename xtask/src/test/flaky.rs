@@ -211,8 +211,8 @@ impl FlakyTestManager {
 
         let db = Database {
             executions: exec_map,
-            stats: &*stats,
-            retry_policies: &*policies,
+            stats: &stats,
+            retry_policies: &policies,
         };
 
         let json = serde_json::to_string_pretty(&db)?;
@@ -553,8 +553,8 @@ impl FlakyTestManager {
             BackoffStrategy::Fixed { delay } => *delay,
             BackoffStrategy::Linear { base } => *base * attempt,
             BackoffStrategy::Exponential { base, max } => {
-                let exp = (*base * 2u32.pow(attempt.saturating_sub(1))).min(*max);
-                exp
+                
+                (*base * 2u32.pow(attempt.saturating_sub(1))).min(*max)
             },
             BackoffStrategy::ExponentialJitter { base, max } => {
                 let exp = (*base * 2u32.pow(attempt.saturating_sub(1))).min(*max);

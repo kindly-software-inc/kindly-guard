@@ -1,0 +1,7 @@
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{"tools":{}},"clientInfo":{"name":"claude-demo","version":"1.0.0"}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"scan_text","arguments":{"text":"Hello! Check this: SELECT * FROM users WHERE id='1' OR '1'='1' -- SQL injection","protection_mode":"auto","include_messages":true}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"scan_text","arguments":{"text":"<script>alert('XSS')</script> Normal text here","protection_mode":"auto","include_messages":true}}}
+{"jsonrpc":"2.0","id":5,"method":"tools/call","params":{"name":"scan_text","arguments":{"text":"Check out pаypal.com (with Cyrillic 'а')","protection_mode":"report","include_messages":true}}}
+{"jsonrpc":"2.0","id":6,"method":"tools/call","params":{"name":"get_security_info","arguments":{}}}
+{"jsonrpc":"2.0","id":7,"method":"shutdown","params":{}}

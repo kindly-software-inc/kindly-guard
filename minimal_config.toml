@@ -1,0 +1,13 @@
+[server]
+bind = "127.0.0.1:8080"
+
+[scanner]
+scan_json_values = true
+scan_json_keys = true
+
+[quarantine]
+base_path = "/tmp/kindlyguard_quarantine"
+encrypt = true
+compress_after_days = 30
+delete_after_days = 90
+max_size_mb = 1000

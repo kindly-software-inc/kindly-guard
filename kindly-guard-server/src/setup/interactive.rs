@@ -8,49 +8,92 @@ use std::io::{self, Write};
 
 use super::{ConfigFormat, IdeType};
 
-/// Prompt user to select an IDE from detected options
-pub fn prompt_ide_selection(detected_ides: &[IdeType]) -> Result<IdeType> {
+/// Prompt user to select IDEs from detected options
+pub fn prompt_ide_selection(detected_ides: &[IdeType]) -> Result<Vec<IdeType>> {
     if detected_ides.is_empty() {
         return Err(anyhow!("No IDEs detected"));
     }
 
     if detected_ides.len() == 1 {
-        println!("{}", "Detected IDE:".green().bold());
+        println!("{}", "Detected AI tool:".green().bold());
         println!("  • {}", format_ide_name(&detected_ides[0]).cyan());
-        return Ok(detected_ides[0].clone());
+        return Ok(vec![detected_ides[0]]);
     }
 
-    println!("{}", "Multiple IDEs detected:".green().bold());
+    println!("{}", "Multiple AI tools detected:".green().bold());
     println!();
 
     for (i, ide) in detected_ides.iter().enumerate() {
+        let mcp_support = if ide.supports_mcp() {
+            " (MCP compatible)".green()
+        } else {
+            " (not MCP compatible)".dark_grey()
+        };
+        
         println!(
-            "  {} {} {}",
+            "  {} {} {}{}",
             format!("[{}]", i + 1).yellow(),
             "→".dark_grey(),
-            format_ide_name(ide).cyan()
+            format_ide_name(ide).cyan(),
+            mcp_support
         );
     }
 
     println!();
-    print!("{} ", "Select IDE (1-{}):".yellow().bold());
-    print!("{}", format!("{}", detected_ides.len()).cyan());
-    print!(": ");
+    println!("{}", "Select AI tools to configure:".yellow().bold());
+    println!("  {} {}", "•".dark_grey(), "Enter numbers separated by commas (e.g., 1,3,4)");
+    println!("  {} {}", "•".dark_grey(), "Enter 'all' to configure all MCP-compatible tools");
+    println!("  {} {}", "•".dark_grey(), "Press Enter to configure all detected tools");
+    print!("{} ", "Selection:".yellow());
     io::stdout().flush()?;
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
+    let input = input.trim();
 
-    let choice = input
-        .trim()
-        .parse::<usize>()
-        .map_err(|_| anyhow!("Invalid selection"))?;
-
-    if choice < 1 || choice > detected_ides.len() {
-        return Err(anyhow!("Selection out of range"));
+    if input.is_empty() || input.to_lowercase() == "all" {
+        // Configure all MCP-compatible tools
+        let selected: Vec<IdeType> = detected_ides
+            .iter()
+            .filter(|ide| ide.supports_mcp())
+            .copied()
+            .collect();
+        
+        if selected.is_empty() {
+            return Err(anyhow!("No MCP-compatible tools detected"));
+        }
+        
+        return Ok(selected);
     }
 
-    Ok(detected_ides[choice - 1].clone())
+    // Parse comma-separated numbers
+    let mut selected = Vec::new();
+    for part in input.split(',') {
+        let choice = part
+            .trim()
+            .parse::<usize>()
+            .map_err(|_| anyhow!("Invalid selection: {}", part))?;
+
+        if choice < 1 || choice > detected_ides.len() {
+            return Err(anyhow!("Selection out of range: {}", choice));
+        }
+
+        let ide = detected_ides[choice - 1];
+        if !ide.supports_mcp() {
+            println!("{} {} does not support MCP, skipping...", "⚠️".yellow(), ide.as_str());
+            continue;
+        }
+        
+        if !selected.contains(&ide) {
+            selected.push(ide);
+        }
+    }
+
+    if selected.is_empty() {
+        return Err(anyhow!("No valid selections made"));
+    }
+
+    Ok(selected)
 }
 
 /// Ask for confirmation before writing configuration
@@ -141,9 +184,32 @@ pub fn show_setup_result(
                     "MCP menu".green()
                 );
             },
+            IdeType::Windsurf => {
+                println!("  1. {} {}", "Restart".yellow(), "Windsurf".cyan());
+                println!(
+                    "  2. {} {}",
+                    "KindlyGuard will be available in".yellow(),
+                    "MCP settings".green()
+                );
+            },
+            IdeType::ContinueDev => {
+                println!("  1. {} {}", "Restart".yellow(), "Continue".cyan());
+                println!(
+                    "  2. {} {}",
+                    "KindlyGuard will be available in".yellow(),
+                    "Continue's MCP providers".green()
+                );
+            },
+            IdeType::Codeium | IdeType::TabNine | IdeType::GitHubCopilot => {
+                println!(
+                    "  {} {}",
+                    "Note:".yellow(),
+                    format!("{} does not currently support MCP", ide.as_str()).dark_grey()
+                );
+            },
             IdeType::Unknown => {
                 println!("  1. {} {}", "Restart".yellow(), "your IDE".cyan());
-                println!("  2. {} {}", "Check MCP configuration".yellow(), "");
+                println!("  2. {} ", "Check MCP configuration".yellow());
             },
         }
 
@@ -196,7 +262,7 @@ pub fn format_config_preview(ide: &IdeType, format: &ConfigFormat) -> String {
         "Format:".yellow(),
         format_config_format(format).cyan()
     ));
-    preview.push_str("\n");
+    preview.push('\n');
 
     preview.push_str(&format!("{}\n", "Sample configuration:".yellow()));
 
@@ -290,6 +356,11 @@ fn format_ide_name(ide: &IdeType) -> String {
         IdeType::Cursor => "Cursor",
         IdeType::Zed => "Zed",
         IdeType::Neovim => "Neovim",
+        IdeType::Windsurf => "Windsurf",
+        IdeType::ContinueDev => "Continue",
+        IdeType::Codeium => "Codeium",
+        IdeType::TabNine => "TabNine",
+        IdeType::GitHubCopilot => "GitHub Copilot",
         IdeType::Unknown => "Unknown IDE",
     }
     .to_string()
@@ -335,93 +406,141 @@ pub fn print_section_header(title: &str) {
 
 /// Interactive setup wizard that guides users through the process
 pub async fn run_setup_wizard(dry_run: bool) -> Result<()> {
-    use super::McpDetector;
+    use super::{McpDetector, create_config_writer};
+    use std::collections::HashSet;
 
     print_welcome_banner();
 
     // Step 1: Detect IDEs
-    print_section_header("Detecting IDEs");
-    show_progress("Scanning for installed IDEs");
+    print_section_header("Detecting AI Tools");
+    show_progress("Scanning for installed AI tools and IDEs");
 
     let detector = McpDetector::new();
     let detected_configs = detector.detect_all().unwrap_or_default();
-    let detected_ides: Vec<IdeType> = detected_configs
-        .iter()
-        .filter(|c| c.exists)
-        .map(|c| c.ide)
-        .collect();
+    
+    // Get unique IDEs that exist
+    let mut unique_ides = HashSet::new();
+    for config in &detected_configs {
+        if config.exists || config.ide.supports_mcp() {
+            unique_ides.insert(config.ide);
+        }
+    }
+    
+    let mut detected_ides: Vec<IdeType> = unique_ides.into_iter().collect();
+    detected_ides.sort_by(|a, b| a.as_str().cmp(b.as_str()));
+    
     complete_progress(!detected_ides.is_empty());
 
     if detected_ides.is_empty() {
         println!();
-        println!("{}", "No supported IDEs detected!".red().bold());
+        println!("{}", "No supported AI tools detected!".red().bold());
         println!();
-        println!("{}", "Supported IDEs:".yellow());
+        println!("{}", "Supported AI tools:".yellow());
+        println!("  • Claude Desktop");
+        println!("  • Claude Code");
         println!("  • Visual Studio Code");
         println!("  • Cursor");
+        println!("  • Windsurf");
+        println!("  • Continue");
         println!("  • Zed");
         println!("  • Neovim");
-        return Err(anyhow!("No IDEs detected"));
+        return Err(anyhow!("No AI tools detected"));
     }
 
-    // Step 2: Select IDE
-    print_section_header("IDE Selection");
-    let selected_ide = prompt_ide_selection(&detected_ides)?;
+    // Step 2: Select IDEs
+    print_section_header("AI Tool Selection");
+    let selected_ides = prompt_ide_selection(&detected_ides)?;
 
-    // Step 3: Show configuration preview
-    print_section_header("Configuration Preview");
-    let format = ConfigFormat::Json; // Default to JSON
-    println!("{}", format_config_preview(&selected_ide, &format));
+    println!();
+    println!("{}", format!("Selected {} tool(s) for configuration:", selected_ides.len()).green().bold());
+    for ide in &selected_ides {
+        println!("  • {}", format_ide_name(ide).cyan());
+    }
 
-    // Step 4: Get config path
-    let config_path = detector.get_config_path(selected_ide)?;
-    let config_path_str = config_path.to_string_lossy();
+    // Step 3: Configure each selected IDE
+    let mut successes = 0;
+    let mut failures = 0;
 
-    // Step 5: Confirm action
-    let action = if config_path.exists() {
-        "Update existing configuration"
-    } else {
-        "Create new configuration"
-    };
-
-    if !confirm_action(action, &config_path_str)? {
+    for ide in &selected_ides {
         println!();
-        println!("{}", "Setup cancelled.".yellow());
-        return Ok(());
+        print_section_header(&format!("Configuring {}", ide.as_str()));
+
+        // Get config path
+        let config_path = match detector.get_config_path(*ide) {
+            Ok(path) => path,
+            Err(e) => {
+                println!("{} Failed to get config path: {}", "❌".red(), e);
+                failures += 1;
+                continue;
+            }
+        };
+
+        let config_path_str = config_path.to_string_lossy();
+        let format = ide.preferred_format();
+
+        // Show preview for this IDE
+        println!("{}", format_config_preview(ide, &format));
+
+        // Confirm action for this specific IDE
+        let action = if config_path.exists() {
+            "Update existing configuration"
+        } else {
+            "Create new configuration"
+        };
+
+        if !confirm_action(action, &config_path_str)? {
+            println!("{}", "Skipping this tool...".yellow());
+            continue;
+        }
+
+        if dry_run {
+            println!("{}", "Would write configuration to:".yellow());
+            println!("  {}", config_path_str.cyan());
+            successes += 1;
+            continue;
+        }
+
+        // Write configuration
+        show_progress("Writing configuration");
+
+        let writer = create_config_writer(&config_path, "kindly-guard");
+        let binary_path = std::env::current_exe()
+            .unwrap_or_else(|_| std::path::PathBuf::from("kindly-guard"));
+        
+        match writer.write_config(&config_path, &binary_path.display().to_string()) {
+            Ok(_) => {
+                complete_progress(true);
+                println!("{} Configuration written to: {}", "✓".green(), config_path_str.cyan());
+                successes += 1;
+            },
+            Err(e) => {
+                complete_progress(false);
+                println!("{} Failed to write configuration: {}", "❌".red(), e);
+                failures += 1;
+            },
+        }
     }
 
-    // Step 6: Write configuration
-    print_section_header(if dry_run {
-        "Dry Run Preview"
-    } else {
-        "Writing Configuration"
-    });
-
-    if dry_run {
-        println!("{}", "Would write configuration to:".yellow());
-        println!("  {}", config_path_str.cyan());
-        show_setup_result(true, &selected_ide, Some(&config_path_str), None);
-        return Ok(());
+    // Step 4: Show summary
+    print_section_header("Setup Summary");
+    
+    if successes > 0 {
+        println!("{}", format!("✅ Successfully configured {} AI tool(s)", successes).green().bold());
+    }
+    
+    if failures > 0 {
+        println!("{}", format!("❌ Failed to configure {} AI tool(s)", failures).red().bold());
     }
 
-    show_progress("Generating configuration file");
-
-    use crate::setup::create_config_writer;
-    let writer = create_config_writer(&config_path, "kindly-guard");
-    let binary_path =
-        std::env::current_exe().unwrap_or_else(|_| std::path::PathBuf::from("kindly-guard"));
-    let result = writer.write_config(&config_path, &binary_path.display().to_string());
-
-    match result {
-        Ok(_) => {
-            complete_progress(true);
-            show_setup_result(true, &selected_ide, Some(&config_path_str), None);
-        },
-        Err(e) => {
-            complete_progress(false);
-            show_setup_result(false, &selected_ide, None, Some(&e.to_string()));
-            return Err(e);
-        },
+    if successes > 0 {
+        println!();
+        println!("{}", "Next steps:".yellow().bold());
+        println!("  1. {} the configured AI tools", "Restart".yellow());
+        println!("  2. {} in the MCP menu", "Look for KindlyGuard".yellow());
+        println!("  3. {} to start protection", "Enable KindlyGuard".yellow());
+        println!();
+        println!("{}", "Test the connection:".yellow().bold());
+        println!("  {}", "kindlyguard test-connection".cyan());
     }
 
     Ok(())

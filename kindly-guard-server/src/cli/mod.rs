@@ -14,7 +14,9 @@
 //! CLI command interface for `KindlyGuard`
 
 pub mod commands;
+pub mod enhanced_commands;
 pub mod validation;
 
 pub use commands::{run_command, KindlyCommand};
+pub use enhanced_commands::{EnhancedScanCommand, ProtectionMode, QuarantineCommand};
 pub use validation::CommandValidator;

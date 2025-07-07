@@ -20,6 +20,12 @@ pub struct TestPipeline {
     mode: TestMode,
 }
 
+impl Default for TestPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TestPipeline {
     pub fn new() -> Self {
         Self {
@@ -88,7 +94,7 @@ impl Pipeline for TestPipeline {
                 .await;
 
                 let version_check = Command::new("cargo")
-                    .args(&["run", "--", "--version"])
+                    .args(["run", "--", "--version"])
                     .output()
                     .await?;
 
@@ -134,7 +140,7 @@ impl Pipeline for TestPipeline {
                 // Start server and immediately shut it down
                 let server_test = tokio::time::timeout(std::time::Duration::from_secs(5), async {
                     let mut child = Command::new("cargo")
-                        .args(&["run", "--", "--stdio"])
+                        .args(["run", "--", "--stdio"])
                         .stdin(std::process::Stdio::piped())
                         .stdout(std::process::Stdio::piped())
                         .stderr(std::process::Stdio::piped())
@@ -218,7 +224,7 @@ impl Pipeline for TestPipeline {
                 .await;
 
                 let doc_test = Command::new("cargo")
-                    .args(&["test", "--doc"])
+                    .args(["test", "--doc"])
                     .output()
                     .await?;
 
@@ -239,7 +245,7 @@ impl Pipeline for TestPipeline {
 
                 // Check for proptest/quickcheck tests
                 let property_test = Command::new("cargo")
-                    .args(&["test", "proptest", "--", "--nocapture"])
+                    .args(["test", "proptest", "--", "--nocapture"])
                     .output()
                     .await?;
 
@@ -260,7 +266,7 @@ impl Pipeline for TestPipeline {
                 .await;
 
                 let coverage_available = Command::new("cargo")
-                    .args(&["llvm-cov", "--version"])
+                    .args(["llvm-cov", "--version"])
                     .output()
                     .await
                     .map(|o| o.status.success())
@@ -269,7 +275,7 @@ impl Pipeline for TestPipeline {
                 if coverage_available {
                     // Generate coverage but don't fail on it
                     let _ = Command::new("cargo")
-                        .args(&[
+                        .args([
                             "llvm-cov",
                             "--lcov",
                             "--output-path",

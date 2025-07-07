@@ -236,7 +236,7 @@ fn parse_format(format: &str) -> DisplayFormat {
 
 /// Check if terminal supports color
 fn supports_color() -> bool {
-    std::env::var("NO_COLOR").is_err() && std::env::var("TERM").ok().map_or(true, |t| t != "dumb")
+    std::env::var("NO_COLOR").is_err() && std::env::var("TERM").ok().is_none_or(|t| t != "dumb")
 }
 
 /// Show current shield status
@@ -773,6 +773,9 @@ async fn setup_mcp_command(
                             IdeType::VsCode | IdeType::Cursor => vec!["Restart VS Code/Cursor", "Check MCP extension is installed"],
                             IdeType::Neovim => vec!["Restart Neovim", "Ensure MCP plugin is configured"],
                             IdeType::Zed => vec!["Restart Zed", "Check MCP integration"],
+                            IdeType::Windsurf => vec!["Restart Windsurf IDE"],
+                            IdeType::ContinueDev => vec!["Restart Continue or VS Code"],
+                            IdeType::Codeium | IdeType::TabNine | IdeType::GitHubCopilot => vec!["This tool doesn't support MCP"],
                             IdeType::Unknown => vec!["Restart your IDE"],
                         }
                     }),
@@ -812,6 +815,18 @@ async fn setup_mcp_command(
                     IdeType::ClaudeCode => {
                         println!("1. Restart Claude Code");
                         println!("2. KindlyGuard will be available in the MCP menu");
+                    },
+                    IdeType::Windsurf => {
+                        println!("1. Restart Windsurf IDE");
+                        println!("2. KindlyGuard protection is now active");
+                    },
+                    IdeType::ContinueDev => {
+                        println!("1. Restart Continue or VS Code");
+                        println!("2. KindlyGuard protection is now active");
+                    },
+                    IdeType::Codeium | IdeType::TabNine | IdeType::GitHubCopilot => {
+                        println!("1. This tool doesn't support MCP yet");
+                        println!("2. Check for updates that may add MCP support");
                     },
                     IdeType::Unknown => {
                         println!("1. Restart your IDE");

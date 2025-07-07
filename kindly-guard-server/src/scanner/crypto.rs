@@ -166,7 +166,7 @@ impl CryptoScanner {
         let mut threats = Vec::new();
         let mut line_start = 0;
 
-        for (_line_num, line) in text.lines().enumerate() {
+        for line in text.lines() {
             // Skip comments
             if line.trim_start().starts_with("//") {
                 line_start += line.len() + 1; // +1 for newline
@@ -258,7 +258,7 @@ impl CryptoScanner {
 
         let mut line_start = 0;
 
-        for (_line_num, line) in text.lines().enumerate() {
+        for line in text.lines() {
             if line.trim_start().starts_with("//") {
                 line_start += line.len() + 1;
                 continue;
@@ -291,7 +291,7 @@ impl CryptoScanner {
         let mut threats = Vec::new();
         let mut line_start = 0;
 
-        for (_line_num, line) in text.lines().enumerate() {
+        for line in text.lines() {
             if line.trim_start().starts_with("//") {
                 line_start += line.len() + 1;
                 continue;
@@ -324,7 +324,7 @@ impl CryptoScanner {
         let mut threats = Vec::new();
         let mut line_start = 0;
 
-        for (_line_num, line) in text.lines().enumerate() {
+        for line in text.lines() {
             if line.trim_start().starts_with("//") {
                 line_start += line.len() + 1;
                 continue;
@@ -381,7 +381,7 @@ impl CryptoScanner {
 
         let mut line_start = 0;
 
-        for (_line_num, line) in text.lines().enumerate() {
+        for line in text.lines() {
             if line.trim_start().starts_with("//") {
                 line_start += line.len() + 1;
                 continue;

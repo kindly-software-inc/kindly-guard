@@ -127,7 +127,7 @@ pub fn run_tests(
 /// Check if cargo-dist is installed
 pub fn has_cargo_dist() -> bool {
     Command::new("cargo")
-        .args(&["dist", "--version"])
+        .args(["dist", "--version"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
@@ -136,7 +136,7 @@ pub fn has_cargo_dist() -> bool {
 /// Check if cargo-audit is installed
 pub fn has_cargo_audit() -> bool {
     Command::new("cargo")
-        .args(&["audit", "--version"])
+        .args(["audit", "--version"])
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
@@ -147,7 +147,7 @@ pub fn ensure_cargo_extension(name: &str) -> Result<()> {
     let check_cmd = format!("{} --version", name.replace("cargo-", ""));
 
     if Command::new("cargo")
-        .args(&check_cmd.split_whitespace().collect::<Vec<_>>())
+        .args(check_cmd.split_whitespace().collect::<Vec<_>>())
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false)
@@ -157,7 +157,7 @@ pub fn ensure_cargo_extension(name: &str) -> Result<()> {
     }
 
     println!("Installing {}...", name);
-    let output = Command::new("cargo").args(&["install", name]).output()?;
+    let output = Command::new("cargo").args(["install", name]).output()?;
 
     if !output.status.success() {
         anyhow::bail!("Failed to install {}", name);

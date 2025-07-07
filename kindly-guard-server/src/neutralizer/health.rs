@@ -35,6 +35,9 @@ use crate::{
     traits::HealthCheckTrait,
 };
 
+// Type alias for error tracking
+type ErrorEntry = (DateTime<Utc>, String);
+
 /// Health check configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NeutralizationHealthConfig {
@@ -356,8 +359,8 @@ pub struct NeutralizationHealthChecker {
     // Performance tracking
     response_times: Arc<RwLock<Vec<Duration>>>,
 
-    // Error tracking
-    recent_errors: Arc<RwLock<Vec<(DateTime<Utc>, String)>>>,
+    // Error tracking  
+    recent_errors: Arc<RwLock<Vec<ErrorEntry>>>,
 
     // Latest report
     latest_report: Arc<RwLock<Option<NeutralizationHealthReport>>>,

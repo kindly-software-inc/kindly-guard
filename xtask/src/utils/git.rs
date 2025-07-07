@@ -20,7 +20,7 @@ fn run_command_output(mut cmd: Command) -> Result<String> {
 /// Check if we're in a git repository
 pub fn is_git_repo() -> bool {
     Command::new("git")
-        .args(&["rev-parse", "--git-dir"])
+        .args(["rev-parse", "--git-dir"])
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)
@@ -29,28 +29,28 @@ pub fn is_git_repo() -> bool {
 /// Get the current git branch
 pub fn current_branch() -> Result<String> {
     let mut cmd = Command::new("git");
-    cmd.args(&["rev-parse", "--abbrev-ref", "HEAD"]);
+    cmd.args(["rev-parse", "--abbrev-ref", "HEAD"]);
     run_command_output(cmd)
 }
 
 /// Get the current commit hash
 pub fn current_commit() -> Result<String> {
     let mut cmd = Command::new("git");
-    cmd.args(&["rev-parse", "HEAD"]);
+    cmd.args(["rev-parse", "HEAD"]);
     run_command_output(cmd)
 }
 
 /// Get the current commit hash (short form)
 pub fn current_commit_short() -> Result<String> {
     let mut cmd = Command::new("git");
-    cmd.args(&["rev-parse", "--short", "HEAD"]);
+    cmd.args(["rev-parse", "--short", "HEAD"]);
     run_command_output(cmd)
 }
 
 /// Check if the working directory is clean
 pub fn is_clean() -> Result<bool> {
     let mut cmd = Command::new("git");
-    cmd.args(&["status", "--porcelain"]);
+    cmd.args(["status", "--porcelain"]);
     let output = run_command_output(cmd)?;
     Ok(output.is_empty())
 }
@@ -58,7 +58,7 @@ pub fn is_clean() -> Result<bool> {
 /// Get list of changed files
 pub fn changed_files() -> Result<Vec<String>> {
     let mut cmd = Command::new("git");
-    cmd.args(&["status", "--porcelain"]);
+    cmd.args(["status", "--porcelain"]);
     let output = run_command_output(cmd)?;
 
     Ok(output.lines().map(|line| line[3..].to_string()).collect())
@@ -78,7 +78,7 @@ pub fn push_tag(ctx: &Context, tag: &str) -> Result<()> {
 
 /// Check if a tag exists
 pub fn tag_exists(tag: &str) -> Result<bool> {
-    let output = Command::new("git").args(&["tag", "-l", tag]).output()?;
+    let output = Command::new("git").args(["tag", "-l", tag]).output()?;
 
     Ok(!output.stdout.is_empty())
 }
@@ -86,7 +86,7 @@ pub fn tag_exists(tag: &str) -> Result<bool> {
 /// Get the latest tag
 pub fn latest_tag() -> Result<Option<String>> {
     let output = Command::new("git")
-        .args(&["describe", "--tags", "--abbrev=0"])
+        .args(["describe", "--tags", "--abbrev=0"])
         .output()?;
 
     if output.status.success() {
@@ -99,7 +99,7 @@ pub fn latest_tag() -> Result<Option<String>> {
 /// Get commits since a tag
 pub fn commits_since_tag(tag: &str) -> Result<Vec<String>> {
     let mut cmd = Command::new("git");
-    cmd.args(&["log", "--oneline", &format!("{}..HEAD", tag)]);
+    cmd.args(["log", "--oneline", &format!("{}..HEAD", tag)]);
     let output = run_command_output(cmd)?;
 
     Ok(output.lines().map(|s| s.to_string()).collect())

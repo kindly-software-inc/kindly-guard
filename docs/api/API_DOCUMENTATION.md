@@ -2,14 +2,67 @@
 
 This document provides a comprehensive overview of KindlyGuard's public API surfaces, trait definitions, and architectural components.
 
+## Quick Start
+
+### Installation
+```bash
+# Instant installation via npm (recommended)
+npm install -g kindlyguard
+
+# Alternative: Install via Cargo
+cargo install kindlyguard
+```
+
+### Basic Usage
+```bash
+# Start MCP server
+kindlyguard serve
+
+# Scan files
+kindlyguard scan file.txt
+
+# Monitor threats
+kindlyguard monitor
+```
+
 ## Table of Contents
 
-1. [Core Traits](#core-traits)
-2. [Public Modules](#public-modules)
-3. [Factory Functions](#factory-functions)
-4. [MCP Protocol Integration](#mcp-protocol-integration)
-5. [Security Components](#security-components)
-6. [Resilience Architecture](#resilience-architecture)
+1. [Unified Binary Architecture](#unified-binary-architecture)
+2. [Core Traits](#core-traits)
+3. [Public Modules](#public-modules)
+4. [Factory Functions](#factory-functions)
+5. [MCP Protocol Integration](#mcp-protocol-integration)
+6. [Security Components](#security-components)
+7. [Resilience Architecture](#resilience-architecture)
+
+## Unified Binary Architecture
+
+KindlyGuard v0.15.0 introduces a unified binary that combines all functionality:
+
+### Binary: `kindlyguard`
+
+The single executable includes:
+- **MCP Server** (`serve` command) - Full MCP protocol support with multiple tools
+- **CLI Scanner** (`scan` command) - Command-line security scanning
+- **Monitor** (`monitor` command) - Real-time threat monitoring
+- **Shield** (`shield` command) - Interactive security dashboard
+- **MCP Management** (`mcp` command) - Configure and manage MCP integration
+
+### MCP Multi-Tool Support
+
+When running as an MCP server, KindlyGuard exposes multiple security tools:
+
+```typescript
+// Available MCP tools
+interface KindlyGuardTools {
+  scan_text: (text: string, protection_mode?: string) => ScanResult;
+  scan_file: (path: string, quarantine?: boolean) => FileResult;
+  check_url: (url: string) => URLResult;
+  neutralize: (text: string, threat_id?: string) => CleanResult;
+  quarantine_list: (filter?: string) => QuarantineEntry[];
+  get_statistics: () => SecurityStats;
+}
+```
 
 ## Core Traits
 

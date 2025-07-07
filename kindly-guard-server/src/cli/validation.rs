@@ -109,8 +109,10 @@ pub fn validate_port(port: u16) -> Result<u16> {
         );
     }
 
+    // Port is u16, so it's already bounded by 65535
+    #[allow(clippy::absurd_extreme_comparisons)]
     if port > MAX_PORT {
-        bail!("Invalid port: {} exceeds maximum", port);
+        bail!("Port {} exceeds maximum allowed port", port);
     }
 
     Ok(port)

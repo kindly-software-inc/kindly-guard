@@ -1,0 +1,5 @@
+{
+  "name": "Test",
+  "script": "<script>alert('XSS')</script>",
+  "sql": "'; DROP TABLE users; --"
+}

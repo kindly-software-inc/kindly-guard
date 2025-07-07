@@ -103,23 +103,23 @@ jobs:
         if: runner.os != 'Windows'
         run: |
           cd target/${{ matrix.target }}/release
-          tar czf ../../../kindly-guard-${{ matrix.target }}.tar.gz kindly-guard
+          tar czf ../../../kindlyguard-${{ matrix.target }}.tar.gz kindlyguard
         shell: bash
 
       - name: Package artifacts (Windows)
         if: runner.os == 'Windows'
         run: |
           cd target\${{ matrix.target }}\release
-          Compress-Archive -Path kindly-guard.exe -DestinationPath ..\..\..\kindly-guard-${{ matrix.target }}.zip
+          Compress-Archive -Path kindlyguard.exe -DestinationPath ..\..\..\kindlyguard-${{ matrix.target }}.zip
         shell: pwsh
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: kindly-guard-${{ matrix.target }}
+          name: kindlyguard-${{ matrix.target }}
           path: |
-            kindly-guard-*.tar.gz
-            kindly-guard-*.zip
+            kindlyguard-*.tar.gz
+            kindlyguard-*.zip
 
   # Create GitHub release
   release:
@@ -193,9 +193,9 @@ jobs:
           # Download and install
           VERSION="${1:-latest}"
           if [ "$VERSION" = "latest" ]; then
-            URL="https://github.com/kindly-software-inc/kindly-guard/releases/latest/download/kindly-guard-$TARGET.tar.gz"
+            URL="https://github.com/samduchaine/kindly-guard/releases/latest/download/kindlyguard-$TARGET.tar.gz"
           else
-            URL="https://github.com/kindly-software-inc/kindly-guard/releases/download/$VERSION/kindly-guard-$TARGET.tar.gz"
+            URL="https://github.com/samduchaine/kindly-guard/releases/download/$VERSION/kindlyguard-$TARGET.tar.gz"
           fi
 
           echo "Downloading KindlyGuard for $TARGET..."
@@ -209,7 +209,7 @@ jobs:
             mkdir -p "$INSTALL_DIR"
           fi
 
-          mv kindly-guard "$INSTALL_DIR/"
+          mv kindlyguard "$INSTALL_DIR/"
           echo "KindlyGuard installed to $INSTALL_DIR"
           EOF
 
@@ -238,9 +238,9 @@ jobs:
           $target = "x86_64-pc-windows-msvc"
 
           if ($version -eq "latest") {
-              $url = "https://github.com/kindly-software-inc/kindly-guard/releases/latest/download/kindly-guard-$target.zip"
+              $url = "https://github.com/samduchaine/kindly-guard/releases/latest/download/kindlyguard-$target.zip"
           } else {
-              $url = "https://github.com/kindly-software-inc/kindly-guard/releases/download/$version/kindly-guard-$target.zip"
+              $url = "https://github.com/samduchaine/kindly-guard/releases/download/$version/kindlyguard-$target.zip"
           }
 
           Write-Host "Downloading KindlyGuard for Windows..."

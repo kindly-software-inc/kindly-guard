@@ -14,6 +14,12 @@ pub struct FormatPipeline {
     _check_only: bool,
 }
 
+impl Default for FormatPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl FormatPipeline {
     pub fn new() -> Self {
         Self { _check_only: true }
@@ -54,7 +60,7 @@ impl Pipeline for FormatPipeline {
         .await;
 
         let rustfmt_result = Command::new("cargo")
-            .args(&["fmt", "--", "--check"])
+            .args(["fmt", "--", "--check"])
             .output()
             .await?;
 
@@ -75,7 +81,7 @@ impl Pipeline for FormatPipeline {
         .await;
 
         let clippy_result = Command::new("cargo")
-            .args(&[
+            .args([
                 "clippy",
                 "--all-features",
                 "--all-targets",
@@ -116,13 +122,13 @@ impl Pipeline for FormatPipeline {
         .await;
 
         let deny_check = Command::new("cargo")
-            .args(&["deny", "--version"])
+            .args(["deny", "--version"])
             .output()
             .await;
 
         if deny_check.is_ok() && deny_check.unwrap().status.success() {
             let deny_result = Command::new("cargo")
-                .args(&["deny", "check"])
+                .args(["deny", "check"])
                 .output()
                 .await?;
 

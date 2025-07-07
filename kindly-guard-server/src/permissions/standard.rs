@@ -66,6 +66,10 @@ impl StandardPermissionManager {
                     "get_security_info".to_string(),
                     "verify_signature".to_string(),
                     "get_shield_status".to_string(),
+                    "quarantine/list".to_string(),
+                    "quarantine/retrieve".to_string(),
+                    "quarantine/delete".to_string(),
+                    "quarantine/apply_retention".to_string(),
                 ]
                 .into_iter()
                 .collect(),

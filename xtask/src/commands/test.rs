@@ -258,9 +258,9 @@ impl TestResults {
     }
 
     fn any_failed(&self) -> bool {
-        self.unit.as_ref().map_or(false, |r| r.failed > 0)
-            || self.integration.as_ref().map_or(false, |r| r.failed > 0)
-            || self.security.as_ref().map_or(false, |r| r.failed > 0)
+        self.unit.as_ref().is_some_and(|r| r.failed > 0)
+            || self.integration.as_ref().is_some_and(|r| r.failed > 0)
+            || self.security.as_ref().is_some_and(|r| r.failed > 0)
     }
 }
 
@@ -462,10 +462,10 @@ async fn run_cargo_tests(cmd: &TestCmd, ctx: &Context, integration: bool) -> Res
 }
 
 async fn run_nextest_tests(cmd: &TestCmd, _ctx: &Context, integration: bool) -> Result<()> {
-    let mut nextest_args = crate::utils::nextest::NextestArgs::default();
-
-    // Set profile if specified
-    nextest_args.profile = cmd.nextest_profile.clone();
+    let mut nextest_args = crate::utils::nextest::NextestArgs {
+        profile: cmd.nextest_profile.clone(),
+        ..Default::default()
+    };
 
     // Set package if specified
     nextest_args.package = cmd.package.clone();
@@ -708,9 +708,8 @@ fn parse_test_output(output: &str, duration: Duration) -> Result<TestResult> {
             }
             if line.contains("failed") {
                 if let Some(failed_match) = line.split("failed").next() {
-                    if let Some(num_str) = failed_match.split(';').last() {
+                    if let Some(num_str) = failed_match.split(';').next_back() {
                         failed = num_str
-                            .trim()
                             .split_whitespace()
                             .last()
                             .and_then(|s| s.parse().ok())
@@ -720,9 +719,8 @@ fn parse_test_output(output: &str, duration: Duration) -> Result<TestResult> {
             }
             if line.contains("ignored") {
                 if let Some(ignored_match) = line.split("ignored").next() {
-                    if let Some(num_str) = ignored_match.split(';').last() {
+                    if let Some(num_str) = ignored_match.split(';').next_back() {
                         ignored = num_str
-                            .trim()
                             .split_whitespace()
                             .last()
                             .and_then(|s| s.parse().ok())
@@ -758,7 +756,7 @@ fn parse_detailed_test_results(output: &str) -> Result<Vec<TestEvent>> {
                         let duration = json
                             .get("exec_time")
                             .and_then(|v| v.as_f64())
-                            .map(|secs| Duration::from_secs_f64(secs))
+                            .map(Duration::from_secs_f64)
                             .unwrap_or_default();
 
                         let error_message = if !passed {

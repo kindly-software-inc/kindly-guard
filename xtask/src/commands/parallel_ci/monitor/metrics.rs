@@ -13,6 +13,7 @@ pub struct SystemMetrics {
 
 /// Pipeline execution metrics
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct PipelineMetrics {
     pub total_tasks: usize,
     pub completed_tasks: usize,
@@ -59,6 +60,7 @@ impl SystemMetrics {
 
 impl PipelineMetrics {
     /// Create new pipeline metrics
+    #[allow(dead_code)]
     pub fn new(total_tasks: usize) -> Self {
         Self {
             total_tasks,
@@ -69,6 +71,7 @@ impl PipelineMetrics {
     }
 
     /// Update metrics with task completion
+    #[allow(dead_code)]
     pub fn task_completed(&mut self, duration: std::time::Duration, success: bool) {
         if success {
             self.completed_tasks += 1;
@@ -87,6 +90,7 @@ impl PipelineMetrics {
     }
 
     /// Get completion percentage
+    #[allow(dead_code)]
     pub fn completion_percent(&self) -> f32 {
         if self.total_tasks > 0 {
             let finished = self.completed_tasks + self.failed_tasks;

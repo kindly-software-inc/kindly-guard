@@ -61,8 +61,7 @@ esac
 # Copy binaries to bin directory for testing
 print_info "Preparing test package..."
 mkdir -p bin
-cp ../target/release/kindly-guard bin/kindlyguard.bin 2>/dev/null || print_error "Server binary not found"
-cp ../target/release/kindly-guard-cli bin/kindlyguard-cli.bin 2>/dev/null || print_error "CLI binary not found"
+cp ../target/release/kindlyguard bin/kindlyguard 2>/dev/null || print_error "Unified binary not found"
 chmod +x bin/*.bin 2>/dev/null || true
 
 # Pack the main package
@@ -90,11 +89,11 @@ else
     print_error "kindlyguard command failed"
 fi
 
-# Test kindlyguard-cli command
-if npx kindlyguard-cli --help >/dev/null 2>&1; then
-    print_status "kindlyguard-cli command works"
+# Test kindlyguard scan command
+if npx kindlyguard scan --help >/dev/null 2>&1; then
+    print_status "kindlyguard scan command works"
 else
-    print_error "kindlyguard-cli command failed"
+    print_error "kindlyguard scan command failed"
 fi
 
 # Test programmatic API
@@ -142,4 +141,4 @@ ls -la node_modules/kindlyguard/bin/
 echo
 print_info "To use in your project:"
 print_info "  npm install kindlyguard"
-print_info "  npx kindlyguard --stdio"
+print_info "  npx kindlyguard serve --stdio"

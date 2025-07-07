@@ -1,23 +1,64 @@
 # KindlyGuard Installation Guide
 
-KindlyGuard provides multiple installation methods to suit different needs and platforms. Choose the method that works best for your environment.
+KindlyGuard provides multiple installation methods to suit different needs and platforms. All methods include automatic error recovery with an interactive menu system.
+
+> **No cloud. No proxy. Pure stealth.** Every installation method works completely offline after initial download.
 
 ## Quick Install (Recommended)
 
-The fastest way to install KindlyGuard is using our automated installers:
-
-### Shell Script (macOS/Linux)
+### 🚀 Instant NPM Installation (All Platforms)
 
 ```bash
-curl -LsSf https://github.com/samduchaine/kindly-guard/releases/latest/download/kindly-guard-installer.sh | sh
+npm install -g kindlyguard
 ```
 
-This installer will:
-- Detect your platform and architecture
-- Download the appropriate binary
-- Install to `/usr/local/bin` (or `$HOME/.local/bin` if no sudo access)
-- Set up necessary permissions
-- Verify the installation
+**That's it!** No compilation, no dependencies, instant protection. The unified `kindlyguard` binary includes:
+- 🛡️ MCP Security Server
+- 🔍 CLI Scanner Tools
+- 📊 Real-time Monitor
+- 🎯 Multi-protocol Support
+- ⚡ All protection features
+
+### Alternative Installation Methods
+
+#### Universal Installer (macOS/Linux/WSL)
+
+```bash
+curl -sSfL https://raw.githubusercontent.com/kindly-software-inc/kindly-guard/main/install.sh | bash
+```
+
+#### Using Cargo (Rust Developers)
+
+```bash
+cargo install kindlyguard
+```
+
+All installers include:
+- 🔄 **Automatic error recovery** with interactive menu
+- 🎯 **Platform and architecture detection**
+- 📦 **Multiple installation locations** (`/usr/local/bin` or `~/.local/bin`)
+- 🛠️ **Built-in diagnostics** for troubleshooting
+- ✅ **Installation verification** and PATH setup
+- 🚫 **No network dependencies** after download
+- 🎯 **Unified binary** - Everything in one command
+
+## 🔄 Error Recovery System
+
+If installation fails for any reason, you'll see an interactive recovery menu:
+
+```
+❌ Installation failed. How would you like to proceed?
+
+> Try with sudo (elevated privileges)
+  Install to home directory (~/.local)
+  Use different package manager
+  Download binary directly
+  Offline installation guide
+  Show system diagnostics
+  Cancel installation
+```
+
+The recovery system will guide you through alternatives based on your specific error.
 
 ### PowerShell (Windows)
 

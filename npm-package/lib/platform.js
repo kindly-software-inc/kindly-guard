@@ -61,7 +61,7 @@ function getPlatformKey() {
 }
 
 function getPackageName() {
-  return `@kindlyguard/${getPlatformKey()}`;
+  return `kindlyguard-${getPlatformKey()}`;
 }
 
 function getBinaryName(name) {
@@ -118,7 +118,7 @@ function validateBinary(binaryPath) {
 function downloadUrl(version = process.env.npm_package_version || 'latest') {
   const platformKey = getPlatformKey();
   const baseUrl = process.env.KINDLYGUARD_DOWNLOAD_BASE || 
-    'https://github.com/kindly-software-inc/kindly-guard/releases/download';
+    'https://github.com/samduchaine/kindly-guard/releases/download';
   
   // Handle Windows differently (uses .zip instead of .tar.gz)
   const extension = platformKey.startsWith('win') ? 'zip' : 'tar.gz';

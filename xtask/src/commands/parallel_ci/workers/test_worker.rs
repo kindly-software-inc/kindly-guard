@@ -13,10 +13,11 @@ pub struct TestWorker {
 
 impl TestWorker {
     /// Create a new test worker
+    #[allow(dead_code)]
     pub fn new() -> Self {
         // Check if nextest is available
         let use_nextest = Command::new("cargo")
-            .args(&["nextest", "--version"])
+            .args(["nextest", "--version"])
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false);

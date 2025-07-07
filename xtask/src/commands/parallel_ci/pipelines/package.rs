@@ -15,6 +15,12 @@ pub struct PackagePipeline {
     create_checksums: bool,
 }
 
+impl Default for PackagePipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl PackagePipeline {
     pub fn new() -> Self {
         Self {
@@ -68,7 +74,7 @@ impl Pipeline for PackagePipeline {
 
             // Use cargo-dist if available
             let dist_available = Command::new("cargo")
-                .args(&["dist", "--version"])
+                .args(["dist", "--version"])
                 .output()
                 .await
                 .map(|o| o.status.success())
@@ -76,7 +82,7 @@ impl Pipeline for PackagePipeline {
 
             if dist_available {
                 let dist_result = Command::new("cargo")
-                    .args(&["dist", "build", "--target", target])
+                    .args(["dist", "build", "--target", target])
                     .output()
                     .await?;
 
@@ -156,7 +162,7 @@ impl Pipeline for PackagePipeline {
 
             // Check if xtask package command exists
             let npm_result = Command::new("cargo")
-                .args(&[
+                .args([
                     "xtask",
                     "package",
                     "--npm",

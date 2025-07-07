@@ -5,7 +5,7 @@ members = [
     "kindly-guard-shield",
     "crates-io-package/kindly-guard",
     "xtask",
-    "kindly-tools",
+    "kindlyguard",
 ]
 exclude = [
     "target",
@@ -16,9 +16,9 @@ exclude = [
 ]
 
 [workspace.package]
-version = "0.11.14"
+version = "0.15.0"
 edition = "2021"
-rust-version = "1.81"  # MSRV - Minimum Supported Rust Version
+rust-version = "1.83"  # MSRV - Minimum Supported Rust Version
 authors = ["samduchaine"]
 license = "Apache-2.0"
 repository = "https://github.com/samduchaine/kindly-guard"
@@ -27,7 +27,7 @@ documentation = "https://docs.rs/kindly-guard"
 
 [workspace.dependencies]
 # Async runtime
-tokio = { version = "1.42", features = ["full"] }
+tokio = { version = "1.46", features = ["full"] }
 async-trait = "0.1"
 
 # Serialization
@@ -40,7 +40,7 @@ regex = "1.11"
 sha2 = "0.10"
 base64 = "0.22"
 hmac = "0.12"
-ed25519-dalek = "2.1"
+ed25519-dalek = "2.0"
 rand = "0.8"
 
 # Logging and errors
@@ -112,3 +112,4 @@ install-path = "CARGO_HOME"
 [workspace.metadata.dist.github-custom-runners]
 aarch64-apple-darwin = "macos-14"
 x86_64-apple-darwin = "macos-13"
+

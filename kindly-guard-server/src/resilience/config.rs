@@ -65,6 +65,10 @@ pub struct CircuitBreakerConfig {
     /// Maximum requests allowed in half-open state
     #[serde(default = "default_half_open_max")]
     pub half_open_max_requests: u32,
+    
+    /// Enable predictive circuit breaker with ML-based failure prediction (enhanced mode only)
+    #[serde(default)]
+    pub predictive: Option<bool>,
 }
 
 /// Retry configuration
@@ -168,6 +172,7 @@ impl Default for CircuitBreakerConfig {
             recovery_timeout: default_recovery_timeout(),
             request_timeout: default_request_timeout(),
             half_open_max_requests: default_half_open_max(),
+            predictive: None,
         }
     }
 }

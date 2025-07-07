@@ -32,9 +32,15 @@ pub enum Arch {
     Wasm32,
 }
 
+impl Default for TargetMatrix {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TargetMatrix {
     /// Create default target matrix based on current platform
-    pub fn default() -> Self {
+    pub fn new() -> Self {
         let mut targets = vec![
             // Always include current platform
             Target::current_platform(),

@@ -249,7 +249,7 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
 
     // Run cargo dist plan
     let output = Command::new("cargo")
-        .args(&["dist", "plan", "--output-format=json"])
+        .args(["dist", "plan", "--output-format=json"])
         .current_dir(workspace_root)
         .output()
         .with_context(|| "Failed to run cargo dist plan")?;
@@ -332,7 +332,7 @@ fn validate_dist_plan(workspace_root: &Path, _ctx: &Context) -> Result<Validatio
 /// Checks if cargo-dist is installed
 fn is_cargo_dist_installed() -> Result<bool> {
     let output = Command::new("cargo")
-        .args(&["dist", "--version"])
+        .args(["dist", "--version"])
         .output()
         .with_context(|| "Failed to check cargo-dist version")?;
 

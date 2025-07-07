@@ -74,6 +74,7 @@ pub struct McpServer {
     server_info: ServerInfo,
     capabilities: ServerCapabilities,
     pub component_manager: Arc<ComponentManager>,
+    quarantine: Option<Arc<dyn crate::quarantine::Quarantine>>,
 }
 
 /// Server error types
@@ -281,6 +282,9 @@ impl McpServer {
             logging: Some(LoggingCapability {}),
         };
 
+        // Create quarantine manager if configured
+        let quarantine = config.quarantine.as_ref().map(|quarantine_config| crate::quarantine::create_quarantine(quarantine_config));
+
         Ok(Self {
             scanner,
             shield,
@@ -295,6 +299,7 @@ impl McpServer {
             server_info,
             capabilities,
             component_manager,
+            quarantine,
         })
     }
 
@@ -302,6 +307,11 @@ impl McpServer {
     /// Get the security scanner
     pub fn scanner(&self) -> &Arc<SecurityScanner> {
         &self.scanner
+    }
+
+    /// Get the quarantine manager
+    pub fn quarantine(&self) -> Option<&Arc<dyn crate::quarantine::Quarantine>> {
+        self.quarantine.as_ref()
     }
 
     pub async fn handle_message(&self, message: &str) -> Option<String> {
@@ -1010,6 +1020,21 @@ impl McpServer {
                         "text": {
                             "type": "string",
                             "description": "Text to scan for threats"
+                        },
+                        "protection_mode": {
+                            "type": "string",
+                            "enum": ["auto", "interactive", "report"],
+                            "description": "Protection mode: auto (automatically neutralize), interactive (ask for confirmation), report (only report threats). Overrides default server configuration."
+                        },
+                        "include_messages": {
+                            "type": "boolean",
+                            "description": "Include friendly messages in response",
+                            "default": false
+                        },
+                        "auto_quarantine": {
+                            "type": "boolean",
+                            "description": "Automatically quarantine threats",
+                            "default": false
                         }
                     },
                     "required": ["text"]
@@ -1024,6 +1049,21 @@ impl McpServer {
                         "path": {
                             "type": "string",
                             "description": "File path to scan"
+                        },
+                        "protection_mode": {
+                            "type": "string",
+                            "enum": ["auto", "interactive", "report"],
+                            "description": "Protection mode: auto (automatically neutralize), interactive (ask for confirmation), report (only report threats). Overrides default server configuration."
+                        },
+                        "include_messages": {
+                            "type": "boolean",
+                            "description": "Include friendly messages in response",
+                            "default": false
+                        },
+                        "auto_quarantine": {
+                            "type": "boolean",
+                            "description": "Automatically quarantine threats",
+                            "default": false
                         }
                     },
                     "required": ["path"]
@@ -1038,6 +1078,21 @@ impl McpServer {
                         "data": {
                             "type": "object",
                             "description": "JSON data to scan"
+                        },
+                        "protection_mode": {
+                            "type": "string",
+                            "enum": ["auto", "interactive", "report"],
+                            "description": "Protection mode: auto (automatically neutralize), interactive (ask for confirmation), report (only report threats). Overrides default server configuration."
+                        },
+                        "include_messages": {
+                            "type": "boolean",
+                            "description": "Include friendly messages in response",
+                            "default": false
+                        },
+                        "auto_quarantine": {
+                            "type": "boolean",
+                            "description": "Automatically quarantine threats",
+                            "default": false
                         }
                     },
                     "required": ["data"]
@@ -1072,6 +1127,73 @@ impl McpServer {
             Tool {
                 name: "get_shield_status".to_string(),
                 description: "Get current shield status and protection level".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {},
+                }),
+            },
+            Tool {
+                name: "quarantine/list".to_string(),
+                description: "List quarantined items with optional filters".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "start_time": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "Filter by start time (ISO 8601)"
+                        },
+                        "end_time": {
+                            "type": "string",
+                            "format": "date-time",
+                            "description": "Filter by end time (ISO 8601)"
+                        },
+                        "threat_type": {
+                            "type": "string",
+                            "description": "Filter by threat type"
+                        },
+                        "severity": {
+                            "type": "string",
+                            "description": "Filter by severity"
+                        },
+                        "source": {
+                            "type": "string",
+                            "description": "Filter by source"
+                        }
+                    },
+                }),
+            },
+            Tool {
+                name: "quarantine/retrieve".to_string(),
+                description: "Get specific quarantined content by ID".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Quarantine entry ID"
+                        }
+                    },
+                    "required": ["id"]
+                }),
+            },
+            Tool {
+                name: "quarantine/delete".to_string(),
+                description: "Remove quarantined item".to_string(),
+                input_schema: serde_json::json!({
+                    "type": "object",
+                    "properties": {
+                        "id": {
+                            "type": "string",
+                            "description": "Quarantine entry ID to delete"
+                        }
+                    },
+                    "required": ["id"]
+                }),
+            },
+            Tool {
+                name: "quarantine/apply_retention".to_string(),
+                description: "Manual retention policy execution".to_string(),
                 input_schema: serde_json::json!({
                     "type": "object",
                     "properties": {},
@@ -1193,6 +1315,27 @@ impl McpServer {
                         ServerError::InvalidParams("Missing 'text' argument".to_string())
                     })?;
 
+                // Extract enhanced parameters
+                let protection_mode = arguments
+                    .get("protection_mode")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| match s {
+                        "auto" => Some(crate::neutralizer::NeutralizationMode::Automatic),
+                        "interactive" => Some(crate::neutralizer::NeutralizationMode::Interactive),
+                        "report" => Some(crate::neutralizer::NeutralizationMode::ReportOnly),
+                        _ => None,
+                    });
+                
+                let include_messages = arguments
+                    .get("include_messages")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                
+                let auto_quarantine = arguments
+                    .get("auto_quarantine")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+
                 let threats = self
                     .scanner
                     .scan_text(text)
@@ -1202,9 +1345,9 @@ impl McpServer {
                     self.shield.record_threats(&threats);
                 }
 
-                // Neutralize threats if configured
+                // Use override protection mode if provided, otherwise use default
                 let neutralizer = self.component_manager.threat_neutralizer();
-                let neutralization_mode = self.config.neutralization.mode;
+                let neutralization_mode = protection_mode.unwrap_or(self.config.neutralization.mode);
 
                 let (neutralization_results, final_content) = if !threats.is_empty()
                     && neutralization_mode != crate::neutralizer::NeutralizationMode::ReportOnly
@@ -1518,6 +1661,30 @@ impl McpServer {
                     }
                 });
 
+                // Handle auto-quarantine if requested and threats found
+                let mut quarantine_id = None;
+                if auto_quarantine && !threats.is_empty() {
+                    if let Some(ref quarantine_mgr) = self.quarantine {
+                        // Create threat info for quarantine
+                        let threat_info = crate::quarantine::ThreatInfo {
+                            threat_type: format!("{:?}", threats[0].threat_type),
+                            severity: format!("{:?}", threats[0].severity),
+                            description: format!("Detected {} threats in text", threats.len()),
+                            location: None,
+                            timestamp: std::time::SystemTime::now(),
+                        };
+                        
+                        match quarantine_mgr.quarantine(text, threat_info, Some("scan_text".to_string())).await {
+                            Ok(id) => {
+                                quarantine_id = Some(id);
+                            },
+                            Err(e) => {
+                                tracing::warn!("Failed to quarantine content: {}", e);
+                            }
+                        }
+                    }
+                }
+
                 // Add neutralization results if available
                 if let Some(neutralization) = neutralization_results {
                     response_json["neutralization"] = serde_json::json!({
@@ -1525,10 +1692,38 @@ impl McpServer {
                         "results": neutralization,
                         "neutralized": true,
                     });
+                    
+                    // Add neutralization_actions array
+                    let actions: Vec<String> = neutralization.iter()
+                        .filter_map(|r| r.get("action").and_then(|a| a.as_str()))
+                        .map(|s| s.to_string())
+                        .collect();
+                    if !actions.is_empty() {
+                        response_json["neutralization_actions"] = serde_json::json!(actions);
+                    }
                 }
 
                 if let Some(sanitized) = final_content {
                     response_json["sanitized_text"] = serde_json::Value::String(sanitized);
+                }
+
+                // Add quarantine_id if content was quarantined
+                if let Some(id) = quarantine_id {
+                    response_json["quarantine_id"] = serde_json::Value::String(id);
+                }
+
+                // Add friendly message if requested
+                if include_messages {
+                    let message_service = crate::messages::MessageService::new();
+                    let friendly_msg = if threats.is_empty() {
+                        message_service.encourage().content
+                    } else {
+                        let threat_types: Vec<String> = threats.iter()
+                            .map(|t| format!("{:?}", t.threat_type))
+                            .collect();
+                        message_service.threat_neutralized(&threat_types.join(", "), threats.len()).content
+                    };
+                    response_json["friendly_message"] = serde_json::Value::String(friendly_msg);
                 }
 
                 Ok(serde_json::json!({
@@ -1547,6 +1742,27 @@ impl McpServer {
                     .ok_or_else(|| {
                         ServerError::InvalidParams("Missing 'path' argument".to_string())
                     })?;
+
+                // Extract enhanced parameters
+                let _protection_mode = arguments
+                    .get("protection_mode")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| match s {
+                        "auto" => Some(crate::neutralizer::NeutralizationMode::Automatic),
+                        "interactive" => Some(crate::neutralizer::NeutralizationMode::Interactive),
+                        "report" => Some(crate::neutralizer::NeutralizationMode::ReportOnly),
+                        _ => None,
+                    });
+                
+                let include_messages = arguments
+                    .get("include_messages")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                
+                let auto_quarantine = arguments
+                    .get("auto_quarantine")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
 
                 // Security check: prevent path traversal
                 if path.contains("..") || path.starts_with('/') {
@@ -1594,7 +1810,7 @@ impl McpServer {
                     })
                 }).collect::<Vec<_>>();
 
-                let response_json = serde_json::json!({
+                let mut response_json = serde_json::json!({
                     "safe": threats.is_empty(),
                     "threats": threat_data,
                     "scan_info": {
@@ -1603,6 +1819,46 @@ impl McpServer {
                         "threats_found": threats.len(),
                     }
                 });
+
+                // Handle auto-quarantine if requested and threats found
+                let mut quarantine_id = None;
+                if auto_quarantine && !threats.is_empty() {
+                    if let Some(ref quarantine_mgr) = self.quarantine {
+                        // Create threat info for quarantine
+                        let threat_info = crate::quarantine::ThreatInfo {
+                            threat_type: format!("{:?}", threats[0].threat_type),
+                            severity: format!("{:?}", threats[0].severity),
+                            description: format!("Detected {} threats in file: {}", threats.len(), path),
+                            location: Some(path.to_string()),
+                            timestamp: std::time::SystemTime::now(),
+                        };
+                        
+                        match quarantine_mgr.quarantine(&content, threat_info, Some(format!("scan_file: {}", path))).await {
+                            Ok(id) => {
+                                quarantine_id = Some(id);
+                            },
+                            Err(e) => {
+                                tracing::warn!("Failed to quarantine file content: {}", e);
+                            }
+                        }
+                    }
+                }
+
+                // Add quarantine_id if content was quarantined
+                if let Some(id) = quarantine_id {
+                    response_json["quarantine_id"] = serde_json::Value::String(id);
+                }
+
+                // Add friendly message if requested
+                if include_messages {
+                    let message_service = crate::messages::MessageService::new();
+                    let friendly_msg = if threats.is_empty() {
+                        message_service.encourage().content
+                    } else {
+                        message_service.quarantine_notification(path, &format!("{} threats detected", threats.len())).content
+                    };
+                    response_json["friendly_message"] = serde_json::Value::String(friendly_msg);
+                }
 
                 Ok(serde_json::json!({
                     "content": [{
@@ -1617,6 +1873,27 @@ impl McpServer {
                 let data = arguments.get("data").ok_or_else(|| {
                     ServerError::InvalidParams("Missing 'data' argument".to_string())
                 })?;
+
+                // Extract enhanced parameters
+                let _protection_mode = arguments
+                    .get("protection_mode")
+                    .and_then(|v| v.as_str())
+                    .and_then(|s| match s {
+                        "auto" => Some(crate::neutralizer::NeutralizationMode::Automatic),
+                        "interactive" => Some(crate::neutralizer::NeutralizationMode::Interactive),
+                        "report" => Some(crate::neutralizer::NeutralizationMode::ReportOnly),
+                        _ => None,
+                    });
+                
+                let include_messages = arguments
+                    .get("include_messages")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
+                
+                let auto_quarantine = arguments
+                    .get("auto_quarantine")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(false);
 
                 let threats = self
                     .scanner
@@ -1655,7 +1932,7 @@ impl McpServer {
                     })
                 }).collect::<Vec<_>>();
 
-                let response_json = serde_json::json!({
+                let mut response_json = serde_json::json!({
                     "safe": threats.is_empty(),
                     "threats": threat_data,
                     "scan_info": {
@@ -1663,6 +1940,50 @@ impl McpServer {
                         "threats_found": threats.len(),
                     }
                 });
+
+                // Handle auto-quarantine if requested and threats found
+                let mut quarantine_id = None;
+                if auto_quarantine && !threats.is_empty() {
+                    if let Some(ref quarantine_mgr) = self.quarantine {
+                        // Create threat info for quarantine
+                        let threat_info = crate::quarantine::ThreatInfo {
+                            threat_type: format!("{:?}", threats[0].threat_type),
+                            severity: format!("{:?}", threats[0].severity),
+                            description: format!("Detected {} threats in JSON data", threats.len()),
+                            location: None,
+                            timestamp: std::time::SystemTime::now(),
+                        };
+                        
+                        let json_str = serde_json::to_string_pretty(data).unwrap_or_else(|_| data.to_string());
+                        match quarantine_mgr.quarantine(&json_str, threat_info, Some("scan_json".to_string())).await {
+                            Ok(id) => {
+                                quarantine_id = Some(id);
+                            },
+                            Err(e) => {
+                                tracing::warn!("Failed to quarantine JSON content: {}", e);
+                            }
+                        }
+                    }
+                }
+
+                // Add quarantine_id if content was quarantined
+                if let Some(id) = quarantine_id {
+                    response_json["quarantine_id"] = serde_json::Value::String(id);
+                }
+
+                // Add friendly message if requested
+                if include_messages {
+                    let message_service = crate::messages::MessageService::new();
+                    let friendly_msg = if threats.is_empty() {
+                        message_service.encourage().content
+                    } else {
+                        let threat_types: Vec<String> = threats.iter()
+                            .map(|t| format!("{:?}", t.threat_type))
+                            .collect();
+                        message_service.threat_neutralized(&threat_types.join(", "), threats.len()).content
+                    };
+                    response_json["friendly_message"] = serde_json::Value::String(friendly_msg);
+                }
 
                 Ok(serde_json::json!({
                     "content": [{
@@ -1787,6 +2108,134 @@ impl McpServer {
                         "type": "text",
                         "text": serde_json::to_string_pretty(&shield_status)
                             .unwrap_or_else(|_| "Failed to serialize shield status".to_string())
+                    }]
+                }))
+            },
+
+            "quarantine/list" => {
+                let quarantine = self.quarantine.as_ref()
+                    .ok_or_else(|| ServerError::InvalidParams("Quarantine not configured".to_string()))?;
+
+                // Parse filter parameters
+                let mut filter = crate::quarantine::QuarantineFilter::default();
+                
+                if let Some(start_time) = arguments.get("start_time").and_then(|v| v.as_str()) {
+                    filter.start_time = chrono::DateTime::parse_from_rfc3339(start_time)
+                        .ok()
+                        .map(std::time::SystemTime::from);
+                }
+                
+                if let Some(end_time) = arguments.get("end_time").and_then(|v| v.as_str()) {
+                    filter.end_time = chrono::DateTime::parse_from_rfc3339(end_time)
+                        .ok()
+                        .map(std::time::SystemTime::from);
+                }
+                
+                if let Some(threat_type) = arguments.get("threat_type").and_then(|v| v.as_str()) {
+                    filter.threat_type = Some(threat_type.to_string());
+                }
+                
+                if let Some(severity) = arguments.get("severity").and_then(|v| v.as_str()) {
+                    filter.severity = Some(severity.to_string());
+                }
+                
+                if let Some(source) = arguments.get("source").and_then(|v| v.as_str()) {
+                    filter.source = Some(source.to_string());
+                }
+
+                let entries = quarantine.list(filter).await
+                    .map_err(|e| ServerError::InternalError(format!("Failed to list quarantine: {}", e)))?;
+
+                let entries_json: Vec<_> = entries.iter().map(|entry| {
+                    serde_json::json!({
+                        "id": entry.id,
+                        "threat_info": entry.threat_info,
+                        "source": entry.source,
+                        "timestamp": entry.quarantined_at.duration_since(std::time::UNIX_EPOCH)
+                            .map(|d| d.as_secs())
+                            .unwrap_or(0),
+                        "size": entry.size_bytes,
+                        "compressed": entry.compressed,
+                        "content_hash": entry.content_hash,
+                    })
+                }).collect();
+
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string_pretty(&serde_json::json!({
+                            "entries": entries_json,
+                            "total": entries.len(),
+                        })).unwrap_or_else(|_| r#"{"error": "Failed to serialize entries"}"#.to_string())
+                    }]
+                }))
+            },
+
+            "quarantine/retrieve" => {
+                let quarantine = self.quarantine.as_ref()
+                    .ok_or_else(|| ServerError::InvalidParams("Quarantine not configured".to_string()))?;
+
+                let id = arguments.get("id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidParams("Missing 'id' argument".to_string()))?;
+
+                let entry = quarantine.retrieve(id).await
+                    .map_err(|e| ServerError::InternalError(format!("Failed to retrieve from quarantine: {}", e)))?
+                    .ok_or_else(|| ServerError::InvalidParams(format!("Quarantine entry not found: {}", id)))?;
+
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string_pretty(&serde_json::json!({
+                            "id": entry.id,
+                            "threat_info": entry.threat_info,
+                            "source": entry.source,
+                            "timestamp": entry.quarantined_at.duration_since(std::time::UNIX_EPOCH)
+                                .map(|d| d.as_secs())
+                                .unwrap_or(0),
+                            "original_content": entry.original_content,
+                            "compressed": entry.compressed,
+                            "size_bytes": entry.size_bytes,
+                            "content_hash": entry.content_hash,
+                        })).unwrap_or_else(|_| r#"{"error": "Failed to serialize entry"}"#.to_string())
+                    }]
+                }))
+            },
+
+            "quarantine/delete" => {
+                let quarantine = self.quarantine.as_ref()
+                    .ok_or_else(|| ServerError::InvalidParams("Quarantine not configured".to_string()))?;
+
+                let id = arguments.get("id")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ServerError::InvalidParams("Missing 'id' argument".to_string()))?;
+
+                let deleted = quarantine.delete(id).await
+                    .map_err(|e| ServerError::InternalError(format!("Failed to delete from quarantine: {}", e)))?;
+
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string_pretty(&serde_json::json!({
+                            "deleted": deleted,
+                            "id": id,
+                        })).unwrap_or_else(|_| r#"{"error": "Failed to serialize response"}"#.to_string())
+                    }]
+                }))
+            },
+
+            "quarantine/apply_retention" => {
+                let quarantine = self.quarantine.as_ref()
+                    .ok_or_else(|| ServerError::InvalidParams("Quarantine not configured".to_string()))?;
+
+                let stats = quarantine.apply_retention().await
+                    .map_err(|e| ServerError::InternalError(format!("Failed to apply retention: {}", e)))?;
+
+                Ok(serde_json::json!({
+                    "content": [{
+                        "type": "text",
+                        "text": serde_json::to_string_pretty(&stats)
+                            .unwrap_or_else(|_| r#"{"error": "Failed to serialize stats"}"#.to_string())
                     }]
                 }))
             },

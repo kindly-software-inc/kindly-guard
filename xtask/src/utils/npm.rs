@@ -319,7 +319,7 @@ fn binary_executable_name(base_name: &str, target: &str) -> String {
 
 /// Check if user is logged in to NPM
 pub fn is_logged_in() -> Result<bool> {
-    let output = Command::new("npm").args(&["whoami"]).output()?;
+    let output = Command::new("npm").args(["whoami"]).output()?;
 
     Ok(output.status.success())
 }
@@ -367,7 +367,7 @@ pub fn audit(ctx: &Context, dir: &Path, fix: bool) -> Result<()> {
 /// Check if package exists in registry
 pub fn package_exists(name: &str) -> Result<bool> {
     let output = Command::new("npm")
-        .args(&["view", name, "version"])
+        .args(["view", name, "version"])
         .output()?;
 
     Ok(output.status.success())
@@ -376,7 +376,7 @@ pub fn package_exists(name: &str) -> Result<bool> {
 /// Get latest version of a package from registry
 pub fn get_latest_version(name: &str) -> Result<Option<String>> {
     let output = Command::new("npm")
-        .args(&["view", name, "version"])
+        .args(["view", name, "version"])
         .output()?;
 
     if output.status.success() {

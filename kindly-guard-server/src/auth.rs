@@ -277,7 +277,7 @@ impl AuthManager {
     ///
     /// # Arguments
     /// * `length` - The desired length of the token in bytes (before encoding)
-    ///              Minimum 16 bytes (128 bits) for security
+    ///   Minimum 16 bytes (128 bits) for security
     ///
     /// # Returns
     /// A URL-safe base64 encoded token string

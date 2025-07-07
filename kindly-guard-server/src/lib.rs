@@ -27,11 +27,13 @@ pub mod error;
 #[cfg(feature = "enhanced")]
 pub mod event_processor;
 pub mod logging;
+pub mod messages;
 pub mod metrics;
 pub mod neutralizer;
 pub mod permissions;
 pub mod plugins;
 pub mod protocol;
+pub mod quarantine;
 pub mod rate_limit;
 pub mod resilience;
 pub mod scanner;

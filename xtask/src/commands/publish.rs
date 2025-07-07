@@ -80,7 +80,7 @@ fn verify_before_publish(ctx: &Context) -> Result<()> {
 
     // Check git status
     let output = std::process::Command::new("git")
-        .args(&["status", "--porcelain"])
+        .args(["status", "--porcelain"])
         .output()?;
 
     if !output.stdout.is_empty() {
@@ -90,7 +90,7 @@ fn verify_before_publish(ctx: &Context) -> Result<()> {
 
     // Check if on main branch
     let branch = std::process::Command::new("git")
-        .args(&["branch", "--show-current"])
+        .args(["branch", "--show-current"])
         .output()?;
 
     let branch = String::from_utf8_lossy(&branch.stdout).trim().to_string();
@@ -103,7 +103,7 @@ fn verify_before_publish(ctx: &Context) -> Result<()> {
     let tag = format!("v{}", version);
 
     let tag_exists = std::process::Command::new("git")
-        .args(&["tag", "-l", &tag])
+        .args(["tag", "-l", &tag])
         .output()?;
 
     if tag_exists.stdout.is_empty() {
@@ -192,7 +192,7 @@ fn publish_crate(path: &str, ctx: &Context) -> Result<()> {
 async fn is_crate_published(name: &str, version: &str) -> Result<bool> {
     // Check using cargo search instead of HTTP API
     let output = std::process::Command::new("cargo")
-        .args(&["search", "--limit", "1", &format!("{}={}", name, version)])
+        .args(["search", "--limit", "1", &format!("{}={}", name, version)])
         .output()
         .context("Failed to run cargo search")?;
 
@@ -206,7 +206,7 @@ fn workspace_has_member(metadata: &cargo_metadata::Metadata, member: &str) -> bo
             .packages
             .iter()
             .find(|pkg| &pkg.id == pkg_id)
-            .map_or(false, |pkg| pkg.name == member)
+            .is_some_and(|pkg| pkg.name == member)
     })
 }
 
@@ -278,7 +278,7 @@ async fn publish_to_npm(ctx: &Context) -> Result<PublishResult> {
 
 async fn is_npm_published(name: &str, version: &str) -> Result<bool> {
     let output = std::process::Command::new("npm")
-        .args(&["view", &format!("{}@{}", name, version), "version"])
+        .args(["view", &format!("{}@{}", name, version), "version"])
         .output()?;
 
     Ok(output.status.success())

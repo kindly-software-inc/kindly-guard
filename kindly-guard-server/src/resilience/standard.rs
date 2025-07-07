@@ -424,8 +424,11 @@ impl HealthCheckTrait for StandardHealthChecker {
         use once_cell::sync::Lazy;
         use std::sync::Mutex;
 
+        // Type alias for dependency storage
+        type DependencyEntry = (String, Arc<dyn HealthCheckTrait>);
+        
         // Temporary storage for the dependency to add
-        static PENDING_DEPS: Lazy<Mutex<Option<(String, Arc<dyn HealthCheckTrait>)>>> =
+        static PENDING_DEPS: Lazy<Mutex<Option<DependencyEntry>>> =
             Lazy::new(|| Mutex::new(None));
 
         // Store the dependency temporarily

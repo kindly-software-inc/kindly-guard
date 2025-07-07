@@ -2,6 +2,34 @@
 
 This document provides a comprehensive inventory of all implemented features in KindlyGuard, organized by component with file locations for easy navigation.
 
+## 🚀 New in v0.15.0: Unified Binary & MCP Multi-Tool Support
+
+### Unified Binary Architecture
+**Status**: ✅ Fully Implemented  
+**Location**: `kindlyguard/src/main.rs`  
+**Description**: Single binary combining all KindlyGuard functionality
+
+#### Key Benefits:
+- **One Command for Everything** - `kindlyguard` includes server, CLI tools, monitor, and shield
+- **Instant npm Installation** - `npm install -g kindlyguard` with prebuilt binaries
+- **No Compilation Required** - Works immediately on Windows, macOS, and Linux
+- **Reduced Complexity** - Single binary to manage, update, and deploy
+
+### MCP Multi-Tool Support
+**Status**: ✅ Fully Implemented  
+**Location**: `src/protocol/tools.rs`  
+**Description**: Multiple security tools exposed through single MCP server
+
+#### Available Tools:
+1. **scan_text** - Scan text content for threats
+2. **scan_file** - Scan files with quarantine support
+3. **check_url** - Validate URLs for safety
+4. **neutralize** - Clean threats from content
+5. **quarantine_list** - View isolated threats
+6. **get_statistics** - Real-time security metrics
+
+All tools are available through the MCP protocol when running `kindlyguard serve`.
+
 ## Core Security Features
 
 ### 1. Unicode Threat Detection
@@ -414,6 +442,39 @@ This document provides a comprehensive inventory of all implemented features in 
   - Service files
   - Socket activation
 
+## Enterprise/Enhanced Features
+
+### 18. Enhanced Security Capabilities
+**Status**: ✅ Fully Implemented (Open Source)  
+**Location**: Various (requires `enhanced` feature flag)  
+**Description**: Advanced security features available in the open source codebase but requiring the enhanced feature flag
+
+These features are **100% open source** and available in the public repository. They require building with the `enhanced` feature flag to enable:
+
+```bash
+cargo build --features enhanced
+```
+
+For detailed information about these enhanced capabilities, see [ENTERPRISE_FEATURES.md](./ENTERPRISE_FEATURES.md).
+
+#### Key Enhanced Features:
+- **Advanced Threat Intelligence**
+  - ML-based pattern recognition
+  - Real-time threat feeds
+  - Custom threat modeling
+  
+- **Enterprise Integration**
+  - SIEM connectors
+  - Custom authentication providers
+  - Advanced audit trails
+  
+- **Performance Enhancements**
+  - GPU-accelerated scanning
+  - Distributed processing
+  - Advanced caching strategies
+
+All enhanced features maintain the same security-first philosophy and are subject to the same rigorous testing standards as core features.
+
 ## Feature Flags
 
 ### Configuration-Based Features
@@ -425,6 +486,19 @@ injection_detection = true
 xss_detection = true
 pattern_matching = true
 ml_detection = false  # Requires model files
+enhanced = false     # Enable enhanced/enterprise features
+```
+
+### Cargo Feature Flags
+```toml
+# In Cargo.toml
+[features]
+default = ["standard"]
+standard = ["unicode", "injection", "xss", "patterns"]
+enhanced = ["standard", "ml", "gpu", "distributed"]
+ml = ["tensorflow", "onnx"]
+gpu = ["cuda", "opencl"]
+distributed = ["raft", "etcd-client"]
 ```
 
 ## Upcoming Features (Roadmap)

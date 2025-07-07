@@ -135,7 +135,7 @@ impl Dashboard {
                 let progress_bar = create_progress_bar(pipeline.progress_percent);
                 let duration = pipeline
                     .duration
-                    .map(|d| format_duration(d))
+                    .map(format_duration)
                     .unwrap_or_else(|| "—".to_string());
 
                 ListItem::new(Line::from(vec![

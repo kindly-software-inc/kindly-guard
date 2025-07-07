@@ -288,8 +288,7 @@ fn display_coverage_summary(output: &str, _ctx: &Context) -> Result<()> {
             let start = i.saturating_sub(2);
             let end = (i + 3).min(lines.len());
 
-            for j in start..end {
-                let line = lines[j];
+            for line in &lines[start..end] {
                 if line.contains("TOTAL") || line.contains("Coverage") {
                     println!("{}", line.bold());
                 } else {
@@ -359,11 +358,11 @@ fn open_in_browser(path: &Path) -> Result<()> {
 
     #[cfg(target_os = "linux")]
     {
-        if let Ok(_) = Command::new("xdg-open").arg(&url).spawn() {
+        if Command::new("xdg-open").arg(&url).spawn().is_ok() {
             // Success
-        } else if let Ok(_) = Command::new("firefox").arg(&url).spawn() {
+        } else if Command::new("firefox").arg(&url).spawn().is_ok() {
             // Fallback to Firefox
-        } else if let Ok(_) = Command::new("chromium").arg(&url).spawn() {
+        } else if Command::new("chromium").arg(&url).spawn().is_ok() {
             // Fallback to Chromium
         } else {
             anyhow::bail!("Could not find a browser to open the report");

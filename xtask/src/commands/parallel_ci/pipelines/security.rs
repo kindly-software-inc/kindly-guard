@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use std::path::PathBuf;
+use std::path::Path;
 use std::sync::Arc;
 use tokio::fs;
 use tokio::process::Command;
@@ -14,6 +14,12 @@ use crate::utils::{cargo::workspace_root, Context};
 /// Security scanning pipeline
 pub struct SecurityPipeline {
     generate_sarif: bool,
+}
+
+impl Default for SecurityPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl SecurityPipeline {
@@ -61,7 +67,7 @@ impl Pipeline for SecurityPipeline {
         .await;
 
         let audit_available = Command::new("cargo")
-            .args(&["audit", "--version"])
+            .args(["audit", "--version"])
             .output()
             .await
             .map(|o| o.status.success())
@@ -69,7 +75,7 @@ impl Pipeline for SecurityPipeline {
 
         if audit_available {
             let audit_result = Command::new("cargo")
-                .args(&["audit", "--json"])
+                .args(["audit", "--json"])
                 .output()
                 .await?;
 
@@ -118,7 +124,7 @@ impl Pipeline for SecurityPipeline {
         .await;
 
         let deny_available = Command::new("cargo")
-            .args(&["deny", "--version"])
+            .args(["deny", "--version"])
             .output()
             .await
             .map(|o| o.status.success())
@@ -126,7 +132,7 @@ impl Pipeline for SecurityPipeline {
 
         if deny_available {
             let deny_result = Command::new("cargo")
-                .args(&["deny", "check", "--format", "json"])
+                .args(["deny", "check", "--format", "json"])
                 .output()
                 .await?;
 
@@ -155,7 +161,7 @@ impl Pipeline for SecurityPipeline {
         .await;
 
         let geiger_available = Command::new("cargo")
-            .args(&["geiger", "--version"])
+            .args(["geiger", "--version"])
             .output()
             .await
             .map(|o| o.status.success())
@@ -163,7 +169,7 @@ impl Pipeline for SecurityPipeline {
 
         if geiger_available {
             let geiger_result = Command::new("cargo")
-                .args(&["geiger", "--output-format", "Json"])
+                .args(["geiger", "--output-format", "Json"])
                 .output()
                 .await?;
 
@@ -203,7 +209,7 @@ impl Pipeline for SecurityPipeline {
 }
 
 /// Generate SARIF report from security scan results
-async fn generate_sarif_report(reports_dir: &PathBuf) -> Result<serde_json::Value> {
+async fn generate_sarif_report(reports_dir: &Path) -> Result<serde_json::Value> {
     use serde_json::json;
 
     let mut results = Vec::new();

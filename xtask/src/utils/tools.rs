@@ -95,7 +95,7 @@ pub fn is_tool_installed(tool_name: &str) -> Result<bool> {
     debug!("Checking if {} is installed", tool_name);
 
     let output = Command::new("cargo")
-        .args(&[subcommand, "--version"])
+        .args([subcommand, "--version"])
         .output()
         .with_context(|| format!("Failed to check for {}", tool_name))?;
 

@@ -1,0 +1,2 @@
+This is a safe text file with normal content.
+No threats here!

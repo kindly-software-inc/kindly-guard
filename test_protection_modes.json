@@ -1,0 +1,5 @@
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"0.1.0","capabilities":{"tools":{}},"clientInfo":{"name":"test","version":"1.0.0"}}}
+{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"scan_text","arguments":{"text":"SELECT * FROM users WHERE id = '1' OR '1'='1'","protection_mode":"report","include_messages":true}}}
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"scan_text","arguments":{"text":"SELECT * FROM users WHERE id = '1' OR '1'='1'","protection_mode":"auto","include_messages":true}}}
+{"jsonrpc":"2.0","id":4,"method":"tools/call","params":{"name":"quarantine/list","arguments":{}}}
+{"jsonrpc":"2.0","id":5,"method":"shutdown","params":{}}

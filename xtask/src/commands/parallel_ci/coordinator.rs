@@ -35,7 +35,7 @@ impl Coordinator {
         fail_fast: bool,
         _enable_dashboard: bool,
     ) -> Result<Self> {
-        let max_parallel = max_parallel.unwrap_or_else(|| num_cpus::get());
+        let max_parallel = max_parallel.unwrap_or_else(num_cpus::get);
         let semaphore = Arc::new(Semaphore::new(max_parallel));
 
         let monitor = if _enable_dashboard {
@@ -170,7 +170,7 @@ impl Coordinator {
         let mut tasks = JoinSet::new();
 
         // Launch all pipelines
-        for (_idx, pipeline) in self.pipelines.drain(..).enumerate() {
+        for pipeline in self.pipelines.drain(..) {
             let pipeline_name = pipeline.name().to_string();
             let ctx = self.ctx.clone();
             let semaphore = self.semaphore.clone();

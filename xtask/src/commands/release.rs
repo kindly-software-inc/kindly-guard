@@ -518,8 +518,7 @@ async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Re
     }
 
     // Run all pre-release checks
-    let checks = vec![
-        PreReleaseCheck::VersionConsistency,
+    let checks = [PreReleaseCheck::VersionConsistency,
         PreReleaseCheck::ChangelogUpdate,
         PreReleaseCheck::DocumentationStatus,
         PreReleaseCheck::TestCoverage,
@@ -528,8 +527,7 @@ async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Re
         PreReleaseCheck::BuildVerification,
         PreReleaseCheck::GitStatus,
         PreReleaseCheck::DependencyCheck,
-        PreReleaseCheck::MsrvCompatibility,
-    ];
+        PreReleaseCheck::MsrvCompatibility];
 
     // Interactive checklist with progress
     ctx.info(&format!("\n{} Running pre-release checks", "📋".yellow()));
@@ -552,7 +550,7 @@ async fn run_interactive_checklist(ctx: &Context, version: Option<String>) -> Re
 
     // Summary
     println!("\n{}", "📊 Summary".blue().bold());
-    println!("{}", "====================");
+    println!("====================");
     println!("Current version: {}", current_version.to_string().yellow());
     if let Some(ver) = &target_version {
         println!("Target version: {}", ver.to_string().magenta());
@@ -941,7 +939,7 @@ fn generate_interactive_release_notes(ctx: &Context, version: &Version) -> Resul
     // For each category, ask if there are items to add
     for (category, description) in &categories {
         let has_items = Confirm::with_theme(&ColorfulTheme::default())
-            .with_prompt(&format!(
+            .with_prompt(format!(
                 "Any {} items? ({})",
                 category.to_lowercase(),
                 description

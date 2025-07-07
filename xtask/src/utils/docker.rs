@@ -18,7 +18,7 @@ pub fn is_installed() -> bool {
 /// Check if Docker daemon is running
 pub fn is_daemon_running() -> Result<bool> {
     let output = Command::new("docker")
-        .args(&["info"])
+        .args(["info"])
         .output()
         .context("Failed to check Docker daemon status")?;
 
@@ -28,7 +28,7 @@ pub fn is_daemon_running() -> Result<bool> {
 /// Get Docker version
 pub fn get_version() -> Result<String> {
     let output = Command::new("docker")
-        .args(&["version", "--format", "{{.Server.Version}}"])
+        .args(["version", "--format", "{{.Server.Version}}"])
         .output()
         .context("Failed to get Docker version")?;
 
@@ -42,7 +42,7 @@ pub fn get_version() -> Result<String> {
 /// Check if Docker Buildx is available
 pub fn has_buildx() -> bool {
     Command::new("docker")
-        .args(&["buildx", "version"])
+        .args(["buildx", "version"])
         .output()
         .map(|output| output.status.success())
         .unwrap_or(false)
@@ -58,7 +58,7 @@ pub fn build_image(
     context_path: &str,
 ) -> Result<()> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["build", "-f", dockerfile, "-t", tag]);
+    cmd.args(["build", "-f", dockerfile, "-t", tag]);
 
     if let Some(args) = build_args {
         for (key, value) in args {
@@ -68,7 +68,7 @@ pub fn build_image(
     }
 
     if let Some(target) = target {
-        cmd.args(&["--target", target]);
+        cmd.args(["--target", target]);
     }
 
     cmd.arg(context_path);
@@ -92,7 +92,7 @@ pub fn build_multiplatform(
     }
 
     let mut cmd = Command::new("docker");
-    cmd.args(&["buildx", "build", "-f", dockerfile, "-t", tag]);
+    cmd.args(["buildx", "build", "-f", dockerfile, "-t", tag]);
 
     // Set platforms
     cmd.arg("--platform");
@@ -120,7 +120,7 @@ pub fn build_multiplatform(
 /// Tag a Docker image
 pub fn tag_image(ctx: &Context, source: &str, target: &str) -> Result<()> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["tag", source, target]);
+    cmd.args(["tag", source, target]);
 
     ctx.run_command_obj(&mut cmd)?;
     Ok(())
@@ -129,7 +129,7 @@ pub fn tag_image(ctx: &Context, source: &str, target: &str) -> Result<()> {
 /// Push a Docker image to registry
 pub fn push_image(ctx: &Context, image: &str) -> Result<()> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["push", image]);
+    cmd.args(["push", image]);
 
     ctx.run_command_obj(&mut cmd)?;
     Ok(())
@@ -138,7 +138,7 @@ pub fn push_image(ctx: &Context, image: &str) -> Result<()> {
 /// Pull a Docker image from registry
 pub fn pull_image(ctx: &Context, image: &str) -> Result<()> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["pull", image]);
+    cmd.args(["pull", image]);
 
     ctx.run_command_obj(&mut cmd)?;
     Ok(())
@@ -147,10 +147,10 @@ pub fn pull_image(ctx: &Context, image: &str) -> Result<()> {
 /// List Docker images
 pub fn list_images(filter: Option<&str>) -> Result<Vec<String>> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["images", "--format", "{{.Repository}}:{{.Tag}}"]);
+    cmd.args(["images", "--format", "{{.Repository}}:{{.Tag}}"]);
 
     if let Some(filter) = filter {
-        cmd.args(&["--filter", filter]);
+        cmd.args(["--filter", filter]);
     }
 
     let output = cmd.output().context("Failed to list Docker images")?;
@@ -183,7 +183,7 @@ pub fn remove_images(ctx: &Context, images: &[&str], force: bool) -> Result<()> 
 /// Check if an image exists locally
 pub fn image_exists(image: &str) -> Result<bool> {
     let output = Command::new("docker")
-        .args(&["images", "-q", image])
+        .args(["images", "-q", image])
         .output()
         .context("Failed to check if image exists")?;
 
@@ -191,6 +191,7 @@ pub fn image_exists(image: &str) -> Result<bool> {
 }
 
 /// Run a Docker container
+#[allow(clippy::too_many_arguments)]
 pub fn run_container(
     ctx: &Context,
     image: &str,
@@ -214,7 +215,7 @@ pub fn run_container(
     }
 
     if let Some(name) = name {
-        cmd.args(&["--name", name]);
+        cmd.args(["--name", name]);
     }
 
     if let Some(ports) = ports {
@@ -293,7 +294,7 @@ pub fn remove_container(ctx: &Context, container: &str, force: bool) -> Result<(
 /// Check if a container exists
 pub fn container_exists(container: &str) -> Result<bool> {
     let output = Command::new("docker")
-        .args(&[
+        .args([
             "ps",
             "-a",
             "--format",
@@ -310,7 +311,7 @@ pub fn container_exists(container: &str) -> Result<bool> {
 /// Get container status
 pub fn container_status(container: &str) -> Result<String> {
     let output = Command::new("docker")
-        .args(&[
+        .args([
             "ps",
             "-a",
             "--format",
@@ -370,7 +371,7 @@ pub fn exec_command(
 /// Copy files between container and host
 pub fn copy_files(ctx: &Context, source: &str, destination: &str) -> Result<()> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["cp", source, destination]);
+    cmd.args(["cp", source, destination]);
 
     ctx.run_command_obj(&mut cmd)?;
     Ok(())
@@ -379,10 +380,10 @@ pub fn copy_files(ctx: &Context, source: &str, destination: &str) -> Result<()> 
 /// Create a Docker builder for buildx
 pub fn create_builder(ctx: &Context, name: &str, driver: Option<&str>) -> Result<()> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["buildx", "create", "--name", name]);
+    cmd.args(["buildx", "create", "--name", name]);
 
     if let Some(driver) = driver {
-        cmd.args(&["--driver", driver]);
+        cmd.args(["--driver", driver]);
     }
 
     cmd.arg("--use");
@@ -394,7 +395,7 @@ pub fn create_builder(ctx: &Context, name: &str, driver: Option<&str>) -> Result
 /// Remove a Docker builder
 pub fn remove_builder(ctx: &Context, name: &str) -> Result<()> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["buildx", "rm", name]);
+    cmd.args(["buildx", "rm", name]);
 
     ctx.run_command_obj(&mut cmd)?;
     Ok(())
@@ -409,7 +410,7 @@ pub fn login(ctx: &Context, registry: Option<&str>, username: &str, password: &s
         cmd.arg(registry);
     }
 
-    cmd.args(&["-u", username, "-p", password]);
+    cmd.args(["-u", username, "-p", password]);
 
     ctx.run_command_obj(&mut cmd)?;
     Ok(())
@@ -453,7 +454,7 @@ pub fn get_logs(container: &str, lines: Option<u32>, follow: bool) -> Result<Str
 /// Prune Docker system
 pub fn prune_system(ctx: &Context, all: bool, volumes: bool) -> Result<()> {
     let mut cmd = Command::new("docker");
-    cmd.args(&["system", "prune", "-f"]);
+    cmd.args(["system", "prune", "-f"]);
 
     if all {
         cmd.arg("-a");

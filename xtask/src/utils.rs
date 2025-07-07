@@ -164,7 +164,7 @@ pub fn command_exists(cmd: &str) -> bool {
 pub fn workspace_root() -> Result<std::path::PathBuf> {
     // If we're running from inside the workspace, use cargo
     let output = Command::new("cargo")
-        .args(&["locate-project", "--workspace", "--message-format", "plain"])
+        .args(["locate-project", "--workspace", "--message-format", "plain"])
         .current_dir(".")
         .output();
 

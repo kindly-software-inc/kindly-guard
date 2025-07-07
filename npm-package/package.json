@@ -1,12 +1,11 @@
 {
-  "name": "kindly-guard",
-  "version": "0.11.0",
+  "name": "kindlyguard",
+  "version": "0.15.0",
   "description": "Security-focused MCP server protecting against unicode attacks, injection threats, and other AI vulnerabilities",
   "main": "lib/main.js",
   "types": "lib/main.d.ts",
   "bin": {
-    "kindly-guard": "./bin/kindly-guard",
-    "kindly-guard-cli": "./bin/kindly-guard-cli"
+    "kindlyguard": "./bin/kindlyguard"
   },
   "scripts": {
     "test": "node test-package.js",
@@ -17,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/kindlysoftware/kindly-guard.git"
+    "url": "git+https://github.com/samduchaine/kindly-guard.git"
   },
   "keywords": [
     "security",
@@ -37,9 +36,9 @@
   "author": "samduchaine",
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/kindlysoftware/kindly-guard/issues"
+    "url": "https://github.com/samduchaine/kindly-guard/issues"
   },
-  "homepage": "https://github.com/kindlysoftware/kindly-guard#readme",
+  "homepage": "https://github.com/samduchaine/kindly-guard#readme",
   "engines": {
     "node": ">=14.0.0"
   },
@@ -58,9 +57,9 @@
     "unzipper": "^0.10.14"
   },
   "optionalDependencies": {
-    "kindly-guard-linux-x64": "0.11.0",
-    "kindly-guard-darwin-x64": "0.11.0",
-    "kindly-guard-darwin-arm64": "0.11.0",
-    "kindly-guard-win32-x64": "0.11.0"
+    "kindlyguard-linux-x64": "0.15.0",
+    "kindlyguard-darwin-x64": "0.15.0",
+    "kindlyguard-darwin-arm64": "0.15.0",
+    "kindlyguard-win32-x64": "0.15.0"
   }
 }

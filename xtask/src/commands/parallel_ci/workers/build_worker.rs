@@ -13,6 +13,7 @@ pub struct BuildWorker {
 
 impl BuildWorker {
     /// Create a new build worker
+    #[allow(dead_code)]
     pub fn new() -> Self {
         // Check if cross is available
         let use_cross = Command::new("cross")

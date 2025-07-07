@@ -72,7 +72,15 @@ pub async fn run(cmd: PackageCmd, ctx: Context) -> Result<()> {
         ensure_command_exists("cross")?;
     }
 
-    let targets = cmd.targets.clone().unwrap_or_else(default_targets);
+    let targets = if let Some(ref target_list) = cmd.targets {
+        if target_list.len() == 1 && target_list[0] == "all" {
+            default_targets()
+        } else {
+            target_list.clone()
+        }
+    } else {
+        default_targets()
+    };
     let output_dir = PathBuf::from(&cmd.output_dir);
     let version = cmd
         .version
@@ -250,6 +258,7 @@ async fn package_binaries(
     Ok(artifacts)
 }
 
+#[allow(clippy::too_many_arguments)]
 async fn package_single_target(
     target: &str,
     release: bool,
@@ -375,7 +384,7 @@ async fn create_platform_npm_package(
         format!("kindly-guard-{}", platform_name)
     };
 
-    let package_dir = npm_dir.join(&package_name.replace('/', "_"));
+    let package_dir = npm_dir.join(package_name.replace('/', "_"));
     std::fs::create_dir_all(&package_dir)?;
 
     // Create bin directory
@@ -474,7 +483,7 @@ async fn create_main_npm_package(
         "kindly-guard".to_string()
     };
 
-    let package_dir = npm_dir.join(&package_name.replace('/', "_"));
+    let package_dir = npm_dir.join(package_name.replace('/', "_"));
     std::fs::create_dir_all(&package_dir)?;
 
     // Create main package.json with optionalDependencies
@@ -704,15 +713,22 @@ fn should_use_cross(target: &str) -> bool {
 }
 
 fn find_binaries(target: &str, build_type: &str) -> Result<Vec<PathBuf>> {
-    let target_dir = PathBuf::from("target").join(target).join(build_type);
+    // Check if this is the host target
+    let host_triple = target_triple::TARGET;
+    let target_dir = if target == host_triple {
+        // For host target, binaries are in target/release or target/debug
+        PathBuf::from("target").join(build_type)
+    } else {
+        // For cross-compilation, binaries are in target/<triple>/release or debug
+        PathBuf::from("target").join(target).join(build_type)
+    };
     let mut binaries = vec![];
 
     // Look for known binary names
     let binary_names = [
         "kindly-guard",
-        "kindly-guard-server",
+        "kindlyguard",
         "kindly-tools",
-        "kindly-guard-shield",
     ];
 
     for name in &binary_names {
@@ -790,17 +806,21 @@ fn strip_binary(binary_path: &Path, target: &str) -> Result<()> {
 }
 
 fn create_zip_archive(src_dir: &Path, dest_path: &Path, max_compression: bool) -> Result<()> {
-    let mut options = CreateOptions::default();
-    options.compression_level = if max_compression { 9 } else { 6 };
-    options.preserve_permissions = true;
+    let options = CreateOptions {
+        compression_level: if max_compression { 9 } else { 6 },
+        preserve_permissions: true,
+        ..Default::default()
+    };
 
     create_zip(dest_path, src_dir, options)
 }
 
 fn create_tar_gz_archive(src_dir: &Path, dest_path: &Path, max_compression: bool) -> Result<()> {
-    let mut options = CreateOptions::default();
-    options.compression_level = if max_compression { 9 } else { 6 };
-    options.preserve_permissions = true;
+    let options = CreateOptions {
+        compression_level: if max_compression { 9 } else { 6 },
+        preserve_permissions: true,
+        ..Default::default()
+    };
 
     create_tar_gz(dest_path, src_dir, options)
 }
@@ -863,8 +883,8 @@ fn load_npm_template() -> Result<Value> {
         }
     });
 
-    // Try to load from npm/package.json if it exists
-    let npm_package_path = PathBuf::from("npm/package.json");
+    // Try to load from npm-package/package.json if it exists
+    let npm_package_path = PathBuf::from("npm-package/package.json");
     if npm_package_path.exists() {
         npm::read_package_json(&npm_package_path)
     } else {
@@ -917,10 +937,17 @@ fn platform_cpu(target: &str) -> Vec<&str> {
 
 fn default_targets() -> Vec<String> {
     vec![
+        // Linux targets
         "x86_64-unknown-linux-gnu".to_string(),
         "x86_64-unknown-linux-musl".to_string(),
+        "aarch64-unknown-linux-gnu".to_string(),
+        "aarch64-unknown-linux-musl".to_string(),
+        "armv7-unknown-linux-gnueabihf".to_string(),
+        // macOS targets
         "x86_64-apple-darwin".to_string(),
         "aarch64-apple-darwin".to_string(),
+        // Windows targets
         "x86_64-pc-windows-msvc".to_string(),
+        "aarch64-pc-windows-msvc".to_string(),
     ]
 }

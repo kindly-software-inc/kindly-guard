@@ -111,24 +111,23 @@ async function tryNativeDependency() {
     // Ensure bin directory exists
     await fs.promises.mkdir(binDir, { recursive: true });
     
-    // Copy binaries
-    const binaries = ['kindlyguard', 'kindlyguard-cli'];
+    // Copy the unified binary
+    const binary = 'kindlyguard';
+    const srcName = platform.getBinaryName(binary);
+    const srcPath = path.join(platformPackageDir, srcName);
+    const dstPath = path.join(binDir, srcName);
     
-    for (const binary of binaries) {
-      const srcName = platform.getBinaryName(binary);
-      const srcPath = path.join(platformPackageDir, srcName);
-      const dstPath = path.join(binDir, srcName);
+    if (fs.existsSync(srcPath)) {
+      console.log(`   📄 Copying ${binary}...`);
+      await fs.promises.copyFile(srcPath, dstPath);
       
-      if (fs.existsSync(srcPath)) {
-        console.log(`   📄 Copying ${binary}...`);
-        await fs.promises.copyFile(srcPath, dstPath);
-        
-        // Make executable on Unix-like systems
-        if (process.platform !== 'win32') {
-          await fs.promises.chmod(dstPath, 0o755);
-        }
-        console.log(`   ✓ ${binary} copied successfully`);
+      // Make executable on Unix-like systems
+      if (process.platform !== 'win32') {
+        await fs.promises.chmod(dstPath, 0o755);
       }
+      console.log(`   ✓ ${binary} copied successfully`);
+    } else {
+      throw new Error(`Binary not found: ${srcPath}`);
     }
     
     console.log('✅ Native binaries installed');
@@ -152,16 +151,16 @@ async function tryDirectDownload() {
     await fs.promises.mkdir(binDir, { recursive: true });
     await downloadBinary(url, binDir);
     
-    // Make binaries executable
-    const binaries = ['kindlyguard', 'kindlyguard-cli'];
-    for (const binary of binaries) {
-      const binaryPath = path.join(binDir, platform.getBinaryName(binary));
-      if (fs.existsSync(binaryPath)) {
-        if (process.platform !== 'win32') {
-          await fs.promises.chmod(binaryPath, 0o755);
-        }
-        console.log(`   ✓ ${binary} ready`);
+    // Make binary executable
+    const binary = 'kindlyguard';
+    const binaryPath = path.join(binDir, platform.getBinaryName(binary));
+    if (fs.existsSync(binaryPath)) {
+      if (process.platform !== 'win32') {
+        await fs.promises.chmod(binaryPath, 0o755);
       }
+      console.log(`   ✓ ${binary} ready`);
+    } else {
+      throw new Error(`Binary not found after download: ${binaryPath}`);
     }
     
     console.log('✅ Direct download successful');
@@ -398,15 +397,17 @@ async function main() {
     
     console.log('\n🎉 Installation complete!\n');
     console.log('📖 Quick Start:');
-    console.log('   kindlyguard --help        # Run the MCP server');
-    console.log('   kindlyguard-cli --help    # Use the CLI tool\n');
+    console.log('   kindlyguard --help              # Show all available commands');
+    console.log('   kindlyguard server --stdio      # Run as MCP server');
+    console.log('   kindlyguard scan <file>         # Scan a file for threats');
+    console.log('   kindlyguard install claude      # Set up Claude Desktop integration\n');
     console.log('🔧 Claude Desktop Integration:');
     console.log('   Add this to your Claude Desktop config:\n');
     console.log(JSON.stringify({
       mcpServers: {
         "kindlyguard": {
           command: "npx",
-          args: ["kindlyguard", "--stdio"]
+          args: ["kindlyguard", "server", "--stdio"]
         }
       }
     }, null, 2));

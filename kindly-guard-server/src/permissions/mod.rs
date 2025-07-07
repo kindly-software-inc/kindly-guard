@@ -269,5 +269,50 @@ pub fn default_tool_definitions() -> HashMap<String, ToolDefinition> {
         },
     );
 
+    // Quarantine tools
+    tools.insert(
+        "quarantine/list".to_string(),
+        ToolDefinition {
+            name: "quarantine/list".to_string(),
+            category: ToolCategory::Security,
+            required_scopes: vec!["quarantine:read".to_string()],
+            min_threat_level: ThreatLevel::Low,
+            require_signing: false,
+        },
+    );
+
+    tools.insert(
+        "quarantine/retrieve".to_string(),
+        ToolDefinition {
+            name: "quarantine/retrieve".to_string(),
+            category: ToolCategory::Security,
+            required_scopes: vec!["quarantine:read".to_string()],
+            min_threat_level: ThreatLevel::Low,
+            require_signing: false,
+        },
+    );
+
+    tools.insert(
+        "quarantine/delete".to_string(),
+        ToolDefinition {
+            name: "quarantine/delete".to_string(),
+            category: ToolCategory::Administrative,
+            required_scopes: vec!["quarantine:write".to_string()],
+            min_threat_level: ThreatLevel::Safe,
+            require_signing: true,
+        },
+    );
+
+    tools.insert(
+        "quarantine/apply_retention".to_string(),
+        ToolDefinition {
+            name: "quarantine/apply_retention".to_string(),
+            category: ToolCategory::Administrative,
+            required_scopes: vec!["quarantine:write".to_string()],
+            min_threat_level: ThreatLevel::Safe,
+            require_signing: true,
+        },
+    );
+
     tools
 }

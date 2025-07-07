@@ -1,0 +1,3 @@
+SELECT * FROM users WHERE id = '1' OR '1'='1' -- SQL injection attempt
+This is a test file with an SQL injection vulnerability.
+The query should be: SELECT * FROM users WHERE id = ?

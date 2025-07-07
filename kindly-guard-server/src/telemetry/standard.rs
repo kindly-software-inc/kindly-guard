@@ -20,12 +20,15 @@ use super::{
 use std::sync::{Arc, Mutex};
 use tracing::{debug, info};
 
+// Type alias for event storage
+type EventEntry = (String, Vec<(String, String)>);
+
 /// Standard telemetry provider using in-memory storage
 pub struct StandardTelemetryProvider {
     config: TelemetryConfig,
     spans: Arc<Mutex<Vec<TelemetrySpan>>>,
     metrics: Arc<Mutex<Vec<TelemetryMetric>>>,
-    events: Arc<Mutex<Vec<(String, Vec<(String, String)>)>>>,
+    events: Arc<Mutex<Vec<EventEntry>>>,
 }
 
 impl StandardTelemetryProvider {

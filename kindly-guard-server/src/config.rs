@@ -42,6 +42,9 @@ use crate::auth::AuthConfig;
 #[cfg(feature = "enhanced")]
 use crate::event_processor::EventProcessorConfig;
 use crate::neutralizer::NeutralizationConfig;
+
+// Type alias for backwards compatibility
+pub type NeutralizerConfig = NeutralizationConfig;
 use crate::plugins::PluginConfig;
 use crate::rate_limit::RateLimitConfig;
 use crate::resilience::config::ResilienceConfig;
@@ -184,14 +187,22 @@ pub struct Config {
     ///
     /// Active threat remediation settings.
     /// Transforms malicious input into safe content.
+    #[serde(alias = "neutralizer")]
     pub neutralization: NeutralizationConfig,
 
-    /// Neutralizer configuration (alias for neutralization)
+    /// Neutralizer configuration (deprecated - use neutralization)
     ///
     /// Some tests expect this field name.
     /// This is an alias for backwards compatibility.
-    #[serde(skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing, skip_deserializing)]
     pub neutralizer: Option<NeutralizationConfig>,
+    
+    /// Quarantine system configuration
+    ///
+    /// Secure storage for original content before neutralization.
+    /// Enables recovery and forensic analysis.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub quarantine: Option<crate::quarantine::QuarantineConfig>,
 }
 
 /// Server configuration controlling network and connection settings
@@ -435,9 +446,15 @@ impl Config {
     }
 
     /// Get neutralizer configuration
-    /// Returns the neutralizer field if set, otherwise returns neutralization
+    /// Returns neutralization config (neutralizer field is deprecated)
     pub fn neutralizer(&self) -> &NeutralizationConfig {
-        self.neutralizer.as_ref().unwrap_or(&self.neutralization)
+        &self.neutralization
+    }
+    
+    /// Get mutable neutralizer configuration
+    /// Returns mutable neutralization config (neutralizer field is deprecated)
+    pub fn neutralizer_mut(&mut self) -> &mut NeutralizationConfig {
+        &mut self.neutralization
     }
 
     /// Load configuration from environment and files
@@ -555,6 +572,7 @@ impl Default for Config {
             resilience: ResilienceConfig::default(),
             neutralization: NeutralizationConfig::default(),
             neutralizer: None,
+            quarantine: None,
         }
     }
 }

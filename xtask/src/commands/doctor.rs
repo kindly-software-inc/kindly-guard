@@ -219,7 +219,7 @@ fn check_rust(checks: &mut CheckResults, ctx: &Context, detailed: bool) -> Resul
 
     for (component, install_cmd) in components {
         let found = Command::new("rustup")
-            .args(&["component", "list", "--installed"])
+            .args(["component", "list", "--installed"])
             .output()
             .map(|output| {
                 let stdout = String::from_utf8_lossy(&output.stdout);
@@ -259,7 +259,7 @@ fn check_rust(checks: &mut CheckResults, ctx: &Context, detailed: bool) -> Resul
 
         for target in targets {
             let installed = Command::new("rustup")
-                .args(&["target", "list", "--installed"])
+                .args(["target", "list", "--installed"])
                 .output()
                 .map(|output| {
                     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -426,7 +426,7 @@ fn check_workspace(checks: &mut CheckResults, ctx: &Context, detailed: bool) -> 
 
     // Check cargo metadata
     match Command::new("cargo")
-        .args(&["metadata", "--format-version", "1", "--no-deps"])
+        .args(["metadata", "--format-version", "1", "--no-deps"])
         .current_dir(&workspace_root)
         .output()
     {

@@ -139,11 +139,77 @@ session_*.md
 test_*.tmp
 *.test.tmp
 
+# Proprietary/Enhanced implementations (colocated with standard versions)
+*_proprietary.rs
+*_enhanced_impl.rs
+*_pro.rs
+*_enterprise.rs
+*_patent.rs
+*_atomic_impl.rs
+**/proprietary_*.rs
+**/enhanced_*.rs
+**/pro_*.rs
+
+# Enhanced implementation directory and all contents
+src/enhanced_impl/
+**/src/enhanced_impl/
+*/src/enhanced_impl/
+enhanced_impl/
+
+# Enhanced feature documentation that might contain IP details
+*_PROPRIETARY.md
+*_PATENT_DETAILS.md
+*_ENHANCED_IMPL.md
+docs/features/enterprise/*_PROPRIETARY.md
+docs/features/enterprise/*_CONFIDENTIAL.md
+
+# Enhanced implementation documentation
+src/enhanced_impl/docs/
+src/enhanced_impl/**/*.md
+src/enhanced_impl/**/README.md
+**/enhanced_impl_docs/
+**/enhanced_impl_*.md
+
+# Enhanced test data that might reveal implementation details
+tests/*_proprietary_test.rs
+tests/*_enhanced_test.rs
+benches/*_proprietary_bench.rs
+benches/*_enhanced_bench.rs
+
+# Enhanced implementation tests
+src/enhanced_impl/tests/
+src/enhanced_impl/**/tests/
+src/enhanced_impl/**/*_test.rs
+src/enhanced_impl/**/*_tests.rs
+tests/enhanced_impl/
+**/tests/enhanced_impl/
+
+# Configuration files with proprietary settings
+*_proprietary.toml
+*_enhanced.toml
+*_pro.toml
+config/enhanced_*.toml
+config/proprietary_*.toml
+
+# Enhanced implementation configs
+src/enhanced_impl/config/
+src/enhanced_impl/**/*.toml
+src/enhanced_impl/**/*.config
+
 # Proprietary code directory (should never be committed)
 # Private enterprise directory (if accidentally added)
 proprietary/
 enterprise/
+kindly-guard-private/
+atomic-event-buffer/
 SECURITY_AUDIT_PROPRIETARY_CODE.md
+
+# Patent and IP documentation
+PATENT_*.md
+IP_*.md
+CONFIDENTIAL_*.md
+**/patent_*.md
+**/ip_*.md
 
 # Claude configuration (contains sensitive project info)
 CLAUDE.md

@@ -14,6 +14,12 @@ pub struct BenchmarkPipeline {
     baseline: Option<String>,
 }
 
+impl Default for BenchmarkPipeline {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BenchmarkPipeline {
     pub fn new() -> Self {
         Self { baseline: None }
@@ -59,7 +65,7 @@ impl Pipeline for BenchmarkPipeline {
 
         // Check if there are any benchmarks
         let bench_check = Command::new("cargo")
-            .args(&["bench", "--no-run"])
+            .args(["bench", "--no-run"])
             .output()
             .await?;
 

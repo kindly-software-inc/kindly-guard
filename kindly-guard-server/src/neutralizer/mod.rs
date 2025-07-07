@@ -30,6 +30,7 @@ pub mod api;
 pub mod enhanced;
 pub mod health;
 pub mod metrics;
+pub mod quarantine_aware;
 pub mod rate_limited;
 pub mod recovery;
 pub mod rollback;
@@ -37,6 +38,7 @@ pub mod security_aware;
 pub mod standard;
 pub mod traced;
 pub mod validation;
+pub mod verifying;
 
 #[cfg(test)]
 mod security_tests;
@@ -341,7 +343,8 @@ impl Default for NeutralizationMode {
 /// max_retries = 3
 /// backoff_ms = 100
 /// ```
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct NeutralizationConfig {
     /// Neutralization mode
     ///
@@ -350,6 +353,7 @@ pub struct NeutralizationConfig {
     /// - `ReportOnly`: Detects but doesn't modify (safe for testing)
     /// - `Interactive`: Requires user confirmation (good for sensitive data)
     /// - `Automatic`: Immediate protection (recommended for production)
+    #[serde(default)]
     pub mode: NeutralizationMode,
 
     /// Backup original content
@@ -358,6 +362,7 @@ pub struct NeutralizationConfig {
     /// **Security**: Enables recovery from false positives but requires
     /// secure storage. Backups should be encrypted and access-controlled.
     /// **Warning**: Disabling prevents recovery from mistakes
+    #[serde(default = "default_true")]
     pub backup_originals: bool,
 
     /// Audit all actions
@@ -366,18 +371,21 @@ pub struct NeutralizationConfig {
     /// **Security**: Creates forensic trail for all neutralization actions.
     /// Essential for compliance, debugging, and incident response.
     /// **Storage**: Ensure audit logs are tamper-proof and retained properly
+    #[serde(default = "default_true")]
     pub audit_all_actions: bool,
 
     /// Unicode-specific settings
     ///
     /// **Security**: Controls how unicode-based threats are neutralized.
     /// Different strategies balance security vs. internationalization needs.
+    #[serde(default)]
     pub unicode: UnicodeNeutralizationConfig,
 
     /// Injection-specific settings
     ///
     /// **Security**: Defines how various injection attacks are neutralized.
     /// Each injection type requires specific handling to maintain functionality.
+    #[serde(default)]
     pub injection: InjectionNeutralizationConfig,
 
     /// Recovery configuration for handling failures
@@ -393,7 +401,8 @@ pub struct NeutralizationConfig {
 ///
 /// Controls how unicode-based security threats are handled.
 /// These attacks exploit unicode features to deceive users or systems.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct UnicodeNeutralizationConfig {
     /// How to handle `BiDi` characters
     ///
@@ -402,16 +411,19 @@ pub struct UnicodeNeutralizationConfig {
     /// - `Remove`: Most secure, may break legitimate RTL text
     /// - `Marker`: Balance of security and usability (recommended)
     /// - `Escape`: Preserves data but may confuse users
+    #[serde(default)]
     pub bidi_replacement: BiDiReplacement,
 
     /// Action for zero-width characters
     ///
     /// **Default**: Remove (most secure)
     /// **Security**: Zero-width characters are invisible and used for:
-    /// - Hidden tracking codes
-    /// - Bypassing filters
-    /// - Creating invisible URLs
+    ///   - Hidden tracking codes
+    ///   - Bypassing filters
+    ///   - Creating invisible URLs
+    ///
     /// **Warning**: Some languages legitimately use zero-width joiners
+    #[serde(default)]
     pub zero_width_action: ZeroWidthAction,
 
     /// Action for homographs
@@ -421,6 +433,7 @@ pub struct UnicodeNeutralizationConfig {
     /// - `Ascii`: Converts to ASCII equivalent (most secure)
     /// - `Warn`: Alerts but preserves (for international apps)
     /// - `Block`: Rejects content entirely (strictest)
+    #[serde(default)]
     pub homograph_action: HomographAction,
 }
 
@@ -465,7 +478,8 @@ pub enum HomographAction {
 /// Controls how various injection attacks are neutralized.
 /// Each injection type requires specific handling to maintain functionality
 /// while ensuring security.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
 pub struct InjectionNeutralizationConfig {
     /// SQL injection action
     ///
@@ -474,6 +488,7 @@ pub struct InjectionNeutralizationConfig {
     /// - `Block`: Rejects query entirely (safest but may break functionality)
     /// - `Escape`: Escapes dangerous characters (good but not foolproof)
     /// - `Parameterize`: Converts to prepared statements (recommended)
+    #[serde(default)]
     pub sql_action: SqlAction,
 
     /// Command injection action
@@ -483,6 +498,7 @@ pub struct InjectionNeutralizationConfig {
     /// - `Block`: Rejects command entirely (safest)
     /// - `Escape`: Escapes shell metacharacters (recommended)
     /// - `Sandbox`: Runs in restricted environment (complex but safe)
+    #[serde(default)]
     pub command_action: CommandAction,
 
     /// Path traversal action
@@ -491,6 +507,7 @@ pub struct InjectionNeutralizationConfig {
     /// **Security**: Path traversal accesses unauthorized files.
     /// - `Block`: Rejects paths with traversal patterns
     /// - `Normalize`: Resolves to canonical safe path (recommended)
+    #[serde(default)]
     pub path_action: PathAction,
 
     /// Prompt injection action
@@ -500,6 +517,7 @@ pub struct InjectionNeutralizationConfig {
     /// - `Block`: Rejects suspicious prompts
     /// - `Escape`: Escapes control sequences
     /// - `Wrap`: Adds safety boundaries (recommended for LLMs)
+    #[serde(default)]
     pub prompt_action: PromptAction,
 }
 
@@ -558,20 +576,79 @@ impl Default for NeutralizationConfig {
             mode: NeutralizationMode::default(),
             backup_originals: true,
             audit_all_actions: true,
-            unicode: UnicodeNeutralizationConfig {
-                bidi_replacement: BiDiReplacement::Marker,
-                zero_width_action: ZeroWidthAction::Remove,
-                homograph_action: HomographAction::Ascii,
-            },
-            injection: InjectionNeutralizationConfig {
-                sql_action: SqlAction::Parameterize,
-                command_action: CommandAction::Escape,
-                path_action: PathAction::Normalize,
-                prompt_action: PromptAction::Wrap,
-            },
+            unicode: UnicodeNeutralizationConfig::default(),
+            injection: InjectionNeutralizationConfig::default(),
             recovery: Some(recovery::RecoveryConfig::default()),
         }
     }
+}
+
+impl Default for UnicodeNeutralizationConfig {
+    fn default() -> Self {
+        Self {
+            bidi_replacement: BiDiReplacement::Marker,
+            zero_width_action: ZeroWidthAction::Remove,
+            homograph_action: HomographAction::Ascii,
+        }
+    }
+}
+
+impl Default for BiDiReplacement {
+    fn default() -> Self {
+        Self::Marker
+    }
+}
+
+impl Default for ZeroWidthAction {
+    fn default() -> Self {
+        Self::Remove
+    }
+}
+
+impl Default for HomographAction {
+    fn default() -> Self {
+        Self::Ascii
+    }
+}
+
+impl Default for InjectionNeutralizationConfig {
+    fn default() -> Self {
+        Self {
+            sql_action: SqlAction::Parameterize,
+            command_action: CommandAction::Escape,
+            path_action: PathAction::Normalize,
+            prompt_action: PromptAction::Wrap,
+        }
+    }
+}
+
+impl Default for SqlAction {
+    fn default() -> Self {
+        Self::Parameterize
+    }
+}
+
+impl Default for CommandAction {
+    fn default() -> Self {
+        Self::Escape
+    }
+}
+
+impl Default for PathAction {
+    fn default() -> Self {
+        Self::Normalize
+    }
+}
+
+impl Default for PromptAction {
+    fn default() -> Self {
+        Self::Wrap
+    }
+}
+
+// Default function for serde
+fn default_true() -> bool {
+    true
 }
 
 /// Factory for creating neutralizers
